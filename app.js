@@ -3,6 +3,11 @@ const { ApolloServer } = require('apollo-server-express');
 const { typeDefs } = require('./graphql/schema') //graphql schema
 const Query = require('./resolvers/queries/index'); //getting Queries resolvers of graphql
 const {port} = require('./config/key');
+const db = require('./config/database')
+
+db.authenticate()
+  .then(() => console.log('Database connected...'))
+  .catch(err => console.log('Error: ' + err))
 
  
 // Provide resolver functions for your schema fields
