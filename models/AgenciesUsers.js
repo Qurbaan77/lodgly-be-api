@@ -22,6 +22,13 @@ const AgenciesUsers = db.define('agencies_user',{
     },
     verificationhex:{
         type:Sequelize.STRING
+    },
+    isvalid:{
+        type:Sequelize.BOOLEAN,
+        defaultValue:false
+    },
+    forgetPassHex:{
+        type :Sequelize.STRING
     }
 })
 

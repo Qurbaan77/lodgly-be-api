@@ -28,15 +28,29 @@ const typeDefs = gql`
   type AuthPayload {
     token: String!
   }
+
+  type message {
+    message:String!
+  }
+  
+
+  input forgetPasswordInput {
+    newpassword:String,
+    hax:String
+  }
  
   type Query {
     test: Test!
     readUserData:Test!
+    validateAgencyToken:RegisteragenciesType!
   }
 
   type Mutation{
     registerAgencies(data:Registeragencies!):RegisteragenciesType!
+    verifyUser(hex:String!):message!
     login(data:loginInput!): AuthPayload!
+    forgetPassword(data:forgetPasswordInput!):message!
+    resetPassword(email:String!):message!
   }
 `;
 

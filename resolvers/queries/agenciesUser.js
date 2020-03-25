@@ -18,6 +18,11 @@ const readUserData = async (_, reqData,ctx) => {
     }
 }
 
+const validateAgencyToken = async (_,reqData,ctx) => {
+    console.log("ctx", ctx.tokenData)
+}
+
 module.exports = {
-    readUserData
+    readUserData,
+    validateAgencyToken
 };

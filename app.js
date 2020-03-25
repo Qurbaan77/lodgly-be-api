@@ -5,6 +5,13 @@ const Query = require('./resolvers/queries/index'); //getting Queries resolvers 
 const Mutation = require('./resolvers/mutations/index'); //getting Queries resolvers of graphql
 const {port} = require('./config/key');
 const db = require('./config/database')
+const { shield } = require('graphql-shield') //for authorization in graphql
+const { makeExecutableSchema } = require('graphql-tools') //for making make executable schema
+const { applyMiddleware } = require('graphql-middleware') //for applying middleware
+const { isAuthenticated } = require('./graphql/authorizer'); //getting athorizer function
+
+
+
 
 db.sync()
   .then(() => console.log('Database connected...'))
@@ -16,6 +23,23 @@ const resolvers = {
   Query,
   Mutation
 };
+
+const permissions = shield({
+  "Query": {
+    validateAgencyToken: isAuthenticated,
+  },
+  "Mutation": {
+      
+  }   
+})
+
+const schema = applyMiddleware(
+  makeExecutableSchema({
+      typeDefs,
+      resolvers,
+  }),
+  permissions,
+)
  
 const server = new ApolloServer({ typeDefs, resolvers });
  
