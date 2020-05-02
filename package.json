@@ -1,45 +1,71 @@
 {
-  "name": "lodgly-be-api",
+  "name": "lodgly-api",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
-  "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js"
-  },
+  "main": "index.js",
+  "homepage": "https://gitlab.com/lodgly/lodgly-be-api#readme",
   "repository": {
     "type": "git",
     "url": "git+https://gitlab.com/lodgly/lodgly-be-api.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "bugs": {
     "url": "https://gitlab.com/lodgly/lodgly-be-api/issues"
   },
-  "homepage": "https://gitlab.com/lodgly/lodgly-be-api#readme",
+  "scripts": {
+    "start": "env-cmd node bin/server",
+    "dev": "env-cmd nodemon bin/server -L --inspect=0.0.0.0:9229",
+    "test": "env-cmd jest",
+    "deploy": "sls deploy",
+    "lint": "eslint src",
+    "knex": "env-cmd knex"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "apollo-server-express": "^2.11.0",
-    "babel-preset-es2015": "^6.0.0",
-    "babel-register": "^6.26.0",
     "bcryptjs": "^2.4.3",
-    "crypto": "^1.0.1",
+    "config": "^3.3.1",
+    "cookie-parser": "^1.4.5",
+    "cors": "^2.8.5",
+    "env-cmd": "^10.1.0",
     "express": "^4.17.1",
-    "graphql": "^14.6.0",
-    "graphql-middleware": "^4.0.2",
-    "graphql-shield": "^7.2.1",
-    "graphql-tools": "^4.0.7",
+    "http-errors": "^1.7.3",
     "jsonwebtoken": "^8.5.1",
+    "knex": "^0.20.13",
+    "multer": "^1.4.2",
     "mysql2": "^2.1.0",
     "nodemailer": "^6.4.6",
     "nodemailer-smtp-transport": "^2.7.4",
-    "sequelize": "^5.21.5"
+    "serverless-http": "^2.3.2"
   },
   "devDependencies": {
-    "@babel/cli": "^7.4.4",
-    "@babel/core": "^7.4.5",
-    "@babel/node": "^7.4.5",
-    "@babel/preset-env": "^7.4.5",
-    "nodemon": "^2.0.2"
+    "eslint": "^6.8.0",
+    "eslint-config-airbnb-base": "^14.1.0",
+    "eslint-plugin-import": "^2.20.2",
+    "husky": "^4.2.5",
+    "jest": "^25.3.0",
+    "nodemon": "^2.0.3",
+    "serverless": "^1.67.3",
+    "serverless-deployment-bucket": "^1.1.1"
+  },
+  "jest": {
+    "modulePathIgnorePatterns": [
+      "<rootDir>/src/.*/__mocks__"
+    ],
+    "collectCoverage": true,
+    "coverageReporters": [
+      "lcov"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js"
+    ],
+    "roots": [
+      "<rootDir>/src/"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint"
+    }
   }
 }

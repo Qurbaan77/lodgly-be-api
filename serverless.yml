@@ -1,0 +1,77 @@
+service: lodgly-service
+
+package:
+  include:
+    - bin/**
+    - src/**
+
+plugins:
+  - serverless-deployment-bucket
+
+custom:
+  namespace: lodgly
+  region: eu-west-1
+  stages:
+    staging:
+      IS_SENTRY_ENABLED: true
+      HOSTED_AWS_ENVIRONMENT: "staging"
+      API_HOST: 'https://api.lodgly.dev'
+      FRONTEND_APP: 'https://staging.app.lodgly.dev'
+    prod:
+      IS_SENTRY_ENABLED: true
+      HOSTED_AWS_ENVIRONMENT: "prod"
+      API_HOST: 'https://api.lodgly.com'
+      FRONTEND_APP: 'https://app.lodgly.com'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: ${opt:stage, 'staging'}
+  region: ${opt:region, 'eu-west-1'}
+  stackTags:
+    Project: ${self:service}
+    Environment: ${self:provider.stage}
+  vpc:
+    securityGroupIds:
+      - ${ssm:/shared/infrastructure/sg/lambda}
+    subnetIds: ${ssm:/shared/infrastructure/subnets/private~split}
+  deploymentBucket:
+    name: sls-deployment-bucket-${self:provider.region}-${self:provider.stage}
+  deploymentPrefix: ${self:service}/${self:provider.stage}
+  tracing:
+    apiGateway: true
+    lambda: true
+  logRetentionInDays: 1
+  environment:
+    NODE_ENV: ${self:provider.stage}
+    IS_SENTRY_ENABLED: ${self:custom.stages.${self:provider.stage}.IS_SENTRY_ENABLED}
+    SENTRY_DSN: ""
+    JWT_SECRET: 'H2BRPHUErdQ32aYkrpwnpync5vEPxAHSjbK57RdJ'
+    API_HOST: ${self:custom.stages.${self:provider.stage}.API_HOST}
+    DATABASE_HOST: ${ssm:/${self:provider.stage}/${self:service}/database/DB_HOST}
+    DATABASE_PORT: ${ssm:/${self:provider.stage}/${self:service}/database/DB_PORT}
+    DATABASE_NAME: ${ssm:/${self:provider.stage}/${self:service}/database/DB_NAME}
+    DATABASE_USER: ${ssm:/${self:provider.stage}/${self:service}/database/DB_USER}
+    DATABASE_PASS: ${ssm:/${self:provider.stage}/${self:service}/database/DB_PASS~true}
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - ec2:CreateNetworkInterface
+        - ec2:DescribeNetworkInterfaces
+        - ec2:DeleteNetworkInterface
+      Resource: "*"
+  apiGateway:
+    binaryMediaTypes:
+      - '*/*'
+functions:
+  app:
+    handler: bin/lambda.handler
+    events:
+      - http:
+          path: /
+          method: ANY
+          cors: true
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
