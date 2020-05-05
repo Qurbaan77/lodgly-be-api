@@ -7,9 +7,9 @@ const { userJwtKey } = require('../../config/default');
 const checkIfEmpty = (requestBody) => {
   const values = Object.values(requestBody);
   const isEmpty = values.filter((el) => !el);
-  let isValid = false;
+  let isValid = true;
   if (isEmpty.length) {
-    isValid = true;
+    isValid = false;
   }
   return {
     isValid,

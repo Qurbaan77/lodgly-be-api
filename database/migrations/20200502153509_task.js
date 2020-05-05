@@ -1,14 +1,11 @@
-const TABLE_NAME = 'admin';
+const TABLE_NAME = 'task';
 
 exports.up = (knex) =>
   knex.schema.createTable(TABLE_NAME, (table) => {
     table.increments('id');
-    table.string('email');
-    table.string('encrypted_password');
-    table.string('fname');
-    table.string('lname');
-    table.string('phone');
-    table.string('verificationhex');
+    table.string('taskName');
+    table.string('note');
+    table.string('tags');
     table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
   });

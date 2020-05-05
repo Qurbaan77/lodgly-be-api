@@ -170,6 +170,59 @@ const adminRouter = () => {
     }
   });
 
+  // change Password
+  router.post('/changePassword', adminAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const hashedPassword = await hashPassword(body.password);
+      if (hashedPassword) {
+        const passwordData = {
+          encrypted_password: hashedPassword,
+        };
+        await DB.update('admin', passwordData, { id: body.tokenData.userid });
+        res.send({
+          code: 200,
+          msg: 'Password Change Successfully',
+        });
+      } else {
+        res.send({
+          code: 400,
+          msg: 'Some has error occured!',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 400,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // Complete profile detail
+  router.post('/completeProfile', adminAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const adminData = {
+        fname: body.fname,
+        lname: body.lname,
+        email: body.email,
+        phone: body.phone,
+      };
+      await DB.update('admin', adminData, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
   return router;
 };
 

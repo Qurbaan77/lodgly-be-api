@@ -23,3 +23,11 @@ exports.insert = async (table, data) => exports.getConnection().insert(data).int
 exports.update = async (table, data, condition) => exports.getConnection().where(condition).update(data).into(table);
 
 exports.remove = async (table, condition) => exports.getConnection().where(condition).into(table).del();
+
+exports.increment = async (table, condition, value) => {
+  exports.getConnection().where(condition).increment(value).into(table);
+};
+
+exports.decrement = async (table, condition, value) => {
+  exports.getConnection().where(condition).decrement(value).into(table);
+};

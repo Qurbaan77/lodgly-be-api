@@ -13,7 +13,6 @@ exports.up = (knex) =>
     table.integer('noOfUnits');
     table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
-
     table.foreign('propertyId').references('property.id').onUpdate('CASCADE').onDelete('CASCADE');
   });
 

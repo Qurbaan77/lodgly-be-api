@@ -48,8 +48,7 @@ const usersRouter = () => {
               phone: body.mob,
               verificationhex: body.verificationhex,
             };
-            const saveduser = await DB.insert('users', userData);
-            console.log(saveduser);
+            await DB.insert('users', userData);
 
             res.send({
               code: 200,
@@ -390,7 +389,6 @@ const usersRouter = () => {
         userId: body.tokenData.userid,
         propertyNo: body.propertyNo,
       });
-      console.log(propertyExist);
       if (propertyExist.length) {
         await DB.update('property', propertyData, {
           userId: body.tokenData.userid,
@@ -596,6 +594,403 @@ const usersRouter = () => {
       });
     } catch (e) {
       console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  router.post('/addGroup', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const groupData = {
+        userId: body.tokenData.userid,
+        groupName: body.groupName,
+        checkCount: body.checkCount,
+        checkInterval: body.checkInterval,
+        prevCheck: body.prevCheck,
+        nextCheck: body.nextCheck,
+      };
+      await DB.insert('groups', groupData);
+      res.send({
+        code: 200,
+        msg: 'Data saved successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  router.post('/editGroup', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const groupData = {
+        groupName: body.groupName,
+        checkCount: body.checkCount,
+        checkInterval: body.checkInterval,
+        prevCheck: body.prevCheck,
+        nextCheck: body.nextCheck,
+      };
+      await DB.update('groups', groupData, { userId: body.tokenData.userid, id: body.id });
+      res.send({
+        code: 200,
+        msg: 'updated successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  router.post('/deleteGroup', userAuthCheck, async (req, res) => {
+    try {
+      const groupId = req.body.id;
+      await DB.remove('groups', {
+        id: groupId,
+      });
+      res.send({
+        code: 200,
+        msg: 'Data Remove Successfully',
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/addTask', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const taskData = {
+        taskName: body.taskName,
+        note: body.note,
+        tags: body.tags,
+      };
+      await DB.insert('task', taskData);
+      res.send({
+        code: 200,
+        msg: 'Task save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/addBooking', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const bookingData = {
+        userId: body.tokenData.userid,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        acknowledge: body.acknowledge,
+        property: body.property,
+        unit: body.unit,
+        channel: body.channel,
+        commission: body.commission,
+        adult: body.adult,
+        children1: body.children1,
+        children2: body.children2,
+        guestDetail: body.guestDetail,
+        notes1: body.notes1,
+        notes2: body.notes2,
+        services: body.services,
+        accomodation: body.accomodation,
+        depositAccomodation: body.depositAccomodation,
+        discount: body.discount,
+      };
+      await DB.insert('booking', bookingData);
+      res.send({
+        code: 200,
+        msg: 'Booking save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/changeBooking', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const bookingDetail = await DB.select('booking', { id: body.id, userId: body.tokenData.userid });
+      if (bookingDetail) {
+        const bookingData = {
+          userId: body.tokenData.userid,
+          startDate: body.startDate,
+          endDate: body.endDate,
+          acknowledge: body.acknowledge,
+          property: body.property,
+          unit: body.unit,
+          channel: body.channel,
+          commission: body.commission,
+          adult: body.adult,
+          children1: body.children1,
+          children2: body.children2,
+          guestDetail: body.guestDetail,
+          notes1: body.notes1,
+          notes2: body.notes2,
+          services: body.services,
+          accomodation: body.accomodation,
+          depositAccomodation: body.depositAccomodation,
+          discount: body.discount,
+        };
+        await DB.update('booking', bookingData, { id: body.id, userId: body.tokenData.userid });
+        res.send({
+          code: 200,
+          msg: 'Booking change successfully!',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/filterBooking', userAuthCheck, async (req, res) => {
+    try {
+      const bookingDetail = await DB.select('booking', {});
+      res.send({
+        code: 200,
+        bookingDetail,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/addGuest', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const guestData = {
+        userId: body.tokenData.userid,
+        bookingId: body.bookingId,
+        reservationId: body.reservationId,
+        fullName: body.fullName,
+        country: body.country,
+        email: body.email,
+        phone: body.phone,
+        dob: body.dob,
+        gender: body.gender,
+        typeOfDoc: body.typeOfDoc,
+        docNo: body.docNo,
+        citizenShip: body.citizenShip,
+        place: body.place,
+        notes: body.notes,
+      };
+      await DB.insert('guest', guestData, { id: body.bookingId });
+      if (body.reservationId) {
+        await DB.increment(
+          'reservation',
+          {
+            id: body.reservationId,
+          },
+          {
+            noGuest: 1,
+          },
+        );
+      } else {
+        await DB.increment(
+          'booking',
+          {
+            id: body.bookingId,
+          },
+          {
+            noGuest: 1,
+          },
+        );
+      }
+      res.send({
+        code: 200,
+        msg: 'Data Save Successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/editGuest', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const guestData = {
+        fullName: body.fullName,
+        country: body.country,
+        email: body.email,
+        phone: body.phone,
+        dob: body.dob,
+        gender: body.gender,
+        typeOfDoc: body.typeOfDoc,
+        docNo: body.docNo,
+        citizenShip: body.citizenShip,
+        place: body.place,
+        notes: body.notes,
+      };
+      await DB.update('guest', guestData, { id: body.guestId });
+      res.send({
+        code: 200,
+        msg: 'Data Update Successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/deleteGuest', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('guest', { id: body.guestId });
+      if (body.bookingId) {
+        await DB.decrement(
+          'booking',
+          {
+            id: body.bookingId,
+          },
+          {
+            noGuest: 1,
+          },
+        );
+      } else {
+        await DB.decrement(
+          'reservation',
+          {
+            id: body.reservationId,
+          },
+          {
+            noGuest: 1,
+          },
+        );
+      }
+      res.send({
+        code: 200,
+        msg: 'Data Deleted Successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // post api for add reservation
+  router.post('/addReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const reservationData = {
+        userId: body.tokenData.userid,
+        startDate: body.startDate,
+        endDate: body.endDate,
+        acknowledge: body.acknowledge,
+        property: body.property,
+        unit: body.unit,
+        channel: body.channel,
+        commission: body.commission,
+        adult: body.adult,
+        children1: body.children1,
+        children2: body.children2,
+        noGuest: body.noGuest,
+        notes1: body.notes1,
+        notes2: body.notes2,
+        discount: body.discount,
+        pricePerNight: body.pricePerNight,
+        services: body.services,
+        deposit: body.deposit,
+      };
+      await DB.insert('reservation', reservationData);
+      res.send({
+        code: 200,
+        msg: 'Data add successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for edit reservation
+  router.post('/editReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const reservationData = {
+        startDate: body.startDate,
+        endDate: body.endDate,
+        acknowledge: body.acknowledge,
+        property: body.property,
+        unit: body.unit,
+        channel: body.channel,
+        commission: body.commission,
+        adult: body.adult,
+        children1: body.children1,
+        children2: body.children2,
+        noGuest: body.noGuest,
+        notes1: body.notes1,
+        notes2: body.notes2,
+        discount: body.discount,
+        pricePerNight: body.pricePerNight,
+        services: body.services,
+        deposit: body.deposit,
+      };
+      await DB.update('reservation', reservationData, { id: body.reservationId });
+      res.send({
+        code: 200,
+        msg: 'Data Update Successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for delete reservation
+  router.post('/deleteReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('reservation', { id: body.reservationId });
+      res.send({
+        code: 200,
+        msg: 'Data remove successfully!',
+      });
+    } catch (e) {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
