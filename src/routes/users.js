@@ -67,7 +67,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              }),
+              })
             );
 
             const mailOptions = {
@@ -224,7 +224,7 @@ const usersRouter = () => {
               },
               {
                 email: userData[0].email,
-              },
+              }
             );
             if (updateData) {
               res.send({
@@ -280,7 +280,7 @@ const usersRouter = () => {
             },
             {
               email,
-            },
+            }
           );
 
           if (updatedData) {
@@ -296,7 +296,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              }),
+              })
             );
 
             const mailOptions = {
@@ -892,7 +892,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       } else {
         await DB.increment(
@@ -902,7 +902,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       }
       res.send({
@@ -960,7 +960,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       } else {
         await DB.decrement(
@@ -970,7 +970,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       }
       res.send({
@@ -1201,6 +1201,64 @@ const usersRouter = () => {
       });
     }
   });
+
+  // API for add team
+  router.post('/addTeam', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const teamData = {
+        userId: body.tokenData.userid,
+        email: body.email,
+        role: body.role,
+        dates: body.dates,
+        rates: body.rates,
+        guest: body.guest,
+        services: body.services,
+        invoices: body.invoices,
+        cashReg: body.cashReg,
+        ratesAval: body.ratesAval,
+        dashboard: body.dashboard,
+        stats: body.stats,
+        setting: body.setting,
+      };
+      if (body.id) {
+        await DB.update('team', teamData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
+      } else {
+        await DB.insert('team', teamData);
+        res.send({
+          code: 200,
+          msg: 'Data save successfully!',
+        });
+      }
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for delete team
+  router.post('/deleteTeam', userAuthCheck, async (req, res) => {
+    try{
+      const { ...body } = req.body;
+      await DB.remove('team', {id: teamId});
+      res.send({
+        code: 200,
+        msg: 'Data remove successfully!'
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    } 
+  });
+
 
   return router;
 };
