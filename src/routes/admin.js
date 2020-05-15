@@ -82,7 +82,6 @@ const adminRouter = () => {
         const isAdminExists = await adminModel.getOneBy({
           email,
         });
-        console.log('password', password);
         if (isAdminExists.length) {
           const isPasswordValid = await verifyHash(password, isAdminExists[0].encrypted_password);
           console.log('isAdminExists[0].encrypted_password', isAdminExists[0].encrypted_password);
@@ -96,6 +95,7 @@ const adminRouter = () => {
             res.send({
               code: 200,
               msg: 'Authenticated',
+              token,
             });
           } else {
             res.send({

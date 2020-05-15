@@ -11,13 +11,17 @@ exports.up = (knex) =>
     table.string('country');
     table.string('state');
     table.string('city');
-    table.integer('zip');
+    table.string('zip');
     table.string('website');
-    table.integer('bedrooms');
-    table.integer('fullBathroom');
-    table.integer('halfBathroom');
-    table.integer('sqfoot');
+    table.string('bedrooms');
+    table.string('fullBathroom');
+    table.string('halfBathroom');
+    table.string('sqfoot');
     table.string('description');
+    table.string('petPolicy');
+    table.string('feature1');
+    table.string('feature2');
+    table.string('feature3');
     table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 

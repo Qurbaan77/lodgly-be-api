@@ -4,7 +4,6 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const smtpTransport = require('nodemailer-smtp-transport');
 const userModel = require('../models/users/repositories');
-const propertyModel = require('../models/property/repositories');
 // const unitTypeModel = require('../models/unitType/repositories');
 const DB = require('../services/database');
 const { checkIfEmpty } = require('../functions');
@@ -15,6 +14,7 @@ const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
 
 const serverPath = 'http://localhost:3001/';
+// const serverPath = 'http://165.22.87.22:3002/';
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -23,7 +23,7 @@ const usersRouter = () => {
   router.post('/signup', async (req, res) => {
     const { ...body } = await req.body;
     // verifying if request body data is valid
-    const { isValid } = checkIfEmpty(body.username, body.password, body.email, body.package, body.mob);
+    const { isValid } = checkIfEmpty(body.username, body.password, body.email, body.package, body.phone);
     // if request body data is valid
     console.log(isValid);
     try {
@@ -45,7 +45,7 @@ const usersRouter = () => {
               encrypted_password: body.encrypted_password,
               email: body.email,
               package: body.package,
-              phone: body.mob,
+              phone: body.phone,
               verificationhex: body.verificationhex,
             };
             await DB.insert('users', userData);
@@ -149,7 +149,6 @@ const usersRouter = () => {
         const isUserExists = await userModel.getOneBy({
           email,
         });
-        console.log(isUserExists[0]);
         if (isUserExists.length) {
           if (isUserExists[0].isvalid === false) {
             res.send({
@@ -168,6 +167,7 @@ const usersRouter = () => {
               res.send({
                 code: 200,
                 msg: 'Authenticated',
+                token,
               });
             } else {
               res.send({
@@ -385,10 +385,8 @@ const usersRouter = () => {
         sqfoot: body.sqfoot,
         description: body.description,
       };
-      const propertyExist = await propertyModel.getOneBy({
-        userId: body.tokenData.userid,
-        propertyNo: body.propertyNo,
-      });
+
+      const propertyExist = await DB.select('property', { userId: body.tokenData.userid, propertyNo: body.propertyNo });
       if (propertyExist.length) {
         await DB.update('property', propertyData, {
           userId: body.tokenData.userid,
@@ -413,14 +411,25 @@ const usersRouter = () => {
   router.post('/listing', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const { ...value } = body.value;
-      console.log(body);
-      console.log(value);
-      const listData = {
-        userId: body.tokenData.userid,
-        propertyNo: body.propertyNo,
-      };
-      await DB.insert('listing', listData);
+      let Data;
+      if (body.checkedValues) {
+        Data = {
+          petPolicy: body.checkedValues.join(', '),
+        };
+      } else if (body.checkedValues1) {
+        Data = {
+          feature1: body.checkedValues1.join(', '),
+        };
+      } else if (body.checkedValues2) {
+        Data = {
+          feature2: body.checkedValues2.join(', '),
+        };
+      } else if (body.checkedValues3) {
+        Data = {
+          feature3: body.checkedValues3.join(', '),
+        };
+      }
+      await DB.update('property', Data, { propertyNo: body.No });
     } catch (e) {
       console.log(e);
       res.send({
@@ -430,11 +439,11 @@ const usersRouter = () => {
     }
   });
 
-  router.post('/fetchProperty', async (req, res) => {
+  router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
-      console.log('API is called!');
-      const propertiesData = await propertyModel.getOneBy({});
-      console.log(propertiesData);
+      const { ...body } = req.body;
+      console.log(body.tokenData.userid);
+      const propertiesData = await DB.select('property', { userId: body.tokenData.userid });
       if (propertiesData) {
         res.send({
           code: 200,
@@ -607,17 +616,25 @@ const usersRouter = () => {
       console.log(body);
       const groupData = {
         userId: body.tokenData.userid,
-        groupName: body.groupName,
-        checkCount: body.checkCount,
-        checkInterval: body.checkInterval,
+        groupName: body.groupname,
+        checkCount: body.count,
+        checkInterval: body.interval,
         prevCheck: body.prevCheck,
         nextCheck: body.nextCheck,
       };
-      await DB.insert('groups', groupData);
-      res.send({
-        code: 200,
-        msg: 'Data saved successfully!',
-      });
+      if (body.id) {
+        await DB.update('groups', groupData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
+      } else {
+        await DB.insert('groups', groupData);
+        res.send({
+          code: 200,
+          msg: 'Data saved successfully!',
+        });
+      }
     } catch (e) {
       console.log(e);
       res.send({
@@ -627,6 +644,21 @@ const usersRouter = () => {
     }
   });
 
+  router.post('/groupList', userAuthCheck, async (req, res) => {
+    try {
+      const groupDetail = await DB.select('groups', {});
+      res.send({
+        code: 200,
+        groupDetail,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
   router.post('/editGroup', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
@@ -653,7 +685,9 @@ const usersRouter = () => {
 
   router.post('/deleteGroup', userAuthCheck, async (req, res) => {
     try {
-      const groupId = req.body.id;
+      const { ...body } = req.body;
+      console.log(body);
+      const groupId = body.id;
       await DB.remove('groups', {
         id: groupId,
       });
@@ -673,14 +707,43 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const taskData = {
-        taskName: body.taskName,
-        note: body.note,
+        name: body.name,
+        address: body.address,
         tags: body.tags,
       };
-      await DB.insert('task', taskData);
+      if (body.id) {
+        await DB.update('task', taskData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Task Update Successfully!',
+        });
+      } else {
+        await DB.insert('task', taskData);
+        res.send({
+          code: 200,
+          msg: 'Task Save Successfully!',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/deleteTask', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const taskId = body.id;
+      await DB.remove('task', {
+        id: taskId,
+      });
       res.send({
         code: 200,
-        msg: 'Task save successfully!',
+        msg: 'Data Remove Successfully',
       });
     } catch (e) {
       console.log(e);
@@ -691,9 +754,26 @@ const usersRouter = () => {
     }
   });
 
+  router.post('/taskList', userAuthCheck, async (req, res) => {
+    try {
+      console.log('API is called!');
+      const taskDetail = await DB.select('task', {});
+      res.send({
+        code: 200,
+        taskDetail,
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
   router.post('/addBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       const bookingData = {
         userId: body.tokenData.userid,
         startDate: body.startDate,
@@ -989,6 +1069,130 @@ const usersRouter = () => {
       res.send({
         code: 200,
         msg: 'Data remove successfully!',
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for add/update Invoice
+  router.post('/addInvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const invoiceData = {
+        userId: body.tokenData.userid,
+        propertyId: body.propertyId,
+        label: body.label,
+        type: body.type,
+        status: body.status,
+        date: body.date,
+        time: body.time,
+        deliveryDate: body.deliveryDate,
+        dueDate: body.dueDate,
+        paymentType: body.paymentType,
+        clientName: body.clientName,
+        email: body.email,
+        address: body.address,
+        vatId: body.vatId,
+        itemDesc: body.itemDesc,
+        amount: body.amount,
+        impression: body.impression,
+      };
+      if (body.id) {
+        await DB.update('invoice', invoiceData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
+      } else {
+        await DB.insert('invoice', invoiceData);
+        res.send({
+          code: 200,
+          msg: 'Data save successfully!',
+        });
+      }
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for delete invoice
+  router.post('/deleteInvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const invoiceId = body.id;
+      await DB.remove('invoice', { id: invoiceId });
+      res.send({
+        code: 200,
+        msg: 'Data remove successfully!',
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for cancellation
+  router.post('/cancelInvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const invoiceId = req.id;
+      const invoiceData = {
+        status: body.status,
+      };
+      await DB.update('invoice', invoiceData, { id: invoiceId });
+      res.send({
+        code: 200,
+        msg: 'Invoice Cancelled!',
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for fetch Invoices
+  router.post('/getInvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const InvoiceData = await DB.select('invoice', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        InvoiceData,
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // APi for filter/fetch Invoices
+  router.post('/filterInvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const InvoiceData = await DB.selectOr('invoice', {
+        date: body.date,
+        label: body.label,
+        type: body.type,
+        clientName: body.clientName,
+        amount: body.amount,
+        status: body.status,
+      });
+      res.send({
+        code: 200,
+        InvoiceData,
       });
     } catch (e) {
       res.send({
