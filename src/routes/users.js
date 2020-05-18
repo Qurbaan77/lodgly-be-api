@@ -1244,22 +1244,132 @@ const usersRouter = () => {
 
   // API for delete team
   router.post('/deleteTeam', userAuthCheck, async (req, res) => {
-    try{
+    try {
       const { ...body } = req.body;
-      await DB.remove('team', {id: teamId});
+      await DB.remove('team', { id: teamId });
       res.send({
         code: 200,
-        msg: 'Data remove successfully!'
+        msg: 'Data remove successfully!',
       });
     } catch (e) {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
       });
-    } 
+    }
   });
 
+  // API for add owner
+  router.post('/addOwner', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const ownerData = {
+        userId: body.tokenData.userid,
+        fname: body.fname,
+        lname: body.lname,
+        email: body.email,
+        phone: body.phone,
+        dob: body.dob,
+        gender: body.gender,
+        country: body.country,
+        citizenShip: body.citizenShip,
+        places: body.places,
+        typeOfDoc: body.typeOfDoc,
+        docNo: body.docNo,
+        properties: body.properties,
+        notes: body.notes,
+      };
+      if (body.id) {
+        await DB.update('owner', ownerData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: "Data update successfully!"
+        });
+      } else {
+        await DB.insert('owner', ownerData);
+        res.send({
+          code: 200,
+          msg: "Data saves successfully!"
+        });
+      }
+    } catch (e) {
+      res.send({
+        code: 200,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
 
+  // API for remove owner
+  router.post('/deleteOwner', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('owner', { id: body.id });
+      res.send({
+        code: 200,
+        msg: "Data remove successfully!"
+      });
+    } catch(e) {
+      res.send({
+        code: 444,
+        msg: "Some Error has occured!"
+      });
+    }
+  });
+
+  // API for add perosnal detail, company info, application setting
+  router.post('/addInfo', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const persolData = {
+        fname: body.fname,
+        lname: body.lname,
+        address: body.address,
+        email: body.email,
+        phone: body.phone,
+
+        companyName: body.companyName,
+        address: body.address,
+        country: body.country,
+        state: body.state,
+        city: body.city,
+        zip: body.zip,
+        vatId: body.vatId,
+        
+        uiLang: body.uiLang,
+        timezone: body,timezone,
+      };
+      await DB.update('users', persolData, { id: body.tokenData.userid});
+      res.send({
+        code: 200,
+        msg: 'Data updated successfully!'
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: "Some error has occured!"
+      });
+    }
+  });
+
+  // API for detail of users
+  router.post('/getInfo', userAuthCheck, async(req, res) => {
+    try {
+      const { ...body } = req.body;
+      const userInfo = await DB.select('users', { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        userInfo,
+      });
+    } catch(e) {
+      res.send({
+        code: 444,
+        msg: "Some error has occured!"
+      });
+    }
+  });
+
+  
   return router;
 };
 
