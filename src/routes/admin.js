@@ -204,8 +204,8 @@ const adminRouter = () => {
     try {
       const { ...body } = req.body;
       const adminData = {
-        fname: body.fname,
-        lname: body.lname,
+        fname: body.firstname,
+        lname: body.lastname,
         email: body.email,
         phone: body.phone,
       };
