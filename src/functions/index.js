@@ -2,6 +2,9 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { userJwtKey } = require('../../config/default');
+const multer  = require('multer');
+const path = require('path');
+
 
 // checking if request body is valid
 const checkIfEmpty = (requestBody) => {
@@ -97,6 +100,22 @@ const verifyJwtAdmin = async (token) => {
   return isTokenValid;
 };
 
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'assets/uploads')
+        // cb(null, path.join(__dirname, '/uploads/'))
+    },
+    filename: function (req, file, cb) {
+        // You could rename the file name
+        // cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+
+        // You could use the original name
+        cb(null, file.originalname)
+    }
+});
+
+const upload = multer({storage: storage});
+
 module.exports = {
   checkIfEmpty,
   signJwt,
@@ -105,4 +124,5 @@ module.exports = {
   verifyJwt,
   verifyJwtAdmin,
   signJwtAdmin,
+  upload,
 };

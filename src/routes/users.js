@@ -1,5 +1,6 @@
 const express = require('express');
 // const knex = require('knex');
+const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const smtpTransport = require('nodemailer-smtp-transport');
@@ -10,6 +11,7 @@ const { checkIfEmpty } = require('../functions');
 const { signJwt } = require('../functions');
 const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
+const { upload } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
 
@@ -199,7 +201,6 @@ const usersRouter = () => {
 
   // post request for logout user
   router.post('/logout', async (req, res) => {
-    console.log('logout Api called', req.signedCookies);
     res.clearCookie('token').send('cookie cleared!');
   });
 
@@ -303,7 +304,7 @@ const usersRouter = () => {
               from: 'developer@websultanate.com',
               to: userData[0].email,
               subject: 'Reset your password',
-              text: `Please click on this link to reset your password ${clientPath}/forgetpassword?hh=${forgetPassHex}`,
+              text: `Please click on this link to reset your password ${clientPath}/reset?hh=${forgetPassHex}`,
             };
 
             transporter.sendMail(mailOptions);
@@ -367,6 +368,7 @@ const usersRouter = () => {
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body)
       const propertyData = {
         userId: body.tokenData.userid,
         propertyNo: body.propertyNo,
@@ -387,18 +389,24 @@ const usersRouter = () => {
       };
 
       const propertyExist = await DB.select('property', { userId: body.tokenData.userid, propertyNo: body.propertyNo });
+      console.log(propertyExist.length)
       if (propertyExist.length) {
         await DB.update('property', propertyData, {
           userId: body.tokenData.userid,
           propertyNo: body.propertyNo,
         });
+        res.send({
+          code: 200,
+          msg: 'Data Update Successfully!',
+        });
       } else {
         await DB.insert('property', propertyData);
+        
+        res.send({
+          code: 200,
+          msg: 'Data Saved Successfully!',
+        });
       }
-      res.send({
-        code: 200,
-        msg: 'Data Saved Successfully!',
-      });
     } catch (e) {
       console.log(e);
       res.send({
@@ -442,7 +450,6 @@ const usersRouter = () => {
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body.tokenData.userid);
       const propertiesData = await DB.select('property', { userId: body.tokenData.userid });
       if (propertiesData) {
         res.send({
@@ -469,7 +476,8 @@ const usersRouter = () => {
       console.log('addUnitType', req.body);
       const { ...body } = req.body;
       const unitTypeData = {
-        propertyId: body.propertyId,
+        userId: body.tokenData.userid,
+        propertyNo: body.propertyNo,
         unitTypeName: body.unitTypeName,
         startDay: body.startDay,
         endDay: body.endDay,
@@ -542,12 +550,37 @@ const usersRouter = () => {
     }
   });
 
+  // API for fetch unittype
+  router.post('/getUnittype', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const unittypeData = await DB.select('unitType', { userId: body.tokenData.userid, propertyNo: body.propertyNo });
+      if(unittypeData) {
+        res.send({
+          code: 200,
+          unittypeData,
+        })
+      } else {
+        res.send({
+          code: 401,
+          msg: 'No Unittype Saved'
+        })
+      }
+    } catch(e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  })
+
   router.post('/addUnit', userAuthCheck, async (req, res) => {
     try {
-      console.log('addUnitType', req.body);
       const { ...body } = req.body;
+      console.log('addUnitType', body);
       const unitData = {
-        unitTypeId: body.unitTypeId,
+        userId: body.tokenData.userid,
+        unittypeNo: body.unittypeNo,
         unitName: body.unitName,
       };
       console.log(unitData);
@@ -610,6 +643,23 @@ const usersRouter = () => {
     }
   });
 
+  // API for get unit data
+  router.post('/getUnit', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const unitData = await DB.select('unit', { userId: body.tokenData.userid, unittypeNo: body.unittypeNo });
+      res.send({
+        code: 200,
+        unitData,
+      });
+    } catch(e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  })
+
   router.post('/addGroup', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
@@ -619,8 +669,8 @@ const usersRouter = () => {
         groupName: body.groupname,
         checkCount: body.count,
         checkInterval: body.interval,
-        prevCheck: body.prevCheck,
-        nextCheck: body.nextCheck,
+        prevCheck: body.prevCheck.split('T', 1),
+        nextCheck: body.nextCheck.split('T', 1),
       };
       if (body.id) {
         await DB.update('groups', groupData, { id: body.id });
@@ -1367,6 +1417,14 @@ const usersRouter = () => {
         msg: "Some error has occured!"
       });
     }
+  });
+
+  //API for upload picture
+  router.post("/photo", upload.single('file'), (req, res, next) => {
+    console.log(req)
+    return res.json({
+        image: req.file.path
+    });
   });
 
   
