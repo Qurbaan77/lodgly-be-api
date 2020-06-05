@@ -69,7 +69,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              }),
+              })
             );
 
             const mailOptions = {
@@ -225,7 +225,7 @@ const usersRouter = () => {
               },
               {
                 email: userData[0].email,
-              },
+              }
             );
             if (updateData) {
               res.send({
@@ -281,7 +281,7 @@ const usersRouter = () => {
             },
             {
               email,
-            },
+            }
           );
 
           if (updatedData) {
@@ -297,7 +297,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              }),
+              })
             );
 
             const mailOptions = {
@@ -825,14 +825,14 @@ const usersRouter = () => {
       const bookingData = {
         userId: body.tokenData.userid,
         propertyId: body.property,
-        // startDate: body.groupname.split('T', 1),
-        // endDate: body.groupname.split('T', 1),
+        unitId: body.unit,
+        startDate: body.groupname[0].split('T', 1),
+        endDate: body.groupname[1].split('T', 1),
         acknowledge: body.acknowledge,
-        property: body.property,
-        unit: body.unit,
         channel: body.channel,
         commission: body.commission,
         adult: body.adult,
+        guest: body.guest,
         children1: body.children1,
         children2: body.children2,
         notes1: body.notes1,
@@ -844,9 +844,9 @@ const usersRouter = () => {
       };
 
       const Id = await DB.insert('booking', bookingData);
-
       body.guestData.map(async (el) => {
         const Data = {
+          userId: body.tokenData.userid,
           bookingId: Id,
           fullname: el.fullName,
           country: el.country,
@@ -876,16 +876,18 @@ const usersRouter = () => {
       const bookingData = await DB.select('booking', { userId: body.tokenData.userid });
       each(
         bookingData,
-        async (items, next) => {
+        async function (items, next) {
           const data = await DB.select('guest', { bookingId: items.id });
           guestData.push(data);
           next();
         },
-        res.send({
-          code: 200,
-          bookingData,
-          guestData,
-        }),
+        function () {
+          res.send({
+            code: 200,
+            bookingData,
+            guestData,
+          });
+        }
       );
     } catch (e) {
       res.send({
@@ -954,6 +956,7 @@ const usersRouter = () => {
   router.post('/addGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body)
       const guestData = {
         userId: body.tokenData.userid,
         bookingId: body.bookingId,
@@ -962,7 +965,7 @@ const usersRouter = () => {
         country: body.country,
         email: body.email,
         phone: body.phone,
-        dob: body.dob,
+        dob: body.dob.split('T', 1),
         gender: body.gender,
         typeOfDoc: body.typeOfDoc,
         docNo: body.docNo,
@@ -979,7 +982,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       } else {
         await DB.increment(
@@ -989,7 +992,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       }
       res.send({
@@ -1047,7 +1050,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       } else {
         await DB.decrement(
@@ -1057,7 +1060,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       }
       res.send({

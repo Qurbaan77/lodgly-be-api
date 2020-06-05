@@ -5,16 +5,16 @@ exports.up = (knex) =>
     table.increments('id');
     table.integer('userId').notNull().unsigned();
     table.integer('propertyId').notNull().unsigned();
+    table.integer('unitId').notNull().unsigned();
     table.date('startDate');
     table.date('endDate');
     table.string('acknowledge');
-    table.string('property');
-    table.string('unit');
     table.string('channel');
     table.integer('commission');
     table.integer('adult');
     table.integer('children1');
     table.integer('children2');
+    table.string('guest');
     table.integer('noOfGuest').defaultTo(0);
     table.string('notes1');
     table.string('notes2');
@@ -26,6 +26,7 @@ exports.up = (knex) =>
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
     table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');
     table.foreign('propertyId').references('property.id').onUpdate('CASCADE').onDelete('CASCADE');
+    table.foreign('unitId').references('unit.id').onUpdate('CASCADE').onDelete('CASCADE');
   });
 
 exports.down = (knex) => knex.schema.dropTable(TABLE_NAME);
