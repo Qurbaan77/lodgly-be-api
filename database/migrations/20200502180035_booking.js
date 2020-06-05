@@ -4,6 +4,7 @@ exports.up = (knex) =>
   knex.schema.createTable(TABLE_NAME, (table) => {
     table.increments('id');
     table.integer('userId').notNull().unsigned();
+    table.integer('propertyId').notNull().unsigned();
     table.date('startDate');
     table.date('endDate');
     table.string('acknowledge');
@@ -14,16 +15,17 @@ exports.up = (knex) =>
     table.integer('adult');
     table.integer('children1');
     table.integer('children2');
-    table.integer('noGuest').defaultTo(0);
+    table.integer('noOfGuest').defaultTo(0);
     table.string('notes1');
     table.string('notes2');
     table.integer('discount');
-    table.integer('pricePerNight');
-    table.string('services');
+    table.string('noOfservices');
+    table.integer('totalAmount');
     table.integer('deposit');
     table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
     table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');
+    table.foreign('propertyId').references('property.id').onUpdate('CASCADE').onDelete('CASCADE');
   });
 
 exports.down = (knex) => knex.schema.dropTable(TABLE_NAME);

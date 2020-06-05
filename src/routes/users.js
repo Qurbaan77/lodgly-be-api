@@ -1,9 +1,9 @@
 const express = require('express');
 // const knex = require('knex');
-const path = require('path');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const smtpTransport = require('nodemailer-smtp-transport');
+const each = require('sync-each');
 const userModel = require('../models/users/repositories');
 // const unitTypeModel = require('../models/unitType/repositories');
 const DB = require('../services/database');
@@ -69,7 +69,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              })
+              }),
             );
 
             const mailOptions = {
@@ -225,7 +225,7 @@ const usersRouter = () => {
               },
               {
                 email: userData[0].email,
-              }
+              },
             );
             if (updateData) {
               res.send({
@@ -281,7 +281,7 @@ const usersRouter = () => {
             },
             {
               email,
-            }
+            },
           );
 
           if (updatedData) {
@@ -297,7 +297,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              })
+              }),
             );
 
             const mailOptions = {
@@ -368,7 +368,7 @@ const usersRouter = () => {
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body)
+      console.log(body);
       const propertyData = {
         userId: body.tokenData.userid,
         propertyNo: body.propertyNo,
@@ -381,7 +381,7 @@ const usersRouter = () => {
         zip: body.zip,
         website: body.website,
 
-        bedrooms: body.bedroom,
+        bedrooms: body.bedrooms,
         fullBathroom: body.fullBathroom,
         halfBathroom: body.halfBathroom,
         sqfoot: body.sqfoot,
@@ -389,7 +389,7 @@ const usersRouter = () => {
       };
 
       const propertyExist = await DB.select('property', { userId: body.tokenData.userid, propertyNo: body.propertyNo });
-      console.log(propertyExist.length)
+      console.log(propertyExist.length);
       if (propertyExist.length) {
         await DB.update('property', propertyData, {
           userId: body.tokenData.userid,
@@ -401,7 +401,7 @@ const usersRouter = () => {
         });
       } else {
         await DB.insert('property', propertyData);
-        
+
         res.send({
           code: 200,
           msg: 'Data Saved Successfully!',
@@ -473,14 +473,12 @@ const usersRouter = () => {
 
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
-      console.log('addUnitType', req.body);
       const { ...body } = req.body;
       const unitTypeData = {
-        userId: body.tokenData.userid,
-        propertyNo: body.propertyNo,
+        propertyId: body.propertyId,
         unitTypeName: body.unitTypeName,
-        startDay: body.startDay,
-        endDay: body.endDay,
+        startDay: body.groupname[0].split('T', 1),
+        endDay: body.groupname[1].split('T', 1),
         perNight: body.perNight,
         roomsToSell: body.roomsToSell,
         minimumStay: body.minimumStay,
@@ -554,33 +552,33 @@ const usersRouter = () => {
   router.post('/getUnittype', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const unittypeData = await DB.select('unitType', { userId: body.tokenData.userid, propertyNo: body.propertyNo });
-      if(unittypeData) {
+      const unittypeData = await DB.select('unitType', { propertyId: body.propertyId });
+      if (unittypeData) {
         res.send({
           code: 200,
           unittypeData,
-        })
+        });
       } else {
         res.send({
           code: 401,
-          msg: 'No Unittype Saved'
-        })
+          msg: 'No Unittype Saved',
+        });
       }
-    } catch(e) {
+    } catch (e) {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
       });
     }
-  })
+  });
 
   router.post('/addUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('addUnitType', body);
+      console.log('addUnit', body);
       const unitData = {
-        userId: body.tokenData.userid,
-        unittypeNo: body.unittypeNo,
+        propertyId: body.propertyId,
+        unittypeId: body.unittypeId,
         unitName: body.unitName,
       };
       console.log(unitData);
@@ -647,18 +645,18 @@ const usersRouter = () => {
   router.post('/getUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const unitData = await DB.select('unit', { userId: body.tokenData.userid, unittypeNo: body.unittypeNo });
+      const unitData = await DB.select('unit', { propertyId: body.propertyId });
       res.send({
         code: 200,
         unitData,
       });
-    } catch(e) {
+    } catch (e) {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
       });
     }
-  })
+  });
 
   router.post('/addGroup', userAuthCheck, async (req, res) => {
     try {
@@ -826,8 +824,9 @@ const usersRouter = () => {
       console.log(body);
       const bookingData = {
         userId: body.tokenData.userid,
-        startDate: body.startDate,
-        endDate: body.endDate,
+        propertyId: body.property,
+        // startDate: body.groupname.split('T', 1),
+        // endDate: body.groupname.split('T', 1),
         acknowledge: body.acknowledge,
         property: body.property,
         unit: body.unit,
@@ -836,15 +835,27 @@ const usersRouter = () => {
         adult: body.adult,
         children1: body.children1,
         children2: body.children2,
-        guestDetail: body.guestDetail,
         notes1: body.notes1,
         notes2: body.notes2,
-        services: body.services,
-        accomodation: body.accomodation,
-        depositAccomodation: body.depositAccomodation,
         discount: body.discount,
+        noOfservices: body.noOfservices,
+        totalAmount: body.totalAmount,
+        deposit: body.deposit,
       };
-      await DB.insert('booking', bookingData);
+
+      const Id = await DB.insert('booking', bookingData);
+
+      body.guestData.map(async (el) => {
+        const Data = {
+          bookingId: Id,
+          fullname: el.fullName,
+          country: el.country,
+          email: el.email,
+          phone: el.phone,
+        };
+        await DB.insert('guest', Data);
+      });
+
       res.send({
         code: 200,
         msg: 'Booking save successfully!',
@@ -854,6 +865,32 @@ const usersRouter = () => {
       res.send({
         code: 444,
         msg: 'Some error occured!',
+      });
+    }
+  });
+
+  router.post('/getBooking', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const guestData = [];
+      const bookingData = await DB.select('booking', { userId: body.tokenData.userid });
+      each(
+        bookingData,
+        async (items, next) => {
+          const data = await DB.select('guest', { bookingId: items.id });
+          guestData.push(data);
+          next();
+        },
+        res.send({
+          code: 200,
+          bookingData,
+          guestData,
+        }),
+      );
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
       });
     }
   });
@@ -942,7 +979,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       } else {
         await DB.increment(
@@ -952,7 +989,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       }
       res.send({
@@ -1010,7 +1047,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       } else {
         await DB.decrement(
@@ -1020,7 +1057,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       }
       res.send({
@@ -1296,7 +1333,7 @@ const usersRouter = () => {
   router.post('/deleteTeam', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('team', { id: teamId });
+      await DB.remove('team', { id: body.teamId });
       res.send({
         code: 200,
         msg: 'Data remove successfully!',
@@ -1333,13 +1370,13 @@ const usersRouter = () => {
         await DB.update('owner', ownerData, { id: body.id });
         res.send({
           code: 200,
-          msg: "Data update successfully!"
+          msg: 'Data update successfully!',
         });
       } else {
         await DB.insert('owner', ownerData);
         res.send({
           code: 200,
-          msg: "Data saves successfully!"
+          msg: 'Data saves successfully!',
         });
       }
     } catch (e) {
@@ -1357,12 +1394,12 @@ const usersRouter = () => {
       await DB.remove('owner', { id: body.id });
       res.send({
         code: 200,
-        msg: "Data remove successfully!"
+        msg: 'Data remove successfully!',
       });
-    } catch(e) {
+    } catch (e) {
       res.send({
         code: 444,
-        msg: "Some Error has occured!"
+        msg: 'Some Error has occured!',
       });
     }
   });
@@ -1379,31 +1416,30 @@ const usersRouter = () => {
         phone: body.phone,
 
         companyName: body.companyName,
-        address: body.address,
         country: body.country,
         state: body.state,
         city: body.city,
         zip: body.zip,
         vatId: body.vatId,
-        
+
         uiLang: body.uiLang,
-        timezone: body,timezone,
+        timezone: body,
       };
-      await DB.update('users', persolData, { id: body.tokenData.userid});
+      await DB.update('users', persolData, { id: body.tokenData.userid });
       res.send({
         code: 200,
-        msg: 'Data updated successfully!'
+        msg: 'Data updated successfully!',
       });
     } catch (e) {
       res.send({
         code: 444,
-        msg: "Some error has occured!"
+        msg: 'Some error has occured!',
       });
     }
   });
 
   // API for detail of users
-  router.post('/getInfo', userAuthCheck, async(req, res) => {
+  router.post('/getInfo', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
       const userInfo = await DB.select('users', { id: body.tokenData.userid });
@@ -1411,23 +1447,65 @@ const usersRouter = () => {
         code: 200,
         userInfo,
       });
-    } catch(e) {
+    } catch (e) {
       res.send({
         code: 444,
-        msg: "Some error has occured!"
+        msg: 'Some error has occured!',
       });
     }
   });
 
-  //API for upload picture
-  router.post("/photo", upload.single('file'), (req, res, next) => {
-    console.log(req)
+  // API for upload picture
+  router.post('/photo', upload.single('file'), (req, res) => {
+    console.log(req);
     return res.json({
-        image: req.file.path
+      image: req.file.path,
     });
   });
 
-  
+  // API for add Services of Property
+  router.post('/addService', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const servicData = {
+        propertyId: body.propertyNo,
+        serviceName: body.servicename,
+        servicePrice: body.serviceprice,
+        quantity: body.servicequantity,
+      };
+      await DB.insert('service', servicData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for listing of services
+  router.post('/getService', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const servicData = await DB.select('service', {
+        propertyId: body.propertyId,
+      });
+      res.send({
+        code: 200,
+        servicData,
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   return router;
 };
 
