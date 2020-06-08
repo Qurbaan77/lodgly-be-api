@@ -1509,6 +1509,22 @@ const usersRouter = () => {
     }
   });
 
+  // API for validate login
+  router.post('/validateToken', userAuthCheck, async (req, res) => {
+    try {
+      res.send({
+          code: 200,
+          status: true,
+      });
+    }
+    catch (e) {
+        res.send({
+            code: 406,
+            msg: "Some error has occured!"
+        });
+    }
+  });
+
   return router;
 };
 
