@@ -853,7 +853,19 @@ const usersRouter = () => {
           email: el.email,
           phone: el.phone,
         };
-        await DB.insert('guest', Data);
+        if(ID)
+        {
+          await DB.insert('guest', Data);
+          await DB.increment(
+            'booking',
+            {
+              id: Id,
+            },
+            {
+              noGuest: 1,
+            }
+          );
+        }
       });
 
       res.send({
@@ -956,7 +968,11 @@ const usersRouter = () => {
   router.post('/addGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body)
+      console.log(body);
+      const dob = null;
+      if(body.dob) {
+        dob = body.dob.split('T', 1)
+      }
       const guestData = {
         userId: body.tokenData.userid,
         bookingId: body.bookingId,
@@ -965,7 +981,7 @@ const usersRouter = () => {
         country: body.country,
         email: body.email,
         phone: body.phone,
-        dob: body.dob.split('T', 1),
+        dob: dob,
         gender: body.gender,
         typeOfDoc: body.typeOfDoc,
         docNo: body.docNo,
@@ -973,32 +989,40 @@ const usersRouter = () => {
         place: body.place,
         notes: body.notes,
       };
-      await DB.insert('guest', guestData, { id: body.bookingId });
-      if (body.reservationId) {
-        await DB.increment(
-          'reservation',
-          {
-            id: body.reservationId,
-          },
-          {
-            noGuest: 1,
-          }
-        );
+      if (body.id) {
+        await DB.update('guest', guestData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data updated successfully!',
+        });
       } else {
-        await DB.increment(
-          'booking',
-          {
-            id: body.bookingId,
-          },
-          {
-            noGuest: 1,
-          }
-        );
+        await DB.insert('guest', guestData);
+        if (body.reservationId) {
+          await DB.increment(
+            'reservation',
+            {
+              id: body.reservationId,
+            },
+            {
+              noGuest: 1,
+            }
+          );
+        } else {
+          await DB.increment(
+            'booking',
+            {
+              id: body.bookingId,
+            },
+            {
+              noGuest: 1,
+            }
+          );
+        }
+        res.send({
+          code: 200,
+          msg: 'Data Save Successfully!',
+        });
       }
-      res.send({
-        code: 200,
-        msg: 'Data Save Successfully!',
-      });
     } catch (e) {
       console.log(e);
       res.send({
@@ -1513,15 +1537,14 @@ const usersRouter = () => {
   router.post('/validateToken', userAuthCheck, async (req, res) => {
     try {
       res.send({
-          code: 200,
-          status: true,
+        code: 200,
+        status: true,
       });
-    }
-    catch (e) {
-        res.send({
-            code: 406,
-            msg: "Some error has occured!"
-        });
+    } catch (e) {
+      res.send({
+        code: 406,
+        msg: 'Some error has occured!',
+      });
     }
   });
 
