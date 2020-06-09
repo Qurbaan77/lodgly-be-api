@@ -844,6 +844,7 @@ const usersRouter = () => {
       };
 
       const Id = await DB.insert('booking', bookingData);
+      console.log("ID", Id)
       body.guestData.map(async (el) => {
         const Data = {
           userId: body.tokenData.userid,
@@ -853,8 +854,6 @@ const usersRouter = () => {
           email: el.email,
           phone: el.phone,
         };
-        if(ID)
-        {
           await DB.insert('guest', Data);
           await DB.increment(
             'booking',
@@ -865,7 +864,6 @@ const usersRouter = () => {
               noGuest: 1,
             }
           );
-        }
       });
 
       res.send({
