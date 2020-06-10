@@ -475,6 +475,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const unitTypeData = {
+        userId: body.tokenData.userid,
         propertyId: body.propertyId,
         unitTypeName: body.unitTypeName,
         startDay: body.groupname[0].split('T', 1),
@@ -577,6 +578,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       console.log('addUnit', body);
       const unitData = {
+        userId: body.tokenData.userid,
         propertyId: body.propertyId,
         unittypeId: body.unittypeId,
         unitName: body.unitName,
@@ -645,6 +647,7 @@ const usersRouter = () => {
   router.post('/getUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('Body', body);
       const unitData = await DB.select('unit', { propertyId: body.propertyId });
       res.send({
         code: 200,
@@ -844,7 +847,7 @@ const usersRouter = () => {
       };
 
       const Id = await DB.insert('booking', bookingData);
-      console.log("ID", Id)
+      console.log('ID', Id);
       body.guestData.map(async (el) => {
         const Data = {
           userId: body.tokenData.userid,
@@ -854,16 +857,16 @@ const usersRouter = () => {
           email: el.email,
           phone: el.phone,
         };
-          await DB.insert('guest', Data);
-          await DB.increment(
-            'booking',
-            {
-              id: Id,
-            },
-            {
-              noGuest: 1,
-            }
-          );
+        await DB.insert('guest', Data);
+        await DB.increment(
+          'booking',
+          {
+            id: Id,
+          },
+          {
+            noGuest: 1,
+          }
+        );
       });
 
       res.send({
@@ -968,8 +971,8 @@ const usersRouter = () => {
       const { ...body } = req.body;
       console.log(body);
       const dob = null;
-      if(body.dob) {
-        dob = body.dob.split('T', 1)
+      if (body.dob) {
+        dob = body.dob.split('T', 1);
       }
       const guestData = {
         userId: body.tokenData.userid,
@@ -1102,27 +1105,49 @@ const usersRouter = () => {
   router.post('/addReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       const reservationData = {
         userId: body.tokenData.userid,
-        startDate: body.startDate,
-        endDate: body.endDate,
+        propertyId: body.property,
+        unitId: body.unit,
+        startDate: body.groupname[0].split('T', 1),
+        endDate: body.groupname[1].split('T', 1),
         acknowledge: body.acknowledge,
-        property: body.property,
-        unit: body.unit,
         channel: body.channel,
         commission: body.commission,
         adult: body.adult,
+        guest: body.guest,
         children1: body.children1,
         children2: body.children2,
-        noGuest: body.noGuest,
         notes1: body.notes1,
         notes2: body.notes2,
         discount: body.discount,
-        pricePerNight: body.pricePerNight,
-        services: body.services,
+        noOfservices: body.noOfservices,
+        totalAmount: body.totalAmount,
         deposit: body.deposit,
       };
-      await DB.insert('reservation', reservationData);
+      const Id = await DB.insert('reservation', reservationData);
+      body.guestData.map(async (el) => {
+        const Data = {
+          userId: body.tokenData.userid,
+          reservationId: Id,
+          fullname: el.fullName,
+          country: el.country,
+          email: el.email,
+          phone: el.phone,
+        };
+        await DB.insert('guest', Data);
+        await DB.increment(
+          'reservation',
+          {
+            id: Id,
+          },
+          {
+            noGuest: 1,
+          }
+        );
+      });
+
       res.send({
         code: 200,
         msg: 'Data add successfully!',
@@ -1135,6 +1160,62 @@ const usersRouter = () => {
       });
     }
   });
+
+  // API for get reservation
+  router.post('/getReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const guestData = [];
+      const unitData = [];
+      const unittypeData = [];
+      const reservationData = await DB.select('reservation', { userId: body.tokenData.userid });
+      each(
+        reservationData,
+        async function (items, next) {
+          const data = await DB.select('guest', { reservationId: items.id });
+          guestData.push(data);
+          const units = await DB.select('unit', { id: items.unitId });
+          unitData.push(units);
+          const unittypes = await DB.select('unitType', { id: units[0].unittypeId });
+          unittypeData.push(unittypes);
+          next();
+        },
+        function () {
+          res.send({
+            code: 200,
+            reservationData,
+            unitData,
+            unittypeData,
+            guestData,
+          });
+        }
+      );
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
+  // API for Reservationb Calendar Data
+  router.post('/getReservationCalendarData', userAuthCheck, async(req, res) => {
+    try {
+      const { ...body } = req.body;
+      const unitType = await DB.select('unitType', { userId: body.tokenData.userid })
+      const unit = await DB.select('unit', { userId: body.tokenData.userid })
+      res.send({
+        code: 200,
+        unittypeData: unitType,
+        unitData: unit,
+      })
+    } catch(e) {
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  })
 
   // API for edit reservation
   router.post('/editReservation', userAuthCheck, async (req, res) => {
