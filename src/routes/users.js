@@ -15,8 +15,8 @@ const { upload } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
 
-const serverPath = 'http://localhost:3001/';
-// const serverPath = 'http://165.22.87.22:3002/';
+// const serverPath = 'http://localhost:3001/';
+const serverPath = 'http://165.22.87.22:3002/';
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -478,8 +478,8 @@ const usersRouter = () => {
         userId: body.tokenData.userid,
         propertyId: body.propertyId,
         unitTypeName: body.unitTypeName,
-        startDay: body.groupname[0].split('T', 1),
-        endDay: body.groupname[1].split('T', 1),
+        startDay: Date.parse(body.groupname[0].split('T', 1)),
+        endDay: Date.parse(body.groupname[1].split('T', 1)),
         perNight: body.perNight,
         roomsToSell: body.roomsToSell,
         minimumStay: body.minimumStay,
