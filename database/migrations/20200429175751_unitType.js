@@ -2,12 +2,12 @@ const TABLE_NAME = 'unitType';
 
 exports.up = (knex) =>
   knex.schema.createTable(TABLE_NAME, (table) => {
-    table.increments('id');
+    table.increments('id', 500);
     table.integer('userId').notNull().unsigned();
     table.integer('propertyId').notNull().unsigned();
     table.string('unitTypeName');
-    table.date('startDay');
-    table.date('endDay');
+    table.bigInteger ('startDay');
+    table.bigInteger ('endDay');
     table.integer('perNight');
     table.integer('roomsToSell');
     table.integer('minimumStay');

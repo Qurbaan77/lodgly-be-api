@@ -15,8 +15,8 @@ const { upload } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
 
-// const serverPath = 'http://localhost:3001/';
-const serverPath = 'http://165.22.87.22:3002/';
+const serverPath = 'http://localhost:3001/';
+// const serverPath = 'http://165.22.87.22:3002/';
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -153,6 +153,7 @@ const usersRouter = () => {
         });
         if (isUserExists.length) {
           if (isUserExists[0].isvalid === false) {
+            // isvalid value need to change 0 on Live
             res.send({
               code: 403,
               msg: 'This email is not verified',
@@ -174,7 +175,7 @@ const usersRouter = () => {
             } else {
               res.send({
                 code: 400,
-                msg: 'Invalid Login Details!',
+                msg: 'Password is incorrect!',
               });
             }
           }
@@ -474,23 +475,31 @@ const usersRouter = () => {
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('body', body);
       const unitTypeData = {
         userId: body.tokenData.userid,
         propertyId: body.propertyId,
-        unitTypeName: body.unitTypeName,
-        startDay: Date.parse(body.groupname[0].split('T', 1)),
-        endDay: Date.parse(body.groupname[1].split('T', 1)),
-        perNight: body.perNight,
-        roomsToSell: body.roomsToSell,
-        minimumStay: body.minimumStay,
-        noOfUnits: body.noOfUnits,
+        unitTypeName: body.name,
+        // startDay: Date.parse(body.groupname[0].split('T', 1)),
+        // endDay: Date.parse(body.groupname[1].split('T', 1)),
+        // perNight: body.perNight,
+        // roomsToSell: body.roomsToSell,
+        // minimumStay: body.minimumStay,
+        // noOfUnits: body.noOfUnits,
       };
-
-      await DB.insert('unitType', unitTypeData);
-      res.send({
-        code: 200,
-        msg: 'Data saved Successfully!',
-      });
+      if (body.id) {
+        await DB.update('unitType', { unitTypeName: body.name }, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data updated Successfully!',
+        });
+      } else {
+        await DB.insert('unitType', unitTypeData);
+        res.send({
+          code: 200,
+          msg: 'Data saved Successfully!',
+        });
+      }
     } catch (e) {
       console.log(e);
       res.send({
@@ -576,19 +585,25 @@ const usersRouter = () => {
   router.post('/addUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('addUnit', body);
       const unitData = {
         userId: body.tokenData.userid,
         propertyId: body.propertyId,
         unittypeId: body.unittypeId,
         unitName: body.unitName,
       };
-      console.log(unitData);
-      await DB.insert('unit', unitData);
-      res.send({
-        code: 200,
-        msg: 'Data saved Successfully!',
-      });
+      if (body.id) {
+        await DB.update('unit', { unitName: body.unitName }, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data updated Successfully!',
+        });
+      } else {
+        await DB.insert('unit', unitData);
+        res.send({
+          code: 200,
+          msg: 'Data saved Successfully!',
+        });
+      }
     } catch (e) {
       console.log(e);
       res.send({
@@ -828,7 +843,9 @@ const usersRouter = () => {
       const bookingData = {
         userId: body.tokenData.userid,
         propertyId: body.property,
+        propertyName: body.propertyName,
         unitId: body.unit,
+        unitName: body.unitName,
         startDate: body.groupname[0].split('T', 1),
         endDate: body.groupname[1].split('T', 1),
         acknowledge: body.acknowledge,
@@ -840,7 +857,14 @@ const usersRouter = () => {
         children2: body.children2,
         notes1: body.notes1,
         notes2: body.notes2,
+        
+        perNight: body.perNight,
+        night: body.night,
+        amt: body.amt,
+        discountType: body.discountType,
         discount: body.discount,
+        accomodation: body.accomodation,
+
         noOfservices: body.noOfservices,
         totalAmount: body.totalAmount,
         deposit: body.deposit,
@@ -1199,23 +1223,23 @@ const usersRouter = () => {
   });
 
   // API for Reservationb Calendar Data
-  router.post('/getReservationCalendarData', userAuthCheck, async(req, res) => {
+  router.post('/getReservationCalendarData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const unitType = await DB.select('unitType', { userId: body.tokenData.userid })
-      const unit = await DB.select('unit', { userId: body.tokenData.userid })
+      const unitType = await DB.select('unitType', { userId: body.tokenData.userid });
+      const unit = await DB.select('unit', { userId: body.tokenData.userid });
       res.send({
         code: 200,
         unittypeData: unitType,
         unitData: unit,
-      })
-    } catch(e) {
+      });
+    } catch (e) {
       res.send({
         code: 444,
         msg: 'Some Error has occured!',
       });
     }
-  })
+  });
 
   // API for edit reservation
   router.post('/editReservation', userAuthCheck, async (req, res) => {
@@ -1580,11 +1604,19 @@ const usersRouter = () => {
         servicePrice: body.serviceprice,
         quantity: body.servicequantity,
       };
-      await DB.insert('service', servicData);
-      res.send({
-        code: 200,
-        msg: 'Data save successfully!',
-      });
+      if (body.serviceId) {
+        await DB.update('service', servicData, { id: body.serviceId });
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
+      } else {
+        await DB.insert('service', servicData);
+        res.send({
+          code: 200,
+          msg: 'Data save successfully!',
+        });
+      }
     } catch (e) {
       res.send({
         code: 444,
@@ -1603,6 +1635,25 @@ const usersRouter = () => {
       res.send({
         code: 200,
         servicData,
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for delete Service
+  router.post('/deleteService', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('service', {
+        id: body.id,
+      });
+      res.send({
+        code: 200,
+        msg: 'Data Remove Sucessfully!',
       });
     } catch (e) {
       res.send({

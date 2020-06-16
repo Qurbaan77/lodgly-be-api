@@ -2,7 +2,7 @@ const TABLE_NAME = 'unit';
 
 exports.up = (knex) =>
   knex.schema.createTable(TABLE_NAME, (table) => {
-    table.increments('id');
+    table.increments('id', 1000);
     table.integer('userId').notNull().unsigned();
     table.integer('propertyId').notNull().unsigned();
     table.integer('unittypeId').notNull().unsigned();

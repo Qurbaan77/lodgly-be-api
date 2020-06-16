@@ -6,6 +6,8 @@ exports.up = (knex) =>
     table.integer('userId').notNull().unsigned();
     table.integer('propertyId').notNull().unsigned();
     table.integer('unitId').notNull().unsigned();
+    table.string('propertyName');
+    table.string('unitName');
     table.date('startDate');
     table.date('endDate');
     table.string('acknowledge');
@@ -18,7 +20,14 @@ exports.up = (knex) =>
     table.integer('noOfGuest').defaultTo(0);
     table.string('notes1');
     table.string('notes2');
+
+    table.integer('perNight');
+    table.integer('night');
+    table.integer('amt');
+    table.integer('discountType');
     table.integer('discount');
+    table.integer('accomodation');
+
     table.string('noOfservices');
     table.integer('totalAmount');
     table.integer('deposit');
