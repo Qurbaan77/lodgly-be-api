@@ -9,7 +9,7 @@ exports.up = (knex) =>
     table.string('fullname');
     table.string('country');
     table.string('email');
-    table.integer('phone');
+    table.bigInteger('phone');
     table.date('dob');
     table.string('gender');
     table.string('typeOfDoc');

@@ -75,6 +75,7 @@ const adminRouter = () => {
   // post request to login Admin
   router.post('/login', async (req, res) => {
     try {
+      console.log(req.body);
       const { isValid } = checkIfEmpty(req.body);
       if (isValid) {
         const { email, password } = req.body;

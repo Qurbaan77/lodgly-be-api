@@ -4,6 +4,7 @@ exports.up = (knex) =>
   knex.schema.createTable(TABLE_NAME, (table) => {
     table.increments('id');
     table.integer('userId').notNull().unsigned();
+    table.integer('ownerId').defaultTo(0);
     table.integer('propertyNo');
     table.string('propertyName');
     table.string('propertyType');

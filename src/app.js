@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const { clientPath } = require('../config/default');
+const { clientPath, clientPath2 } = require('../config/default');
 
 const { getConnection } = require('./services/database');
 
@@ -15,7 +15,7 @@ const app = express();
 // middlewares
 app.use(
   cors({
-    origin: [clientPath],
+    origin: [clientPath, clientPath2],
     credentials: true,
   }),
 );

@@ -6,7 +6,7 @@ exports.up = (knex) =>
     // table.integer('organization_id').notNull().unsigned();
     // table.integer('user_id').notNull().unsigned();
     table.string('email');
-    table.string('phone');
+    table.bigInteger('phone');
     table.string('username');
     table.string('package');
     table.string('verificationhex');

@@ -7,11 +7,12 @@ exports.up = (knex) =>
     table.string('fname');
     table.string('lname');
     table.string('email');
-    table.integer('phone');
+    table.bigInteger('phone');
     table.date('dob');
     table.string('gender');
-    table.string('residence');
-    table.string('places');
+    table.string('country');
+    table.string('citizenship');
+    table.string('address');
     table.string('typeofdoc');
     table.integer('docNo');
     table.string('properties');

@@ -7,7 +7,7 @@ exports.up = (knex) =>
     table.string('encrypted_password');
     table.string('fname');
     table.string('lname');
-    table.string('phone');
+    table.bigInteger('phone');
     table.string('verificationhex');
     table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));

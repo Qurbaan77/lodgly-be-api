@@ -2,6 +2,7 @@ module.exports = {
   environment: process.env.NODE_ENV,
   sentryDsn: process.env.SENTRY_DSN,
   clientPath: process.env.FRONTEND_APP,
+  clientPath2: process.env.FRONTEND_APP2,
   userJwtKey: process.env.JWT_SECRET,
   errorHandler: {
     reporting: false,
