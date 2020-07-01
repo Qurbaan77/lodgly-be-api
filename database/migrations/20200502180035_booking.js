@@ -24,13 +24,14 @@ exports.up = (knex) =>
     table.integer('perNight');
     table.integer('night');
     table.integer('amt');
-    table.integer('discountType');
+    table.string('discountType');
     table.integer('discount');
     table.integer('accomodation');
 
     table.string('noOfservices');
     table.integer('totalAmount');
     table.integer('deposit');
+    table.string('depositType');
     table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
     table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');

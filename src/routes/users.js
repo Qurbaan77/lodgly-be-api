@@ -17,7 +17,7 @@ const { upload } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
 
-sgMail.setApiKey('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');
+sgMail.setApiKey('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');
 
 // const serverPath = 'http://localhost:3001/';
 const serverPath = 'http://165.22.87.22:3002/';
@@ -55,35 +55,66 @@ const usersRouter = () => {
             };
             await DB.insert('users', userData);
 
-            res.send({
-              code: 200,
-              msg: 'Data saved successfully, please verify your email address!',
-            });
-
-            const transporter = nodemailer.createTransport(
-              smtpTransport({
-                host: 'mail.websultanate.com',
-                port: 587,
-                auth: {
-                  user: 'developer@websultanate.com',
-                  pass: 'Raviwbst@123',
+            const msg = {
+              from: 'root@lodgly.com',
+              templateId: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
+              personalizations: [
+                {
+                  to: [
+                    {
+                      email: userData.email,
+                    },
+                  ],
+                  dynamic_template_data: {
+                    receipt: true,
+                    // username:userData.username,
+                    confirmation_url: `${serverPath}users/verify/${userData.verificationhex}`,
+                    email: userData.email,
+                  },
                 },
-                tls: {
-                  rejectUnauthorized: false,
-                },
-                debug: true,
-              }),
-            );
-
-            const mailOptions = {
-              from: 'developer@websultanate.com',
-              to: userData.email,
-              subject: 'Please verify your email',
-              text: `Please click on this link to verify your email address
-              ${serverPath}users/verify/${userData.verificationhex}`,
+              ],
             };
 
-            transporter.sendMail(mailOptions);
+            sgMail.send(msg, (error, result) => {
+              if (error) {
+                console.log(error);
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              } else {
+                console.log(result);
+                res.send({
+                  code: 200,
+                  msg: 'Data saved successfully, please verify your email address!',
+                });
+              }
+            });
+
+            // const transporter = nodemailer.createTransport(
+            //   smtpTransport({
+            //     host: 'mail.websultanate.com',
+            //     port: 587,
+            //     auth: {
+            //       user: 'developer@websultanate.com',
+            //       pass: 'Raviwbst@123',
+            //     },
+            //     tls: {
+            //       rejectUnauthorized: false,
+            //     },
+            //     debug: true,
+            //   }),
+            // );
+
+            // const mailOptions = {
+            //   from: 'developer@websultanate.com',
+            //   to: userData.email,
+            //   subject: 'Please verify your email',
+            //   text: `Please click on this link to verify your email address
+            //   ${serverPath}users/verify/${userData.verificationhex}`,
+            // };
+
+            // transporter.sendMail(mailOptions);
           } else {
             res.send({
               code: 400,
@@ -850,7 +881,7 @@ const usersRouter = () => {
   router.post('/addBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
+      console.log('addBooking', body);
       const bookingData = {
         userId: body.tokenData.userid,
         propertyId: body.property,

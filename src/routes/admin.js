@@ -14,18 +14,15 @@ const adminRouter = () => {
   // post request to signup user
   router.post('/register', async (req, res) => {
     const { ...body } = req.body;
-    console.log('/register', body);
     // verifying if request body data is valid
     const { isValid } = checkIfEmpty(body.email, body.password, body.phone);
-    console.log(isValid);
     // if requested data is valid
     try {
       if (isValid) {
         const adminExist = await adminModel.getOneBy({
           email: body.email,
         });
-        console.log(adminExist);
-        if (!adminExist.length) {
+        if (adminExist.length === 0) {
           const hashedPassword = await hashPassword(body.password);
           if (hashedPassword) {
             body.encrypted_password = hashedPassword;
@@ -39,8 +36,7 @@ const adminRouter = () => {
               encrypted_password: body.encrypted_password,
               verificationhex: body.verificationhex,
             };
-            const savedAdmin = await DB.insert('admin', adminData);
-            console.log(savedAdmin);
+            await DB.insert('admin', adminData);
             res.send({
               code: 200,
               msg: 'Data Saved Successfully',
