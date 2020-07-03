@@ -181,11 +181,16 @@ const usersRouter = () => {
       console.log(req.body);
       const { isValid } = checkIfEmpty(req.body);
       if (isValid) {
-        const { email, password } = req.body;
+        const { email: userMail, password } = req.body;
         // finding user with email
         const isUserExists = await userModel.getOneBy({
-          email,
+          userMail,
         });
+        console.log(isUserExists);
+        let subUser;
+        if (!isUserExists.phone) {
+          subUser = await DB.select('team', { email: userMail });
+        }
         if (isUserExists.length) {
           if (isUserExists[0].isvalid === false) {
             // isvalid value need to change 0 on Live
@@ -206,6 +211,7 @@ const usersRouter = () => {
                 code: 200,
                 msg: 'Authenticated',
                 token,
+                subUser,
               });
             } else {
               res.send({
@@ -486,8 +492,13 @@ const usersRouter = () => {
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      // const userData = await DB.select('user', )
-      const propertiesData = await DB.select('property', { userId: body.tokenData.userid });
+      console.log('fetch property', body);
+      let propertiesData;
+      if (!body.affiliateId) {
+        propertiesData = await DB.select('property', { userId: body.tokenData.userid });
+      } else {
+        propertiesData = await DB.select('property', { userId: body.affiliateId });
+      }
       if (propertiesData) {
         res.send({
           code: 200,
@@ -882,8 +893,14 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log('addBooking', body);
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
       const bookingData = {
-        userId: body.tokenData.userid,
+        userId: id,
         propertyId: body.property,
         propertyName: body.propertyName,
         unitId: body.unit,
@@ -916,7 +933,7 @@ const usersRouter = () => {
       console.log('ID', Id);
       body.guestData.map(async (el) => {
         const Data = {
-          userId: body.tokenData.userid,
+          userId: id,
           bookingId: Id,
           fullname: el.fullName,
           country: el.country,
@@ -937,10 +954,13 @@ const usersRouter = () => {
 
       body.serviceData.map(async (el) => {
         const Data = {
+          userId: id,
           bookingId: Id,
           serviceName: el.serviceName,
           servicePrice: el.servicePrice,
-          quantity: el.serviceQunatity,
+          quantity: el.serviceQuantity,
+          serviceTax: el.serviceTax,
+          serviceAmount: el.serviceAmount,
         };
         await DB.insert('bookingService', Data);
       });
@@ -961,10 +981,18 @@ const usersRouter = () => {
   router.post('/getBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('getBooking', body.affiliateId);
       const guestData = [];
       const serviceData = [];
-      const bookingData = await DB.select('booking', { userId: body.tokenData.userid });
-      const unittypeData = await DB.select('unitType', { userId: body.tokenData.userid });
+      let bookingData;
+      let unittypeData;
+      if (!body.affiliateId) {
+        bookingData = await DB.select('booking', { userId: body.tokenData.userid });
+        unittypeData = await DB.select('unitType', { userId: body.tokenData.userid });
+      } else {
+        bookingData = await DB.select('booking', { userId: body.affiliateId });
+        unittypeData = await DB.select('unitType', { userId: body.affiliateId });
+      }
       each(
         bookingData,
         async (items, next) => {
@@ -1279,13 +1307,15 @@ const usersRouter = () => {
   router.post('/addReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
+      console.log('addReservation', body);
       const reservationData = {
         userId: body.tokenData.userid,
         propertyId: body.property,
+        propertyName: body.propertyName,
         unitId: body.unit,
-        startDate: Date.parse(body.groupname[0].split('T', 1)),
-        endDate: Date.parse(body.groupname[1].split('T', 1)),
+        unitName: body.unitName,
+        startDate: body.groupname[0].split('T', 1),
+        endDate: body.groupname[1].split('T', 1),
         acknowledge: body.acknowledge,
         channel: body.channel,
         commission: body.commission,
@@ -1295,12 +1325,21 @@ const usersRouter = () => {
         children2: body.children2,
         notes1: body.notes1,
         notes2: body.notes2,
+
+        perNight: body.perNight,
+        night: body.night,
+        amt: body.amt,
+        discountType: body.discountType,
         discount: body.discount,
+        accomodation: body.accomodation,
+
         noOfservices: body.noOfservices,
         totalAmount: body.totalAmount,
         deposit: body.deposit,
       };
+
       const Id = await DB.insert('reservation', reservationData);
+      console.log('ID', Id);
       body.guestData.map(async (el) => {
         const Data = {
           userId: body.tokenData.userid,
@@ -1312,7 +1351,7 @@ const usersRouter = () => {
         };
         await DB.insert('guest', Data);
         await DB.increment(
-          'reservation',
+          'booking',
           {
             id: Id,
           },
@@ -1322,19 +1361,31 @@ const usersRouter = () => {
         );
       });
 
+      // body.serviceData.map(async (el) => {
+      //   const Data = {
+      //     userId: body.tokenData.userid,
+      //     bookingId: Id,
+      //     serviceName: el.serviceName,
+      //     servicePrice: el.servicePrice,
+      //     quantity: el.serviceQuantity,
+      //     serviceTax: el.serviceTax,
+      //     serviceAmount: el.serviceAmount
+      //   };
+      //   await DB.insert('bookingService', Data);
+      // });
+
       res.send({
         code: 200,
-        msg: 'Data add successfully!',
+        msg: 'Booking save successfully!',
       });
     } catch (e) {
       console.log(e);
       res.send({
         code: 444,
-        msg: 'Some error has occured!',
+        msg: 'Some error occured!',
       });
     }
   });
-
   // API for get reservation
   router.post('/getReservation', userAuthCheck, async (req, res) => {
     try {
@@ -1568,6 +1619,7 @@ const usersRouter = () => {
       const userExists = await userModel.getOneBy({
         email: body.email,
       });
+      console.log(userExists);
       if (!userExists.length) {
         const password = randomstring.generate(7);
         console.log(password);
@@ -1577,8 +1629,23 @@ const usersRouter = () => {
           email: body.email,
           role: body.role,
           bookingRead: body.bookingRead,
-          bookingWrite: body.bookingRead,
+          bookingWrite: body.bookingWrite,
+          calendarRead: body.calendarRead,
+          calendarWrite: body.calendarWrite,
+          propertiesRead: body.propertiesRead,
+          propertiesWrite: body.propertiesWrite,
+          guestsRead: body.guestsRead,
+          guestsWrite: body.guestsWrite,
+          serviceRead: body.serviceRead,
+          serviceWrite: body.serviceWrite,
+          teamRead: body.teamRead,
+          teamWrite: body.teamWrite,
+          invoicesRead: body.invoicesRead,
+          invoicesWrite: body.invoicesWrite,
+          statsRead: body.statsRead,
+          statsWrite: body.statsWrite,
         };
+        console.log(teamData);
         if (body.id) {
           await DB.update('team', teamData, { id: body.id });
           res.send({

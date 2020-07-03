@@ -8,6 +8,8 @@ exports.up = (knex) =>
     table.string('serviceName');
     table.integer('servicePrice');
     table.integer('quantity');
+    table.integer('serviceTax');
+    table.integer('serviceAmount');
     table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
     table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
     table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');
