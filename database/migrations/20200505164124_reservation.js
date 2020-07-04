@@ -1,7 +1,6 @@
 const TABLE_NAME = 'reservation';
 
-exports.up = (knex) =>
-knex.schema.createTable(TABLE_NAME, (table) => {
+exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
   table.integer('userId').notNull().unsigned();
   table.integer('propertyId').notNull().unsigned();

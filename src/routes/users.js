@@ -181,15 +181,16 @@ const usersRouter = () => {
       console.log(req.body);
       const { isValid } = checkIfEmpty(req.body);
       if (isValid) {
-        const { email: userMail, password } = req.body;
+        const { email, password } = req.body;
         // finding user with email
         const isUserExists = await userModel.getOneBy({
-          userMail,
+          email,
         });
         console.log(isUserExists);
         let subUser;
         if (!isUserExists.phone) {
-          subUser = await DB.select('team', { email: userMail });
+          // eslint-disable-next-line object-shorthand
+          subUser = await DB.select('team', { email: email });
         }
         if (isUserExists.length) {
           if (isUserExists[0].isvalid === false) {
@@ -1028,10 +1029,16 @@ const usersRouter = () => {
   router.post('/changeBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const bookingDetail = await DB.select('booking', { id: body.id, userId: body.tokenData.userid });
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const bookingDetail = await DB.select('booking', { id: body.id, userId: id });
       if (bookingDetail) {
         const bookingData = {
-          userId: body.tokenData.userid,
+          userId: id,
           propertyId: body.propertyId,
           propertyName: body.property,
           unitId: body.unit,
@@ -1060,7 +1067,7 @@ const usersRouter = () => {
           deposit: body.deposit,
           depositType: body.depositType,
         };
-        await DB.update('booking', bookingData, { id: body.id, userId: body.tokenData.userid });
+        await DB.update('booking', bookingData, { id: body.id, userId: id });
         res.send({
           code: 200,
           msg: 'Booking change successfully!',
@@ -1070,7 +1077,7 @@ const usersRouter = () => {
         body.guestData.map(async (el) => {
           if (el.id) {
             const Data = {
-              userId: body.tokenData.userid,
+              userId: id,
               bookingId: el.bookingId,
               fullname: el.fullname,
               country: el.country,
@@ -1081,7 +1088,7 @@ const usersRouter = () => {
             await DB.update('guest', Data, { id: el.id });
           } else {
             const Data = {
-              userId: body.tokenData.userid,
+              userId: id,
               bookingId: el.bookingId,
               fullname: el.fullname,
               country: el.country,
@@ -1099,7 +1106,7 @@ const usersRouter = () => {
         body.serviceData.map(async (el) => {
           if (el.id) {
             const Data = {
-              userId: body.tokenData.userid,
+              userId: id,
               bookingId: el.bookingId,
               serviceName: el.serviceName,
               servicePrice: el.servicePrice,
@@ -1110,7 +1117,7 @@ const usersRouter = () => {
             await DB.update('bookingService', Data, { id: el.id });
           } else {
             const Data = {
-              userId: body.tokenData.userid,
+              userId: id,
               bookingId: el.bookingId,
               serviceName: el.serviceName,
               servicePrice: el.servicePrice,
@@ -1172,12 +1179,18 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log(body);
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
       let Dob = null;
       if (body.dob) {
         Dob = body.dob.split('T', 1);
       }
       const guestData = {
-        userId: body.tokenData.userid,
+        userId: id,
         bookingId: body.bookingId,
         reservationId: body.reservationId,
         fullName: body.fullName,
@@ -1308,8 +1321,14 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log('addReservation', body);
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
       const reservationData = {
-        userId: body.tokenData.userid,
+        userId: id,
         propertyId: body.property,
         propertyName: body.propertyName,
         unitId: body.unit,
@@ -1342,7 +1361,7 @@ const usersRouter = () => {
       console.log('ID', Id);
       body.guestData.map(async (el) => {
         const Data = {
-          userId: body.tokenData.userid,
+          userId: id,
           reservationId: Id,
           fullname: el.fullName,
           country: el.country,
