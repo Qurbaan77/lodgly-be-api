@@ -412,8 +412,14 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log(body);
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userId;
+      }
       const propertyData = {
-        userId: body.tokenData.userid,
+        userId: id,
         propertyNo: body.propertyNo,
         propertyName: body.propertyName,
         propertyType: body.propertyType,
@@ -431,11 +437,11 @@ const usersRouter = () => {
         description: body.description,
       };
 
-      const propertyExist = await DB.select('property', { userId: body.tokenData.userid, propertyNo: body.propertyNo });
+      const propertyExist = await DB.select('property', { userId: id, propertyNo: body.propertyNo });
       console.log(propertyExist.length);
       if (propertyExist.length) {
         await DB.update('property', propertyData, {
-          userId: body.tokenData.userid,
+          userId: id,
           propertyNo: body.propertyNo,
         });
         res.send({
@@ -525,12 +531,18 @@ const usersRouter = () => {
       const { ...body } = req.body;
       let start;
       let end;
+      let id;
       if (body.groupname) {
         start = Date.parse(body.groupname[0].split('T', 1));
         end = Date.parse(body.groupname[1].split('T', 1));
       }
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
       const unitTypeData = {
-        userId: body.tokenData.userid,
+        userId: id,
         propertyId: body.propertyId,
         unitTypeName: body.name,
         startDay: start,
@@ -639,8 +651,14 @@ const usersRouter = () => {
   router.post('/addUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
       const unitData = {
-        userId: body.tokenData.userid,
+        userId: id,
         propertyId: body.propertyId,
         unittypeId: body.unittypeId,
         unitName: body.unitName,
@@ -733,14 +751,19 @@ const usersRouter = () => {
   router.post('/addGroup', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
+      let prevCheckDate;
+      let nextCheckDate;
+      if (body.prevCheck || body.nextCheck) {
+        prevCheckDate = body.prevCheck.split('T', 1);
+        nextCheckDate = body.nextCheck.split('T', 1);
+      }
       const groupData = {
         userId: body.tokenData.userid,
         groupName: body.groupname,
         checkCount: body.count,
         checkInterval: body.interval,
-        prevCheck: body.prevCheck.split('T', 1),
-        nextCheck: body.nextCheck.split('T', 1),
+        prevCheck: prevCheckDate,
+        nextCheck: nextCheckDate,
       };
       if (body.id) {
         await DB.update('groups', groupData, { id: body.id });
@@ -827,8 +850,9 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const taskData = {
-        name: body.name,
-        address: body.address,
+        groupId: body.groupId,
+        taskName: body.taskName,
+        note: body.note,
         tags: body.tags,
       };
       if (body.id) {
@@ -876,8 +900,8 @@ const usersRouter = () => {
 
   router.post('/taskList', userAuthCheck, async (req, res) => {
     try {
-      console.log('API is called!');
-      const taskDetail = await DB.select('task', {});
+      const { ...body } = req.body;
+      const taskDetail = await DB.select('task', { groupId: body.groupId });
       res.send({
         code: 200,
         taskDetail,
@@ -896,9 +920,12 @@ const usersRouter = () => {
       console.log('addBooking', body);
       let id;
       if (!body.affiliateId) {
+        console.log('no affiliaate id');
         id = body.tokenData.userid;
       } else {
+        console.log('affiliate id');
         id = body.affiliateId;
+        console.log(id);
       }
       const bookingData = {
         userId: id,
@@ -929,7 +956,7 @@ const usersRouter = () => {
         totalAmount: body.totalAmount,
         deposit: body.deposit,
       };
-
+      console.log('booking data', bookingData);
       const Id = await DB.insert('booking', bookingData);
       console.log('ID', Id);
       body.guestData.map(async (el) => {
@@ -1382,7 +1409,7 @@ const usersRouter = () => {
 
       // body.serviceData.map(async (el) => {
       //   const Data = {
-      //     userId: body.tokenData.userid,
+      //     userId: id,
       //     bookingId: Id,
       //     serviceName: el.serviceName,
       //     servicePrice: el.servicePrice,
@@ -1410,7 +1437,13 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const guestData = [];
-      const reservationData = await DB.select('reservation', { userId: body.tokenData.userid });
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
+      const reservationData = await DB.select('reservation', { userId: id });
       each(
         reservationData,
         async (items, next) => {
@@ -1438,7 +1471,13 @@ const usersRouter = () => {
   router.post('/getReservationCalendarData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const unitType = await DB.select('unitType', { userId: body.tokenData.userid });
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
+      const unitType = await DB.select('unitType', { userId: id });
       const unit = await DB.select('unit', { userId: body.tokenData.userid });
       res.send({
         code: 200,
@@ -1634,17 +1673,23 @@ const usersRouter = () => {
   // API for add team
   router.post('/addTeam', userAuthCheck, async (req, res) => {
     try {
+      console.log('api called');
       const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
       const userExists = await userModel.getOneBy({
         email: body.email,
       });
-      console.log(userExists);
       if (!userExists.length) {
         const password = randomstring.generate(7);
-        console.log(password);
+        console.log('password', password);
         const hashedPassword = await hashPassword(password);
         const teamData = {
-          userId: body.tokenData.userid,
+          userId: id,
           email: body.email,
           role: body.role,
           bookingRead: body.bookingRead,
@@ -1663,6 +1708,8 @@ const usersRouter = () => {
           invoicesWrite: body.invoicesWrite,
           statsRead: body.statsRead,
           statsWrite: body.statsWrite,
+          ownerRead: body.ownerRead,
+          ownerWrite: body.ownerWrite,
         };
         console.log(teamData);
         if (body.id) {
@@ -1700,13 +1747,65 @@ const usersRouter = () => {
     }
   });
 
+  // API for update sub userv details
+  router.post('/updateSubUser', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const subUserData = {
+        userId: id,
+        email: body.email,
+        role: body.role,
+        bookingRead: body.bookingRead,
+        bookingWrite: body.bookingWrite,
+        calendarRead: body.calendarRead,
+        calendarWrite: body.calendarWrite,
+        propertiesRead: body.propertiesRead,
+        propertiesWrite: body.propertiesWrite,
+        guestsRead: body.guestsRead,
+        guestsWrite: body.guestsWrite,
+        serviceRead: body.serviceRead,
+        serviceWrite: body.serviceWrite,
+        teamRead: body.teamRead,
+        teamWrite: body.teamWrite,
+        invoicesRead: body.invoicesRead,
+        invoicesWrite: body.invoicesWrite,
+        statsRead: body.statsRead,
+        statsWrite: body.statsWrite,
+      };
+      console.log(subUserData);
+      await DB.update('team', subUserData, { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'Data update successfully!',
+      });
+    } catch (err) {
+      console.log(err);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   // API for get sub user details
   router.post('/getSubUser', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.select('users', { id: body.tokenData.userid });
-      console.log(userData[0].email);
-      const subUser = await DB.select('team', { email: userData[0].email });
+      console.log('getsubuser', body);
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const subUser = await DB.select('team', { userId: id });
+      console.log('subuser', subUser);
       res.send({
         code: 200,
         subUser,
@@ -1741,6 +1840,12 @@ const usersRouter = () => {
   router.post('/addOwner', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     try {
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
       let Dob = null;
       const password = randomstring.generate(7);
       const hashedPassword = await hashPassword(password);
@@ -1748,7 +1853,7 @@ const usersRouter = () => {
         Dob = body.dob.split('T', 1);
       }
       const ownerData = {
-        userId: body.tokenData.userid,
+        userId: id,
         fname: body.firstname,
         lname: body.secondname,
         email: body.email,
@@ -1832,7 +1937,13 @@ const usersRouter = () => {
   router.post('/getOwner', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const data = await DB.select('owner', { userId: body.tokenData.userid });
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
+      const data = await DB.select('owner', { userId: id });
       res.send({
         code: 200,
         data,
