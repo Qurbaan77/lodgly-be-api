@@ -16,6 +16,12 @@ const { verifyHash } = require('../functions');
 const { upload } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
+// const fs = require("fs");
+// const AWS = require("aws-sdk");
+// const fileType = require("file-type");
+// const bluebird = require("bluebird");
+// const multiparty = require("multiparty");
+// AWS.config.setPromisesDependency(bluebird);
 
 sgMail.setApiKey('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');
 
@@ -268,7 +274,7 @@ const usersRouter = () => {
               },
               {
                 email: userData[0].email,
-              },
+              }
             );
             if (updateData) {
               res.send({
@@ -324,7 +330,7 @@ const usersRouter = () => {
             },
             {
               email,
-            },
+            }
           );
 
           if (updatedData) {
@@ -340,7 +346,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              }),
+              })
             );
 
             const mailOptions = {
@@ -416,7 +422,7 @@ const usersRouter = () => {
       if (body.affiliateId) {
         id = body.affiliateId;
       } else {
-        id = body.tokenData.userId;
+        id = body.tokenData.userid;
       }
       const propertyData = {
         userId: id,
@@ -499,7 +505,6 @@ const usersRouter = () => {
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('fetch property', body);
       let propertiesData;
       if (!body.affiliateId) {
         propertiesData = await DB.select('property', { userId: body.tokenData.userid });
@@ -976,7 +981,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       });
 
@@ -1042,7 +1047,7 @@ const usersRouter = () => {
             serviceData,
             unittypeData,
           });
-        },
+        }
       );
     } catch (e) {
       res.send({
@@ -1248,7 +1253,7 @@ const usersRouter = () => {
             },
             {
               noGuest: 1,
-            },
+            }
           );
         } else {
           await DB.increment(
@@ -1258,7 +1263,7 @@ const usersRouter = () => {
             },
             {
               noGuest: 1,
-            },
+            }
           );
         }
         res.send({
@@ -1317,7 +1322,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       } else {
         await DB.decrement(
@@ -1327,7 +1332,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       }
       res.send({
@@ -1403,7 +1408,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          },
+          }
         );
       });
 
@@ -1457,7 +1462,7 @@ const usersRouter = () => {
             reservationData,
             guestData,
           });
-        },
+        }
       );
     } catch (e) {
       res.send({
@@ -1819,14 +1824,15 @@ const usersRouter = () => {
     }
   });
 
-  // API for delete team
-  router.post('/deleteTeam', userAuthCheck, async (req, res) => {
+  // API for delete subuser
+  router.post('/deleteSubUser', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('team', { id: body.teamId });
+      console.log('Delete sub user id', req.body);
+      await DB.remove('team', { id: body.deleteId });
       res.send({
         code: 200,
-        msg: 'Data remove successfully!',
+        msg: 'Sub User removed successfully!',
       });
     } catch (e) {
       res.send({
@@ -1886,7 +1892,7 @@ const usersRouter = () => {
         });
         const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
         const userData = {
-          affiliateId: body.tokenData.userid,
+          // affiliateId: body.tokenData.userid,
           username: body.username,
           email: body.email,
           phone: body.phone,
@@ -1910,7 +1916,7 @@ const usersRouter = () => {
               rejectUnauthorized: false,
             },
             debug: true,
-          }),
+          })
         );
 
         const mailOptions = {
@@ -2115,6 +2121,125 @@ const usersRouter = () => {
     } catch (e) {
       res.send({
         code: 406,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for change user password
+  router.post('/changePassword', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const userData = await DB.select('users', { id: body.tokenData.userid });
+      const isPasswordValid = await verifyHash(body.oldPassword, userData[0].encrypted_password);
+      if (isPasswordValid) {
+        const hashedPassword = await hashPassword(body.newPassword);
+        await DB.update('users', { encrypted_password: hashedPassword }, { id: body.tokenData.userid });
+        res.send({
+          code: 200,
+          msg: 'Password change successfully!',
+        });
+      } else {
+        res.send({
+          code: 401,
+          msg: 'Invalid Credential!',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for add personal Information
+  router.post('/updatePersonalInfo', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const userData = {
+        fname: body.fname,
+        lname: body.lname,
+        address: body.address,
+        email: body.email,
+        phone: body.phone,
+      };
+      await DB.update('users', userData, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        msg: 'Data update successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for updating organisation information
+  router.post('/updateOrganisation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const companyData = {
+        userId: body.tokenData.userid,
+        name: body.name,
+        address: body.address,
+        country: body.country,
+        state: body.state,
+        city: body.city,
+        zip: body.zip,
+        vatid: body.vatId,
+      };
+      await DB.insert('organizations', companyData);
+      res.send({
+        code: 200,
+        msg: 'Data saved successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API to get user info
+  router.post('/getuserData', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const userData = await DB.selectOnly(['fname', 'lname', 'address', 'email', 'phone'], 'users', {
+        id: body.tokenData.userid,
+      });
+      res.send({
+        code: 200,
+        userData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get company info
+  router.post('/getCompanyData', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const companyData = await DB.select('organizations', { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        companyData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
         msg: 'Some error has occured!',
       });
     }
