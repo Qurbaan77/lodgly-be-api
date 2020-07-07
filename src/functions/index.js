@@ -100,7 +100,7 @@ const verifyJwtAdmin = async (token) => {
 
 const storage = multer.diskStorage({
   fun1(req, file, cb) {
-    cb(null, 'assets/uploads');
+    cb(null, 'uploads');
   },
   fun2(req, file, cb) {
     cb(null, file.originalname);

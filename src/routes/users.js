@@ -6,6 +6,11 @@ const nodemailer = require('nodemailer');
 const smtpTransport = require('nodemailer-smtp-transport');
 const each = require('sync-each');
 const sgMail = require('@sendgrid/mail');
+const fs = require('fs');
+const AWS = require('aws-sdk');
+const fileType = require('file-type');
+const bluebird = require('bluebird');
+const multiparty = require('multiparty');
 const userModel = require('../models/users/repositories');
 // const unitTypeModel = require('../models/unitType/repositories');
 const DB = require('../services/database');
@@ -13,20 +18,15 @@ const { checkIfEmpty } = require('../functions');
 const { signJwt } = require('../functions');
 const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
-const { upload } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
-// const fs = require("fs");
-// const AWS = require("aws-sdk");
-// const fileType = require("file-type");
-// const bluebird = require("bluebird");
-// const multiparty = require("multiparty");
-// AWS.config.setPromisesDependency(bluebird);
+
+AWS.config.setPromisesDependency(bluebird);
 
 sgMail.setApiKey('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');
 
-// const serverPath = 'http://localhost:3001/';
-const serverPath = 'http://165.22.87.22:3002/';
+const serverPath = 'http://localhost:3001/';
+// const serverPath = 'http://165.22.87.22:3002/';
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -274,7 +274,7 @@ const usersRouter = () => {
               },
               {
                 email: userData[0].email,
-              }
+              },
             );
             if (updateData) {
               res.send({
@@ -330,7 +330,7 @@ const usersRouter = () => {
             },
             {
               email,
-            }
+            },
           );
 
           if (updatedData) {
@@ -346,7 +346,7 @@ const usersRouter = () => {
                   rejectUnauthorized: false,
                 },
                 debug: true,
-              })
+              }),
             );
 
             const mailOptions = {
@@ -981,7 +981,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       });
 
@@ -1047,7 +1047,7 @@ const usersRouter = () => {
             serviceData,
             unittypeData,
           });
-        }
+        },
       );
     } catch (e) {
       res.send({
@@ -1253,7 +1253,7 @@ const usersRouter = () => {
             },
             {
               noGuest: 1,
-            }
+            },
           );
         } else {
           await DB.increment(
@@ -1263,7 +1263,7 @@ const usersRouter = () => {
             },
             {
               noGuest: 1,
-            }
+            },
           );
         }
         res.send({
@@ -1322,7 +1322,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       } else {
         await DB.decrement(
@@ -1332,7 +1332,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       }
       res.send({
@@ -1408,7 +1408,7 @@ const usersRouter = () => {
           },
           {
             noGuest: 1,
-          }
+          },
         );
       });
 
@@ -1462,7 +1462,7 @@ const usersRouter = () => {
             reservationData,
             guestData,
           });
-        }
+        },
       );
     } catch (e) {
       res.send({
@@ -1916,7 +1916,7 @@ const usersRouter = () => {
               rejectUnauthorized: false,
             },
             debug: true,
-          })
+          }),
         );
 
         const mailOptions = {
@@ -2033,11 +2033,56 @@ const usersRouter = () => {
     }
   });
 
+  const ID = 'AKIAXQT7I33QUFVO42Q5';
+  const SECRET = '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';
+  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
+  const s3 = new AWS.S3({
+    accessKeyId: ID,
+    secretAccessKey: SECRET,
+  });
+
+  const uploadFile = (buffer, name, type) => {
+    const params = {
+      ACL: 'public-read',
+      Body: buffer,
+      Bucket: BUCKET_NAME,
+      ContentType: type.mime,
+      Key: `${name}.${type.ext}`,
+    };
+    return s3.upload(params).promise();
+    // s3.upload(params, function (err, data) {
+    //   if (err) {
+    //     console.log(err);
+    //   }
+    //   console.log(`File uploaded successfully`, data);
+    // });
+  };
+
   // API for upload picture
-  router.post('/photo', upload.single('file'), (req, res) => {
-    console.log(req);
-    return res.json({
-      image: req.file.path,
+  router.post('/photo/:id', async (req, res) => {
+    const form = new multiparty.Form();
+    form.parse(req, async (error, fields, files) => {
+      if (error) {
+        console.log(error);
+      }
+      try {
+        const { ...path } = files.file[0].path;
+        const buffer = fs.readFileSync(path);
+        const type = await fileType.fromBuffer(buffer);
+        const timestamp = Date.now().toString();
+        const fileName = `bucketFolder/${timestamp}-lg`;
+        const data = await uploadFile(buffer, fileName, type);
+        await DB.update('users', { image: data.Location }, { id: req.params.id });
+        return res.json({
+          image: data.Location,
+        });
+      } catch (e) {
+        res.send({
+          code: 444,
+          msg: 'Some error has occured!',
+        });
+      }
+      return 0;
     });
   });
 
@@ -2211,7 +2256,7 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectOnly(['fname', 'lname', 'address', 'email', 'phone'], 'users', {
+      const userData = await DB.selectOnly(['fname', 'lname', 'address', 'email', 'phone', 'image'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({

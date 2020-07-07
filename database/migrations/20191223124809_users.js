@@ -10,6 +10,7 @@ exports.up = (knex) =>
     table.string('lname');
     table.string('address');
     table.string('package');
+    table.string('image');
     table.string('verificationhex');
     table.boolean('isvalid').defaultTo(false);
     table.string('forgetPassHex');
