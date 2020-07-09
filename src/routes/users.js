@@ -11,6 +11,7 @@ const AWS = require('aws-sdk');
 const fileType = require('file-type');
 const bluebird = require('bluebird');
 const multiparty = require('multiparty');
+const pdf = require('html-pdf');
 const userModel = require('../models/users/repositories');
 // const unitTypeModel = require('../models/unitType/repositories');
 const DB = require('../services/database');
@@ -20,6 +21,7 @@ const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
+const invoiceTemplate = require('../invoiceTemplate/email');
 
 AWS.config.setPromisesDependency(bluebird);
 
@@ -31,6 +33,31 @@ const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
 
+  // AWS S3 upload function'
+  const ID = 'AKIAXQT7I33QUFVO42Q5';
+  const SECRET = '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';
+  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
+  const s3 = new AWS.S3({
+    accessKeyId: ID,
+    secretAccessKey: SECRET,
+  });
+
+  const uploadFile = (buffer, name, type) => {
+    const params = {
+      ACL: 'public-read',
+      Body: buffer,
+      Bucket: BUCKET_NAME,
+      ContentType: type.mime,
+      Key: `${name}.${type.ext}`,
+    };
+    return s3.upload(params).promise();
+    // s3.upload(params, function (err, data) {
+    //   if (err) {
+    //     console.log(err);
+    //   }
+    //   console.log(`File uploaded successfully`, data);
+    // });
+  };
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = await req.body;
@@ -1551,50 +1578,83 @@ const usersRouter = () => {
     }
   });
 
-  // API for add/update Invoice
-  router.post('/addInvoice', userAuthCheck, async (req, res) => {
-    try {
-      const { ...body } = req.body;
-      const invoiceData = {
-        userId: body.tokenData.userid,
-        propertyId: body.propertyId,
-        label: body.label,
-        type: body.type,
-        status: body.status,
-        date: body.date,
-        time: body.time,
-        deliveryDate: body.deliveryDate,
-        dueDate: body.dueDate,
-        paymentType: body.paymentType,
-        clientName: body.clientName,
-        email: body.email,
-        address: body.address,
-        vatId: body.vatId,
-        itemDesc: body.itemDesc,
-        amount: body.amount,
-        impression: body.impression,
-      };
-      if (body.id) {
-        await DB.update('invoice', invoiceData, { id: body.id });
+
+  // fake route for testing
+  router.post('/createInvoice', (req, res) => {
+    const { ...body } = req.body;
+    let id;
+    if (!body.affiliateId) {
+      id = body.tokenData.userid;
+    } else {
+      id = body.affiliateId;
+    }
+    pdf.create(invoiceTemplate(body), {}).toFile(`${body.clientName}.pdf`, async (err, success) => {
+      if (err) {
         res.send({
-          code: 200,
-          msg: 'Data update successfully!',
-        });
-      } else {
-        await DB.insert('invoice', invoiceData);
-        res.send({
-          code: 200,
-          msg: 'Data save successfully!',
+          code: 444,
+          msg: 'Some error has occured!',
         });
       }
-    } catch (e) {
+      console.log(success);
+      const buffer = fs.readFileSync(success.filename);
+      const type = await fileType.fromBuffer(buffer);
+      // const timestamp = Date.now().toString();
+      const fileName = `bucketFolder/${req.body.clientName}`;
+      const data = await uploadFile(buffer, fileName, type);
+      console.log('s3 response', data);
+      // data.Location is uploaded url
+      res.send(Promise.resolve());
+      try {
+        const invoiceData = {
+          userId: id,
+          propertyId: body.propertyId,
+          date: body.date,
+          time: body.time,
+          deliveryDate: body.deliveryDate,
+          dueDate: body.dueDate,
+          paymentType: body.paymentType,
+          clientName: body.clientName,
+          email: body.email,
+          address: body.address,
+          vat: body.vat,
+          impression: body.impression,
+          pdfurl: data.Location,
+        };
+        const Id = await DB.insert('invoice', invoiceData);
+        body.itemData.map(async (el) => {
+          const Data = {
+            userId: id,
+            bookingId: Id,
+            fullname: el.fullName,
+            country: el.country,
+            email: el.email,
+            phone: el.phone,
+          };
+          await DB.insert('guest', Data);
+        });
+      } catch (error) {
+        res.send({
+          code: 444,
+          msg: error,
+        });
+      }
+    });
+  });
+
+  // API for get invoice
+
+  router.get('/getInvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const { clientName } = body;
+      res.sendFile(`${__dirname}/${clientName.pdf}`);
+    } catch (err) {
       res.send({
         code: 444,
-        msg: 'Some error has occured!',
+        msg: err,
       });
     }
   });
-
   // API for delete invoice
   router.post('/deleteInvoice', userAuthCheck, async (req, res) => {
     try {
@@ -1634,22 +1694,22 @@ const usersRouter = () => {
     }
   });
 
-  // API for fetch Invoices
-  router.post('/getInvoice', userAuthCheck, async (req, res) => {
-    try {
-      const { ...body } = req.body;
-      const InvoiceData = await DB.select('invoice', { userId: body.tokenData.userid });
-      res.send({
-        code: 200,
-        InvoiceData,
-      });
-    } catch (e) {
-      res.send({
-        code: 444,
-        msg: 'Some error has occured!',
-      });
-    }
-  });
+  // // API for fetch Invoices
+  // router.post('/getInvoice', userAuthCheck, async (req, res) => {
+  //   try {
+  //     const { ...body } = req.body;
+  //     const InvoiceData = await DB.select('invoice', { userId: body.tokenData.userid });
+  //     res.send({
+  //       code: 200,
+  //       InvoiceData,
+  //     });
+  //   } catch (e) {
+  //     res.send({
+  //       code: 444,
+  //       msg: 'Some error has occured!',
+  //     });
+  //   }
+  // });
 
   // APi for filter/fetch Invoices
   router.post('/filterInvoice', userAuthCheck, async (req, res) => {
@@ -2020,7 +2080,15 @@ const usersRouter = () => {
   router.post('/getInfo', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userInfo = await DB.select('users', { id: body.tokenData.userid });
+      let Id;
+      if (!body.affiliateId) {
+        console.log('no affiliaate id');
+        Id = body.tokenData.userid;
+      } else {
+        console.log('affiliate id');
+        Id = body.affiliateId;
+      }
+      const userInfo = await DB.select('users', { id: Id });
       res.send({
         code: 200,
         userInfo,
@@ -2033,30 +2101,6 @@ const usersRouter = () => {
     }
   });
 
-  const ID = 'AKIAXQT7I33QUFVO42Q5';
-  const SECRET = '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';
-  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
-  const s3 = new AWS.S3({
-    accessKeyId: ID,
-    secretAccessKey: SECRET,
-  });
-
-  const uploadFile = (buffer, name, type) => {
-    const params = {
-      ACL: 'public-read',
-      Body: buffer,
-      Bucket: BUCKET_NAME,
-      ContentType: type.mime,
-      Key: `${name}.${type.ext}`,
-    };
-    return s3.upload(params).promise();
-    // s3.upload(params, function (err, data) {
-    //   if (err) {
-    //     console.log(err);
-    //   }
-    //   console.log(`File uploaded successfully`, data);
-    // });
-  };
 
   // API for upload picture
   router.post('/photo/:id', async (req, res) => {
