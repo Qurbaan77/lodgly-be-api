@@ -1668,22 +1668,26 @@ const usersRouter = () => {
             impression: body.impression,
             pdfurl: data.Location,
             status: body.status,
+            type: body.type,
           };
           const Id = await DB.insert('invoice', invoiceData);
           console.log('invoice id', Id);
           body.itemData.map(async (el) => {
             const Data = {
               invoiceId: Id,
+              itemDescription: el.itemDescription,
               quantity: el.quantity,
               price: el.price,
               amount: el.amount,
               discount: el.discount,
-              discountAmount: el.discountAmount,
+              discountPer: el.discountPer,
               itemTotal: el.itemTotal,
             };
             await DB.insert('invoiceItems', Data);
           });
-
+          if (body.deleteInvoiceItemId) {
+            await DB.remove('invoiceItems', { id: body.deleteInvoiceItemId });
+          }
           res.send({
             code: 200,
             msg: 'Successfully drafted invoice',
@@ -1744,7 +1748,6 @@ const usersRouter = () => {
       });
     }
   });
-
   // API for delete invoice
   router.post('/deleteInvoice', userAuthCheck, async (req, res) => {
     try {
@@ -1767,31 +1770,14 @@ const usersRouter = () => {
   router.post('/cancelInvoice', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const invoiceId = req.id;
+      const invoiceId = body.id;
       const invoiceData = {
-        status: body.status,
+        type: body.type,
       };
       await DB.update('invoice', invoiceData, { id: invoiceId });
       res.send({
         code: 200,
         msg: 'Invoice Cancelled!',
-      });
-    } catch (e) {
-      res.send({
-        code: 444,
-        msg: 'Some error has occured!',
-      });
-    }
-  });
-
-  // API for fetch Invoices
-  router.post('/getInvoice', userAuthCheck, async (req, res) => {
-    try {
-      const { ...body } = req.body;
-      const InvoiceData = await DB.select('invoice', { userId: body.tokenData.userid });
-      res.send({
-        code: 200,
-        InvoiceData,
       });
     } catch (e) {
       res.send({
@@ -2160,7 +2146,15 @@ const usersRouter = () => {
   router.post('/getInfo', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userInfo = await DB.select('users', { id: body.tokenData.userid });
+      let Id;
+      if (!body.affiliateId) {
+        console.log('no affiliaate id');
+        Id = body.tokenData.userid;
+      } else {
+        console.log('affiliate id');
+        Id = body.affiliateId;
+      }
+      const userInfo = await DB.select('users', { id: Id });
       res.send({
         code: 200,
         userInfo,
@@ -2175,6 +2169,7 @@ const usersRouter = () => {
 
   // API for upload picture
   router.post('/photo/:id', async (req, res) => {
+    console.log('Hit ho raha hai');
     const form = new multiparty.Form();
     form.parse(req, async (error, fields, files) => {
       if (error) {
@@ -2183,15 +2178,20 @@ const usersRouter = () => {
       try {
         const { path } = files.file[0];
         const buffer = fs.readFileSync(path);
+        console.log(buffer);
         const type = await fileType.fromBuffer(buffer);
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
+        console.log(fileName);
         const data = await uploadFile(buffer, fileName, type);
-        await DB.update('users', { image: data.Location }, { id: req.params.id });
+        console.log('photo url', data.Location);
+        const d0 = await DB.update('users', { image: data.Location }, { id: req.params.id });
+        console.log(d0);
         return res.json({
           image: data.Location,
         });
       } catch (e) {
+        console.log(e);
         res.send({
           code: 444,
           msg: 'Some error has occured!',

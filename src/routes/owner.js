@@ -64,11 +64,6 @@ const ownerRouter = () => {
     }
   });
 
-  // post request for logout Owner
-  router.post('/ownerLogout', async (req, res) => {
-    res.clearCookie('token').send('cookie cleared!');
-  });
-
   // API for fetch Owner property details
   router.post('/getProperty', ownerAuthCheck, async (req, res) => {
     try {
