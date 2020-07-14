@@ -1,10 +1,33 @@
-const { verifyJwt, verifyJwtAdmin } = require('../functions');
+const { verifyJwt, verifyJwtAdmin, verifyOwnerJwt } = require('../functions');
 
 const userAuthCheck = async (req, res, next) => {
   try {
     const cookie = req.signedCookies;
     if (cookie) {
       const isCookieValid = await verifyJwt(cookie.token);
+      if (isCookieValid) {
+        req.body.tokenData = isCookieValid;
+        next();
+      } else {
+        res.send({
+          code: 400,
+          msg: 'Authentication is required',
+        });
+      }
+    }
+  } catch (e) {
+    res.send({
+      code: 444,
+      msg: 'Some error has occured!',
+    });
+  }
+};
+
+const ownerAuthCheck = async (req, res, next) => {
+  try {
+    const cookie = req.signedCookies;
+    if (cookie) {
+      const isCookieValid = await verifyOwnerJwt(cookie.token);
       if (isCookieValid) {
         req.body.tokenData = isCookieValid;
         next();
@@ -61,6 +84,7 @@ const adminAuthCheckParam = async (req, res, next) => {
 
 module.exports = {
   userAuthCheck,
+  ownerAuthCheck,
   adminAuthCheck,
   adminAuthCheckParam,
 };

@@ -1,9 +1,23 @@
 /* eslint-disable indent */
-// const logo = require('./logo.png');
 
 module.exports = ({
-    date, time, deliveryDate, dueDate, paymentType, clientName, email, address, vat,
-    itemData, propertyName, propertyWebsite, propertyAddress, userPhone, userEmail,
+    label,
+    date,
+    time,
+    deliveryDate,
+    dueDate,
+    paymentType,
+    clientName,
+    email,
+    address,
+    vat,
+    itemData,
+    propertyName,
+    website,
+    propertyAddress,
+    phone,
+    total,
+    impression,
 }) => {
     console.log(clientName);
     return `
@@ -28,7 +42,9 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                 <div class="content" style="margin: 0 auto;padding: 0;max-width: 700px;display: block;">
                     <table style="margin: 0;padding: 0;width: 100%;">
                         <tr style="margin: 0;padding: 0;">
-                            <td align="center" style="margin: 0;padding: 0;"><a href="#"><img src=""
+                            <td align="center" style="margin: 0;padding: 0;"><a href="#">
+                            <img src=
+                    "https://s3.eu-west-1.amazonaws.com/lodgly.dev-files-eu-west-1/bucketFolder/1594274557462-lg.png"
                             style="margin: 10px 10px; width: 50px;"></a></td>
                         </tr>
                     </table>
@@ -54,16 +70,13 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                 <span style="color: #f9b32b; font-size: 20px;">${`${propertyName}`}</span>
                             </td> 
                             <td align="right">
-                            ${`${userPhone}`}
+                            ${`${phone}`}
                             </td>                     
                         </tr> 
 
                         <tr>
-                            <td>
-                                City of London, United Kingdom, 
-                            </td> 
                             <td align="right">
-                            ${`${userEmail}`}
+                            ${`${email}`}
                             </td>                     
                         </tr>  
                         
@@ -72,7 +85,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                             ${`${propertyAddress}`}
                             </td> 
                             <td align="right">
-                            ${`${propertyWebsite}`}
+                            ${`${website}`}
                             </td>                     
                         </tr> 
 
@@ -88,7 +101,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                     <table style="width: 100%;color: #666; border-bottom: 1px solid #333;">
                         <tr>
                             <td>
-                                <span style="color: #333; font-size: 20px; font-weight: 600">INVOICE1 - 2019</span>
+                                <span style="color: #333; font-size: 20px; font-weight: 600">${`${label}`}</span>
                             </td> 
                             <td align="right">
                                <span style="color: #333; font-size: 20px; font-weight: 600">CLIENT</span>
@@ -202,8 +215,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                             
                         ${`${itemData.map((el) => {
         console.log('hi');
-        return (
-            `
+        return `
                             <tr>
                             <td style="padding:5px;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemDescription}`}</span>
@@ -218,7 +230,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                <span style="color: #333; font-size: 13px;">${`${el.amount}`} EUR</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">0,00%</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.discountPer}`}%</span>
                             </td>     
                             <td style="padding:5px;">
                                <span style="color: #333; font-size: 13px;">${`${el.discount}`} EUR</span>
@@ -227,8 +239,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemTotal}`} EUR</span>
                             </td>     
                         </tr> 
-                        `
-        );
+                        `;
     })}`}
                         
                         </tbody>
@@ -241,7 +252,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                     <table style="width: 100%;color: #666;">
                         <tr>
                             <td align="right">
-                               <span style="color: #333; font-size: 24px; font-weight: 600">Total: 0,00 EURO</span>
+                         <span style="color: #333; font-size: 24px; font-weight: 600">Total: ${`${total}`} EURO</span>
                             </td>                     
                         </tr> 
 
@@ -280,13 +291,12 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                 
                                 <p style="margin-bottom: 30px; margin-top: 0px; 
                                 font-size: 14px; line-height: 1.5; color:#666;">
-                               impression yaha put karo</p> 
+                               ${`${impression}`}</p> 
 
 
                             <p style="color: #999; font-size:12px;max-width: 335px;
-                             margin: 0px auto;text-align: center;">United Kingdom | 
-                             4915 St Anthony Ave | t: +385 01 123 456 
-                                | owner@gmail.com | www.mywebsite.com   </p>
+                             margin: 0px auto;text-align: center;">${`${propertyAddress}`} | ${`${phone}`}
+                                | ${`${email}`} | ${`${website}`}  </p>
                             </td>
                         </tr>
                     </table>
