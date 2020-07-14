@@ -2156,7 +2156,7 @@ const usersRouter = () => {
       try {
         console.log('try hitting');
         // can not use object destucturing here
-        const path = files.file[0].path;
+        const { path } = files.file[0];
         const buffer = fs.readFileSync(path);
         console.log(buffer);
         const type = await fileType.fromBuffer(buffer);
