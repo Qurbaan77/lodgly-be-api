@@ -68,6 +68,19 @@ const verifyJwt = async (token) => {
   return isTokenValid;
 };
 
+// verify owner jwt token
+const verifyOwnerJwt = async (token) => {
+  let isTokenValid;
+  try {
+    isTokenValid = await jwt.verify(token, userJwtKey);
+  } catch (e) {
+    console.log('error', e);
+    isTokenValid = null;
+  }
+  return isTokenValid;
+};
+
+
 // signing jwt token for admin
 const signJwtAdmin = (adminId) => {
   let token;
@@ -115,6 +128,7 @@ module.exports = {
   hashPassword,
   verifyHash,
   verifyJwt,
+  verifyOwnerJwt,
   verifyJwtAdmin,
   signJwtAdmin,
   upload,

@@ -8,6 +8,7 @@ const { getConnection } = require('./services/database');
 
 // routes
 const usersRouter = require('./routes/users')();
+const ownerRouter = require('./routes/owner')();
 const adminRouter = require('./routes/admin')();
 
 const app = express();
@@ -30,6 +31,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // routes middlewares
 app.use('/users', usersRouter);
+
+app.use('/owner', ownerRouter);
 
 app.use('/admin', adminRouter);
 

@@ -18,9 +18,7 @@ exports.transaction = (handler) => exports.getConnection().transaction(handler);
 
 exports.select = (table, condition) => exports.getConnection().select().from(table).where(condition);
 
-exports.selectOnly = (columns, table, condition) => {
-  exports.getConnection().select(columns).from(table).where(condition);
-};
+exports.selectCol = (columns, table, condition) => exports.getConnection().select(columns).from(table).where(condition);
 
 exports.selectOr = (table, condition) => exports.getConnection().select().from(table).orWhere(condition);
 

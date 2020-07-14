@@ -11,6 +11,7 @@ const AWS = require('aws-sdk');
 const fileType = require('file-type');
 const bluebird = require('bluebird');
 const multiparty = require('multiparty');
+const pdf = require('html-pdf');
 const userModel = require('../models/users/repositories');
 // const unitTypeModel = require('../models/unitType/repositories');
 const DB = require('../services/database');
@@ -20,17 +21,56 @@ const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
 const { clientPath } = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
+const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
 
 sgMail.setApiKey('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');
 
-const serverPath = 'http://localhost:3001/';
-// const serverPath = 'http://165.22.87.22:3002/';
+// const serverPath = 'http://localhost:3001/';
+const serverPath = 'http://165.22.87.22:3002/';
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
 
+  // AWS S3 upload function'
+  const ID = 'AKIAXQT7I33QUFVO42Q5';
+  const SECRET = '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';
+  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
+  const s3 = new AWS.S3({
+    accessKeyId: ID,
+    secretAccessKey: SECRET,
+  });
+
+  const uploadFile = (buffer, name, type) => {
+    const params = {
+      ACL: 'public-read',
+      Body: buffer,
+      Bucket: BUCKET_NAME,
+      ContentType: type.mime,
+      Key: `${name}.${type.ext}`,
+    };
+    return s3.upload(params).promise();
+    // s3.upload(params, function (err, data) {
+    //   if (err) {
+    //     console.log(err);
+    //   }
+    //   console.log(`File uploaded successfully`, data);
+    // });
+  };
+
+  // function for uploading invoice pdf
+  const uploadPdf = (buffer, name, type) => {
+    const params = {
+      ACL: 'public-read',
+      Body: buffer,
+      Bucket: BUCKET_NAME,
+      ResponseContentType: 'application/pdf',
+      Key: `${name}.${type.ext}`,
+      ResponseContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
+    };
+    return s3.upload(params).promise();
+  };
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = await req.body;
@@ -508,19 +548,44 @@ const usersRouter = () => {
       let propertiesData;
       if (!body.affiliateId) {
         propertiesData = await DB.select('property', { userId: body.tokenData.userid });
+        each(
+          propertiesData,
+          async (items, next) => {
+            const itemsCopy = items;
+            const data = await DB.select('unitType', { propertyId: items.id });
+            const data2 = await DB.select('unit', { propertyId: items.id });
+            itemsCopy.noUnitType = data.length;
+            itemsCopy.noUnit = data2.length;
+            next();
+            return itemsCopy;
+          },
+          () => {
+            res.send({
+              code: 200,
+              propertiesData,
+            });
+          },
+        );
       } else {
         propertiesData = await DB.select('property', { userId: body.affiliateId });
-      }
-      if (propertiesData) {
-        res.send({
-          code: 200,
+        each(
           propertiesData,
-        });
-      } else {
-        res.send({
-          code: 404,
-          msg: 'Not Found, There is no Property!',
-        });
+          async (items, next) => {
+            const itemsCopy = items;
+            const data = await DB.select('unitType', { propertyId: items.id });
+            const data2 = await DB.select('unit', { propertyId: items.id });
+            itemsCopy.noUnitType = data.length;
+            itemsCopy.noUnit = data2.length;
+            next();
+            return itemsCopy;
+          },
+          () => {
+            res.send({
+              code: 200,
+              propertiesData,
+            });
+          },
+        );
       }
     } catch (e) {
       console.log(e);
@@ -922,8 +987,15 @@ const usersRouter = () => {
   router.post('/addBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('addBooking', body);
       let id;
+      const startDateTime = new Date(body.groupname[0]);
+      startDateTime.setHours(startDateTime.getHours() + 5);
+      startDateTime.setMinutes(startDateTime.getMinutes() + 30);
+
+      const endDateTime = new Date(body.groupname[0]);
+      endDateTime.setHours(endDateTime.getHours() + 5);
+      endDateTime.setMinutes(endDateTime.getMinutes() + 30);
+
       if (!body.affiliateId) {
         console.log('no affiliaate id');
         id = body.tokenData.userid;
@@ -938,8 +1010,8 @@ const usersRouter = () => {
         propertyName: body.propertyName,
         unitId: body.unit,
         unitName: body.unitName,
-        startDate: body.groupname[0].split('T', 1),
-        endDate: body.groupname[1].split('T', 1),
+        startDate: startDateTime,
+        endDate: endDateTime,
         acknowledge: body.acknowledge,
         channel: body.channel,
         commission: body.commission,
@@ -1551,46 +1623,124 @@ const usersRouter = () => {
     }
   });
 
-  // API for add/update Invoice
-  router.post('/addInvoice', userAuthCheck, async (req, res) => {
+  // API for issue invoice and draft invoice
+  router.post('/invoicedraft', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const invoiceData = {
-        userId: body.tokenData.userid,
-        propertyId: body.propertyId,
-        label: body.label,
-        type: body.type,
-        status: body.status,
-        date: body.date,
-        time: body.time,
-        deliveryDate: body.deliveryDate,
-        dueDate: body.dueDate,
-        paymentType: body.paymentType,
-        clientName: body.clientName,
-        email: body.email,
-        address: body.address,
-        vatId: body.vatId,
-        itemDesc: body.itemDesc,
-        amount: body.amount,
-        impression: body.impression,
-      };
-      if (body.id) {
-        await DB.update('invoice', invoiceData, { id: body.id });
-        res.send({
-          code: 200,
-          msg: 'Data update successfully!',
+      console.log('invoice draft body', req.body);
+      pdf
+        .create(invoiceTemplate(body), { timeout: '100000' })
+        .toFile(`${body.clientName}.pdf`, async (err, success) => {
+          if (err) {
+            console.log(err);
+          }
+          console.log(success);
+          // success.filename is saved file path
+          const buffer = fs.readFileSync(success.filename);
+          const type = await fileType.fromBuffer(buffer);
+          const fileName = `bucketFolder/${req.body.clientName}`;
+          // upload to AWS S3 bucket
+          const data = await uploadPdf(buffer, fileName, type);
+          console.log('s3 response', data);
+          // data.Location is uploaded url
+          // this will remove pdf file after it is uploaded
+          fs.unlinkSync(success.filename);
+          let id;
+          if (!body.affiliateId) {
+            id = body.tokenData.userid;
+          } else {
+            id = body.affiliateId;
+          }
+          const invoiceData = {
+            userId: id,
+            propertyId: body.propertyId,
+            label: body.label,
+            date: body.date,
+            time: body.time,
+            deliveryDate: body.deliveryDate,
+            dueDate: body.dueDate,
+            paymentType: body.paymentType,
+            clientName: body.clientName,
+            email: body.email,
+            address: body.address,
+            vat: body.vat,
+            total: body.total,
+            impression: body.impression,
+            pdfurl: data.Location,
+            status: body.status,
+          };
+          const Id = await DB.insert('invoice', invoiceData);
+          console.log('invoice id', Id);
+          body.itemData.map(async (el) => {
+            const Data = {
+              invoiceId: Id,
+              quantity: el.quantity,
+              price: el.price,
+              amount: el.amount,
+              discount: el.discount,
+              discountAmount: el.discountAmount,
+              itemTotal: el.itemTotal,
+            };
+            await DB.insert('invoiceItems', Data);
+          });
+
+          res.send({
+            code: 200,
+            msg: 'Successfully drafted invoice',
+            url: data.Location,
+          });
         });
-      } else {
-        await DB.insert('invoice', invoiceData);
-        res.send({
-          code: 200,
-          msg: 'Data save successfully!',
-        });
-      }
-    } catch (e) {
+    } catch (err) {
+      console.log(err);
       res.send({
         code: 444,
-        msg: 'Some error has occured!',
+        msg: 'some error occurred',
+      });
+    }
+  });
+
+  // API for get invoice
+  router.post('/getInvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
+      const invoiceData = await DB.select('invoice', { userId: id });
+      const invoiceItems = [];
+      each(
+        invoiceData,
+        async (items, next) => {
+          const data = await DB.select('invoiceItems', { invoiceId: items.id });
+          if (data.length) {
+            invoiceItems.push(data);
+          }
+
+          next();
+        },
+        () => {
+          if (invoiceData.length !== 0) {
+            res.send({
+              code: 200,
+              invoiceData,
+              invoiceItems,
+            });
+          } else {
+            res.send({
+              code: 404,
+            });
+          }
+        },
+      );
+      console.log('invoiceData', invoiceData);
+      console.log('invoice items', invoiceItems);
+    } catch (err) {
+      res.send({
+        code: 444,
+        msg: err,
       });
     }
   });
@@ -1599,7 +1749,7 @@ const usersRouter = () => {
   router.post('/deleteInvoice', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const invoiceId = body.id;
+      const invoiceId = body.deleteId;
       await DB.remove('invoice', { id: invoiceId });
       res.send({
         code: 200,
@@ -1853,8 +2003,6 @@ const usersRouter = () => {
         id = body.affiliateId;
       }
       let Dob = null;
-      const password = randomstring.generate(7);
-      const hashedPassword = await hashPassword(password);
       if (body.dob) {
         Dob = body.dob.split('T', 1);
       }
@@ -1885,24 +2033,16 @@ const usersRouter = () => {
           msg: 'Data update successfully!',
         });
       } else {
+        const password = randomstring.generate(7);
+        const hashedPassword = await hashPassword(password);
+        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+        ownerData.verificationhex = hash;
+        ownerData.encrypted_password = hashedPassword;
         const saveData = await DB.insert('owner', ownerData);
+        console.log(saveData);
         each(body.properties, async (items, next) => {
           await DB.update('property', { ownerId: saveData }, { id: items });
           next();
-        });
-        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
-        const userData = {
-          // affiliateId: body.tokenData.userid,
-          username: body.username,
-          email: body.email,
-          phone: body.phone,
-          verificationhex: hash,
-          encrypted_password: hashedPassword,
-        };
-        await DB.insert('users', userData);
-        res.send({
-          code: 200,
-          msg: 'Data saved successfully, please verify your email address!',
         });
         const transporter = nodemailer.createTransport(
           smtpTransport({
@@ -1925,7 +2065,7 @@ const usersRouter = () => {
           subject: 'Please verify your email',
           text: `You can now access to Owner' s panle for
           your properties. Your login details: ${password}. You can login here
-          ${serverPath}users/verify/${userData.verificationhex}`,
+          ${serverPath}users/verify/${ownerData.verificationhex}`,
         };
 
         transporter.sendMail(mailOptions);
@@ -2033,31 +2173,6 @@ const usersRouter = () => {
     }
   });
 
-  const ID = 'AKIAXQT7I33QUFVO42Q5';
-  const SECRET = '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';
-  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
-  const s3 = new AWS.S3({
-    accessKeyId: ID,
-    secretAccessKey: SECRET,
-  });
-
-  const uploadFile = (buffer, name, type) => {
-    const params = {
-      ACL: 'public-read',
-      Body: buffer,
-      Bucket: BUCKET_NAME,
-      ContentType: type.mime,
-      Key: `${name}.${type.ext}`,
-    };
-    return s3.upload(params).promise();
-    // s3.upload(params, function (err, data) {
-    //   if (err) {
-    //     console.log(err);
-    //   }
-    //   console.log(`File uploaded successfully`, data);
-    // });
-  };
-
   // API for upload picture
   router.post('/photo/:id', async (req, res) => {
     const form = new multiparty.Form();
@@ -2066,13 +2181,41 @@ const usersRouter = () => {
         console.log(error);
       }
       try {
-        const { ...path } = files.file[0].path;
+        const { path } = files.file[0];
         const buffer = fs.readFileSync(path);
         const type = await fileType.fromBuffer(buffer);
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
         const data = await uploadFile(buffer, fileName, type);
         await DB.update('users', { image: data.Location }, { id: req.params.id });
+        return res.json({
+          image: data.Location,
+        });
+      } catch (e) {
+        res.send({
+          code: 444,
+          msg: 'Some error has occured!',
+        });
+      }
+      return 0;
+    });
+  });
+
+  // API for upload property picture
+  router.post('/propertyPicture/:id', async (req, res) => {
+    const form = new multiparty.Form();
+    form.parse(req, async (error, fields, files) => {
+      if (error) {
+        console.log(error);
+      }
+      try {
+        const { path } = files.file[0];
+        const buffer = fs.readFileSync(path);
+        const type = await fileType.fromBuffer(buffer);
+        const timestamp = Date.now().toString();
+        const fileName = `bucketFolder/${timestamp}-lg`;
+        const data = await uploadFile(buffer, fileName, type);
+        await DB.update('property', { image: data.Location }, { id: req.params.id });
         return res.json({
           image: data.Location,
         });
@@ -2256,7 +2399,7 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectOnly(['fname', 'lname', 'address', 'email', 'phone', 'image'], 'users', {
+      const userData = await DB.selectCol(['fname', 'lname', 'address', 'email', 'phone', 'image'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
@@ -2280,6 +2423,129 @@ const usersRouter = () => {
       res.send({
         code: 200,
         companyData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get monthly revenue
+  router.post('/getRevenue', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const currYear = new Date().getFullYear();
+      const prevYear = new Date().getFullYear() - 1;
+      const arr = [];
+      const arr2 = [];
+      const currYearArr = [];
+      const prevYearArr = [];
+      const revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+
+      revenueData
+        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear())
+        .forEach((filter) => {
+          arr.push(filter);
+        });
+
+      revenueData
+        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear() - 1)
+        .forEach((filter) => {
+          arr2.push(filter);
+        });
+
+      for (let i = 1; i <= 12; i += 1) {
+        let sum = 0;
+        let sum2 = 0;
+        arr
+          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
+          .forEach((filter) => {
+            sum += filter.totalAmount;
+          });
+        arr2
+          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
+          .forEach((filter) => {
+            sum2 += filter.totalAmount;
+          });
+        currYearArr.push(sum);
+        prevYearArr.push(sum2);
+      }
+
+      res.send({
+        code: 200,
+        currYear,
+        prevYear,
+        currYearArr,
+        prevYearArr,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get occupancy report
+  router.post('/getOccupancy', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const currYear = new Date().getFullYear();
+      const prevYear = new Date().getFullYear() - 1;
+      const arr = [];
+      const arr2 = [];
+      const currYearArr = [];
+      const prevYearArr = [];
+      const revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      const unitData = await DB.select('unit', { userId: body.tokenData.userid });
+
+      revenueData
+        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear())
+        .forEach((filter) => {
+          arr.push(filter);
+        });
+
+      revenueData
+        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear() - 1)
+        .forEach((filter) => {
+          arr2.push(filter);
+        });
+
+      for (let i = 1; i <= 12; i += 1) {
+        let per = 0;
+        let per2 = 0;
+        const count = [];
+        const count2 = [];
+        arr
+          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
+          .forEach((filter) => {
+            count.push(filter.id);
+          });
+        per = (count.length / unitData.length) * 100;
+        currYearArr.push(per);
+
+        arr2
+          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
+          .forEach((filter) => {
+            console.log('arr2', filter.id);
+            count2.push(filter.id);
+          });
+        per2 = (count.length / unitData.length) * 100;
+        prevYearArr.push(per2);
+      }
+      console.log(currYearArr);
+      console.log(prevYearArr);
+
+      res.send({
+        code: 200,
+        currYear,
+        prevYear,
+        currYearArr,
+        prevYearArr,
       });
     } catch (e) {
       console.log(e);
