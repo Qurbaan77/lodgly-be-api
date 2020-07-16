@@ -42,7 +42,7 @@ const usersRouter = () => {
     secretAccessKey: SECRET,
   });
 
-  const uploadFile = (buffer, name, type) => {
+  const uploadFile = async (buffer, name, type) => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
@@ -50,7 +50,8 @@ const usersRouter = () => {
       ContentType: type.mime,
       Key: `${name}.${type.ext}`,
     };
-    return s3.upload(params).promise();
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    return s3.upload(params, url).promise();
     // s3.upload(params, function (err, data) {
     //   if (err) {
     //     console.log(err);
@@ -60,7 +61,7 @@ const usersRouter = () => {
   };
 
   // function for uploading invoice pdf
-  const uploadPdf = (buffer, name, type) => {
+  const uploadPdf = async (buffer, name, type) => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
@@ -69,7 +70,8 @@ const usersRouter = () => {
       Key: `${name}.${type.ext}`,
       ResponseContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
     };
-    return s3.upload(params).promise();
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    return s3.upload(params, url).promise();
   };
   // post request to signup user
   router.post('/signup', async (req, res) => {
@@ -989,12 +991,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       let id;
       const startDateTime = new Date(body.groupname[0]);
-      startDateTime.setHours(startDateTime.getHours() + 5);
-      startDateTime.setMinutes(startDateTime.getMinutes() + 30);
-
-      const endDateTime = new Date(body.groupname[0]);
-      endDateTime.setHours(endDateTime.getHours() + 5);
-      endDateTime.setMinutes(endDateTime.getMinutes() + 30);
+      const endDateTime = new Date(body.groupname[1]);
 
       if (!body.affiliateId) {
         console.log('no affiliaate id');
@@ -2443,16 +2440,21 @@ const usersRouter = () => {
       const arr2 = [];
       const currYearArr = [];
       const prevYearArr = [];
-      const revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      let revenueData;
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+      } else {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      }
 
       revenueData
-        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear())
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
         .forEach((filter) => {
           arr.push(filter);
         });
 
       revenueData
-        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear() - 1)
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear() - 1)
         .forEach((filter) => {
           arr2.push(filter);
         });
@@ -2461,12 +2463,12 @@ const usersRouter = () => {
         let sum = 0;
         let sum2 = 0;
         arr
-          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
+          .filter((el) => el.startDate.getMonth() + 1 === i)
           .forEach((filter) => {
             sum += filter.totalAmount;
           });
         arr2
-          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
+          .filter((el) => el.startDate.getMonth() + 1 === i)
           .forEach((filter) => {
             sum2 += filter.totalAmount;
           });
@@ -2500,45 +2502,66 @@ const usersRouter = () => {
       const arr2 = [];
       const currYearArr = [];
       const prevYearArr = [];
-      const revenueData = await DB.select('booking', { userId: body.tokenData.userid });
-      const unitData = await DB.select('unit', { userId: body.tokenData.userid });
+      let revenueData;
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+      } else {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      }
 
       revenueData
-        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear())
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
         .forEach((filter) => {
           arr.push(filter);
         });
 
       revenueData
-        .filter((el) => parseInt(JSON.stringify(el.startDate).slice(1, 5), 10) === new Date().getFullYear() - 1)
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear() - 1)
         .forEach((filter) => {
           arr2.push(filter);
         });
 
       for (let i = 1; i <= 12; i += 1) {
         let per = 0;
-        let per2 = 0;
+        let prevPer = 0;
         const count = [];
-        const count2 = [];
-        arr
-          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
-          .forEach((filter) => {
-            count.push(filter.id);
-          });
-        per = (count.length / unitData.length) * 100;
-        currYearArr.push(per);
+        const prevCount = [];
+        arr.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            count.push(((el.endDate - el.startDate) / (1000 * 3600 * 24) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            count.push(((30 - el.startDate.getDate()) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            count.push((el.endDate.getDate() / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            count.push(100);
+          }
+        });
+        if (count.length > 0) {
+          per = count.reduce((a, b) => a + (b || 0), 0) / count.length;
+          currYearArr.push(Math.round(per));
+        } else {
+          currYearArr.push(0);
+        }
 
-        arr2
-          .filter((el) => parseInt(JSON.stringify(el.startDate).slice(6, 9), 10) === i)
-          .forEach((filter) => {
-            console.log('arr2', filter.id);
-            count2.push(filter.id);
-          });
-        per2 = (count.length / unitData.length) * 100;
-        prevYearArr.push(per2);
+        arr2.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push(((el.endDate - el.startDate) / (1000 * 3600 * 24) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            prevCount.push(((30 - el.startDate.getDate()) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push((el.endDate.getDate() / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            prevCount.push(100);
+          }
+        });
+        if (prevCount.length > 0) {
+          prevPer = prevCount.reduce((a, b) => a + (b || 0), 0) / prevCount.length;
+          prevYearArr.push(Math.round(prevPer));
+        } else {
+          prevYearArr.push(0);
+        }
       }
-      console.log(currYearArr);
-      console.log(prevYearArr);
 
       res.send({
         code: 200,
@@ -2552,6 +2575,150 @@ const usersRouter = () => {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get pace report
+  router.post('/getPace', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const currYear = new Date().getFullYear();
+      const prevYear = new Date().getFullYear() - 1;
+      const arr = [];
+      const arr2 = [];
+      const currYearArr = [];
+      const prevYearArr = [];
+      let revenueData;
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+      } else {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      }
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
+        .forEach((filter) => {
+          arr.push(filter);
+        });
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear() - 1)
+        .forEach((filter) => {
+          arr2.push(filter);
+        });
+
+      for (let i = 1; i <= 12; i += 1) {
+        let avgCount = 0;
+        let avgPrevCount = 0;
+        const count = [];
+        const prevCount = [];
+        arr.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            count.push((el.endDate - el.startDate) / (1000 * 3600 * 24));
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            count.push(30 - el.startDate.getDate());
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            count.push(el.endDate.getDate());
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            count.push(30);
+          }
+        });
+        if (count.length > 0) {
+          avgCount = count.reduce((a, b) => a + (b || 0), 0) / count.length;
+          currYearArr.push(Math.round(avgCount));
+        } else {
+          currYearArr.push(0);
+        }
+
+        arr2.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push((el.endDate - el.startDate) / (1000 * 3600 * 24));
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            prevCount.push(30 - el.startDate.getDate());
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push(el.endDate.getDate());
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            prevCount.push(30);
+          }
+        });
+        if (prevCount.length > 0) {
+          avgPrevCount = prevCount.reduce((a, b) => a + (b || 0), 0) / prevCount.length;
+          prevYearArr.push(Math.round(avgPrevCount));
+        } else {
+          prevYearArr.push(0);
+        }
+      }
+
+      res.send({
+        code: 200,
+        currYear,
+        prevYear,
+        currYearArr,
+        prevYearArr,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API to get perCountry report
+  router.post('/getCountryReport', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+
+      const country = [];
+      const data = [];
+      guestData.forEach((el, i, array) => {
+        const countrys = array.filter((ele) => el.country === ele.country);
+        if (countrys.length > 0) {
+          country.push(countrys[0].country);
+          data.push(countrys.length / array.length);
+        }
+      });
+      console.log(country, data);
+      res.send({
+        code: 200,
+        country,
+        data,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for check trial days
+  router.post('/trialDays', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const user = await DB.select('users', { id: body.tokenData.userid });
+      const diff = Math.abs(new Date() - user[0].created_at);
+      let s = Math.floor(diff / 1000);
+      let m = Math.floor(s / 60);
+      s %= 60;
+      let h = Math.floor(m / 60);
+      m %= 60;
+      const totalDays = Math.floor(h / 24);
+      h %= 24;
+      const remainingDays = 14 - totalDays;
+      console.log(remainingDays);
+      res.send({
+        code: 200,
+        data: remainingDays,
+      });
+    } catch (err) {
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
       });
     }
   });
