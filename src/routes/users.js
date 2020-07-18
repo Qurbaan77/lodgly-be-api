@@ -2052,6 +2052,10 @@ const usersRouter = () => {
         };
 
         transporter.sendMail(mailOptions);
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
       }
     } catch (e) {
       console.log(e);
