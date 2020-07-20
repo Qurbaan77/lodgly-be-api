@@ -22,6 +22,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('feature1');
   table.string('feature2');
   table.string('feature3');
+  table.string('image');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 

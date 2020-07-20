@@ -1,26 +1,26 @@
 /* eslint-disable indent */
 
 module.exports = ({
-    label,
-    date,
-    time,
-    deliveryDate,
-    dueDate,
-    paymentType,
-    clientName,
-    email,
-    address,
-    vat,
-    itemData,
-    propertyName,
-    website,
-    propertyAddress,
-    phone,
-    total,
-    impression,
+  label,
+  date,
+  time,
+  deliveryDate,
+  dueDate,
+  paymentType,
+  clientName,
+  email,
+  address,
+  vat,
+  itemData,
+  propertyName,
+  website,
+  propertyAddress,
+  phone,
+  total,
+  impression,
 }) => {
-    console.log(clientName);
-    return `
+  console.log(clientName);
+  return `
 <!doctype html>
 <html>
 <head style="margin: 0;padding: 0;">
@@ -214,8 +214,8 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                         <tbody>
                             
                         ${`${itemData.map((el) => {
-        console.log('hi');
-        return `
+                          console.log('hi');
+                          return `
                             <tr>
                             <td style="padding:5px;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemDescription}`}</span>
@@ -240,7 +240,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                             </td>     
                         </tr> 
                         `;
-    })}`}
+                        })}`}
                         
                         </tbody>
                     </table>

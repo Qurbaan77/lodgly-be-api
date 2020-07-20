@@ -8,7 +8,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('propertyName');
   table.string('unitName');
   table.date('startDate');
-  table.date('endDate');
+  table.date ('endDate');
   table.string('acknowledge');
   table.string('channel');
   table.integer('commission');

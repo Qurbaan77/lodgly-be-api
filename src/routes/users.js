@@ -31,8 +31,8 @@ const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 AWS.config.setPromisesDependency(bluebird);
 sgMail.setApiKey('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');
 
-const serverPath = 'http://localhost:3001/';
-// const serverPath = 'http://165.22.87.22:3002/';
+// const serverPath = 'http://localhost:3001/';
+const serverPath = 'http://165.22.87.22:3002/';
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -603,19 +603,44 @@ const usersRouter = () => {
       let propertiesData;
       if (!body.affiliateId) {
         propertiesData = await DB.select('property', { userId: body.tokenData.userid });
+        each(
+          propertiesData,
+          async (items, next) => {
+            const itemsCopy = items;
+            const data = await DB.select('unitType', { propertyId: items.id });
+            const data2 = await DB.select('unit', { propertyId: items.id });
+            itemsCopy.noUnitType = data.length;
+            itemsCopy.noUnit = data2.length;
+            next();
+            return itemsCopy;
+          },
+          () => {
+            res.send({
+              code: 200,
+              propertiesData,
+            });
+          },
+        );
       } else {
         propertiesData = await DB.select('property', { userId: body.affiliateId });
-      }
-      if (propertiesData) {
-        res.send({
-          code: 200,
+        each(
           propertiesData,
-        });
-      } else {
-        res.send({
-          code: 404,
-          msg: 'Not Found, There is no Property!',
-        });
+          async (items, next) => {
+            const itemsCopy = items;
+            const data = await DB.select('unitType', { propertyId: items.id });
+            const data2 = await DB.select('unit', { propertyId: items.id });
+            itemsCopy.noUnitType = data.length;
+            itemsCopy.noUnit = data2.length;
+            next();
+            return itemsCopy;
+          },
+          () => {
+            res.send({
+              code: 200,
+              propertiesData,
+            });
+          },
+        );
       }
     } catch (e) {
       console.log(e);
@@ -1035,8 +1060,10 @@ const usersRouter = () => {
   router.post('/addBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('addBooking', body);
       let id;
+      const startDateTime = new Date(body.groupname[0]);
+      const endDateTime = new Date(body.groupname[1]);
+
       if (!body.affiliateId) {
         console.log('no affiliaate id');
         id = body.tokenData.userid;
@@ -1051,8 +1078,8 @@ const usersRouter = () => {
         propertyName: body.propertyName,
         unitId: body.unit,
         unitName: body.unitName,
-        startDate: body.groupname[0].split('T', 1),
-        endDate: body.groupname[1].split('T', 1),
+        startDate: startDateTime,
+        endDate: endDateTime,
         acknowledge: body.acknowledge,
         channel: body.channel,
         commission: body.commission,
@@ -2066,8 +2093,6 @@ const usersRouter = () => {
         id = body.affiliateId;
       }
       let Dob = null;
-      const password = randomstring.generate(7);
-      const hashedPassword = await hashPassword(password);
       if (body.dob) {
         Dob = body.dob.split('T', 1);
       }
@@ -2098,24 +2123,16 @@ const usersRouter = () => {
           msg: 'Data update successfully!',
         });
       } else {
+        const password = randomstring.generate(7);
+        const hashedPassword = await hashPassword(password);
+        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+        ownerData.verificationhex = hash;
+        ownerData.encrypted_password = hashedPassword;
         const saveData = await DB.insert('owner', ownerData);
+        console.log(saveData);
         each(body.properties, async (items, next) => {
           await DB.update('property', { ownerId: saveData }, { id: items });
           next();
-        });
-        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
-        const userData = {
-          // affiliateId: body.tokenData.userid,
-          username: body.username,
-          email: body.email,
-          phone: body.phone,
-          verificationhex: hash,
-          encrypted_password: hashedPassword,
-        };
-        await DB.insert('users', userData);
-        res.send({
-          code: 200,
-          msg: 'Data saved successfully, please verify your email address!',
         });
         const transporter = nodemailer.createTransport(
           smtpTransport({
@@ -2138,10 +2155,14 @@ const usersRouter = () => {
           subject: 'Please verify your email',
           text: `You can now access to Owner' s panle for
           your properties. Your login details: ${password}. You can login here
-          ${serverPath}users/verify/${userData.verificationhex}`,
+          ${serverPath}users/verify/${ownerData.verificationhex}`,
         };
 
         transporter.sendMail(mailOptions);
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
       }
     } catch (e) {
       console.log(e);
@@ -2263,8 +2284,6 @@ const usersRouter = () => {
         console.log(error);
       }
       try {
-        console.log('try hitting');
-        // can not use object destucturing here
         const { path } = files.file[0];
         const buffer = fs.readFileSync(path);
         console.log(buffer);
@@ -2281,6 +2300,34 @@ const usersRouter = () => {
         });
       } catch (e) {
         console.log(e);
+        res.send({
+          code: 444,
+          msg: 'Some error has occured!',
+        });
+      }
+      return 0;
+    });
+  });
+
+  // API for upload property picture
+  router.post('/propertyPicture/:id', async (req, res) => {
+    const form = new multiparty.Form();
+    form.parse(req, async (error, fields, files) => {
+      if (error) {
+        console.log(error);
+      }
+      try {
+        const { path } = files.file[0];
+        const buffer = fs.readFileSync(path);
+        const type = await fileType.fromBuffer(buffer);
+        const timestamp = Date.now().toString();
+        const fileName = `bucketFolder/${timestamp}-lg`;
+        const data = await uploadFile(buffer, fileName, type);
+        await DB.update('property', { image: data.Location }, { id: req.params.id });
+        return res.json({
+          image: data.Location,
+        });
+      } catch (e) {
         res.send({
           code: 444,
           msg: 'Some error has occured!',
@@ -2493,6 +2540,273 @@ const usersRouter = () => {
       });
     }
   });
+
+  // API for get monthly revenue
+  router.post('/getRevenue', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const currYear = new Date().getFullYear();
+      const prevYear = new Date().getFullYear() - 1;
+      const arr = [];
+      const arr2 = [];
+      const currYearArr = [];
+      const prevYearArr = [];
+      let revenueData;
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+      } else {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      }
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
+        .forEach((filter) => {
+          arr.push(filter);
+        });
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear() - 1)
+        .forEach((filter) => {
+          arr2.push(filter);
+        });
+
+      for (let i = 1; i <= 12; i += 1) {
+        let sum = 0;
+        let sum2 = 0;
+        arr
+          .filter((el) => el.startDate.getMonth() + 1 === i)
+          .forEach((filter) => {
+            sum += filter.totalAmount;
+          });
+        arr2
+          .filter((el) => el.startDate.getMonth() + 1 === i)
+          .forEach((filter) => {
+            sum2 += filter.totalAmount;
+          });
+        currYearArr.push(sum);
+        prevYearArr.push(sum2);
+      }
+
+      res.send({
+        code: 200,
+        currYear,
+        prevYear,
+        currYearArr,
+        prevYearArr,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get occupancy report
+  router.post('/getOccupancy', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const currYear = new Date().getFullYear();
+      const prevYear = new Date().getFullYear() - 1;
+      const arr = [];
+      const arr2 = [];
+      const currYearArr = [];
+      const prevYearArr = [];
+      let revenueData;
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+      } else {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      }
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
+        .forEach((filter) => {
+          arr.push(filter);
+        });
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear() - 1)
+        .forEach((filter) => {
+          arr2.push(filter);
+        });
+
+      for (let i = 1; i <= 12; i += 1) {
+        let per = 0;
+        let prevPer = 0;
+        const count = [];
+        const prevCount = [];
+        arr.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            count.push(((el.endDate - el.startDate) / (1000 * 3600 * 24) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            count.push(((30 - el.startDate.getDate()) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            count.push((el.endDate.getDate() / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            count.push(100);
+          }
+        });
+        if (count.length > 0) {
+          per = count.reduce((a, b) => a + (b || 0), 0) / count.length;
+          currYearArr.push(Math.round(per));
+        } else {
+          currYearArr.push(0);
+        }
+
+        arr2.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push(((el.endDate - el.startDate) / (1000 * 3600 * 24) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            prevCount.push(((30 - el.startDate.getDate()) / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push((el.endDate.getDate() / 30) * 100);
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            prevCount.push(100);
+          }
+        });
+        if (prevCount.length > 0) {
+          prevPer = prevCount.reduce((a, b) => a + (b || 0), 0) / prevCount.length;
+          prevYearArr.push(Math.round(prevPer));
+        } else {
+          prevYearArr.push(0);
+        }
+      }
+
+      res.send({
+        code: 200,
+        currYear,
+        prevYear,
+        currYearArr,
+        prevYearArr,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get pace report
+  router.post('/getPace', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const currYear = new Date().getFullYear();
+      const prevYear = new Date().getFullYear() - 1;
+      const arr = [];
+      const arr2 = [];
+      const currYearArr = [];
+      const prevYearArr = [];
+      let revenueData;
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+      } else {
+        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+      }
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
+        .forEach((filter) => {
+          arr.push(filter);
+        });
+
+      revenueData
+        .filter((el) => el.startDate.getFullYear() === new Date().getFullYear() - 1)
+        .forEach((filter) => {
+          arr2.push(filter);
+        });
+
+      for (let i = 1; i <= 12; i += 1) {
+        let avgCount = 0;
+        let avgPrevCount = 0;
+        const count = [];
+        const prevCount = [];
+        arr.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            count.push((el.endDate - el.startDate) / (1000 * 3600 * 24));
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            count.push(30 - el.startDate.getDate());
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            count.push(el.endDate.getDate());
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            count.push(30);
+          }
+        });
+        if (count.length > 0) {
+          avgCount = count.reduce((a, b) => a + (b || 0), 0) / count.length;
+          currYearArr.push(Math.round(avgCount));
+        } else {
+          currYearArr.push(0);
+        }
+
+        arr2.forEach((el) => {
+          if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push((el.endDate - el.startDate) / (1000 * 3600 * 24));
+          } else if (el.startDate.getMonth() + 1 === i && el.endDate.getMonth() + 1 !== i) {
+            prevCount.push(30 - el.startDate.getDate());
+          } else if (el.startDate.getMonth() + 1 !== i && el.endDate.getMonth() + 1 === i) {
+            prevCount.push(el.endDate.getDate());
+          } else if (el.startDate.getMonth() + 1 === i - 1 && el.endDate.getMonth() + 1 === i + 1) {
+            prevCount.push(30);
+          }
+        });
+        if (prevCount.length > 0) {
+          avgPrevCount = prevCount.reduce((a, b) => a + (b || 0), 0) / prevCount.length;
+          prevYearArr.push(Math.round(avgPrevCount));
+        } else {
+          prevYearArr.push(0);
+        }
+      }
+
+      res.send({
+        code: 200,
+        currYear,
+        prevYear,
+        currYearArr,
+        prevYearArr,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API to get perCountry report
+  router.post('/getCountryReport', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+
+      const country = [];
+      const data = [];
+      guestData.forEach((el, i, array) => {
+        const countrys = array.filter((ele) => el.country === ele.country);
+        if (countrys.length > 0) {
+          country.push(countrys[0].country);
+          data.push(countrys.length / array.length);
+        }
+      });
+      console.log(country, data);
+      res.send({
+        code: 200,
+        country,
+        data,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
 
   // Billing related apis
 
