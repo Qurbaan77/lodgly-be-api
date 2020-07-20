@@ -12,6 +12,11 @@ const fileType = require('file-type');
 const bluebird = require('bluebird');
 const multiparty = require('multiparty');
 const pdf = require('html-pdf');
+const { stripeKey } = require('../../config/default');
+// disabling this because its giving eslint error if i move stripe above it
+// will give another error so currently i do not have any solution will look into it
+// eslint-disable-next-line import/order
+const stripe = require('stripe')(stripeKey);
 const userModel = require('../models/users/repositories');
 // const unitTypeModel = require('../models/unitType/repositories');
 const DB = require('../services/database');
@@ -24,7 +29,6 @@ const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
-
 sgMail.setApiKey('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');
 
 const serverPath = 'http://localhost:3001/';
@@ -42,7 +46,7 @@ const usersRouter = () => {
     secretAccessKey: SECRET,
   });
 
-  const uploadFile = (buffer, name, type) => {
+  const uploadFile = async (buffer, name, type) => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
@@ -50,7 +54,8 @@ const usersRouter = () => {
       ContentType: type.mime,
       Key: `${name}.${type.ext}`,
     };
-    return s3.upload(params).promise();
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    return s3.upload(params, url).promise();
     // s3.upload(params, function (err, data) {
     //   if (err) {
     //     console.log(err);
@@ -60,16 +65,17 @@ const usersRouter = () => {
   };
 
   // function for uploading invoice pdf
-  const uploadPdf = (buffer, name, type) => {
+  const uploadPdf = async (buffer, name, type) => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
       Bucket: BUCKET_NAME,
-      ResponseContentType: 'application/pdf',
+      ContentType: 'application/pdf',
       Key: `${name}.${type.ext}`,
-      ResponseContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
+      ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
     };
-    return s3.upload(params).promise();
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    return s3.upload(params, url).promise();
   };
   // post request to signup user
   router.post('/signup', async (req, res) => {
@@ -199,7 +205,10 @@ const usersRouter = () => {
         const updatedData = await DB.update('users', { isvalid: true }, { id: isExist[0].id });
         // console.log('updatedData==>',updatedData)
         if (updatedData) {
-          res.redirect(`${clientPath}?verified=true`);
+          // res.redirect(`${clientPath}?verified=true`);
+          res.send({
+            code: 200,
+          });
         } else {
           res.send({
             code: 400,
@@ -450,6 +459,52 @@ const usersRouter = () => {
     } catch (e) {
       console.log('error', e);
       res.send({ code: 444, msg: 'Some error has occured.' });
+    }
+  });
+
+  // API for check trial days
+  router.post('/trialDays', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const user = await DB.select('users', { id: body.tokenData.userid });
+      const diff = Math.abs(new Date() - user[0].created_at);
+      let s = Math.floor(diff / 1000);
+      let m = Math.floor(s / 60);
+      s %= 60;
+      let h = Math.floor(m / 60);
+      m %= 60;
+      const totalDays = Math.floor(h / 24);
+      h %= 24;
+      const remainingDays = 14 - totalDays;
+      console.log(remainingDays);
+      if (remainingDays === 0) {
+        await DB.update('users', { isTrialEnded: true }, { id: body.tokenData.userid });
+      }
+      res.send({
+        code: 200,
+        data: remainingDays,
+      });
+    } catch (err) {
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
+      });
+    }
+  });
+
+  // API for getting exchange rate from DB
+  router.post('/getRate', userAuthCheck, async (req, res) => {
+    try {
+      const rates = await DB.select('exchangeRate', {});
+      res.send({
+        code: 200,
+        rates,
+      });
+    } catch (error) {
+      res.send({
+        code: 444,
+        msg: 'Some error occurred!',
+      });
     }
   });
 
@@ -789,6 +844,24 @@ const usersRouter = () => {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for getting total number of units by user
+  router.post('/getTotalUnit', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const unitData = await DB.select('unit', { userId: body.tokenData.userid });
+      const totalUnit = unitData.length;
+      res.send({
+        code: 200,
+        data: totalUnit,
+      });
+    } catch (error) {
+      res.send({
+        code: 444,
+        msg: error,
       });
     }
   });
@@ -1591,6 +1664,42 @@ const usersRouter = () => {
     }
   });
 
+  // API for downloding invoice
+
+  router.post('/downloadinvoice', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      pdf.create(invoiceTemplate(body),
+        { timeout: '100000' }).toFile(`
+        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`, async (err, success) => {
+        if (err) {
+          console.log(err);
+        }
+        console.log('filepath', success);
+        // success.filename is saved file path
+        const buffer = fs.readFileSync(success.filename);
+        const type = await fileType.fromBuffer(buffer);
+        const fileName = `bucketFolder/${req.body.clientName}`;
+        // upload to AWS S3 bucket
+        const data = await uploadPdf(buffer, fileName, type);
+        console.log('s3 response', data);
+        // data.Location is uploaded url
+        // this will remove pdf file after it is uploaded
+        fs.unlinkSync(success.filename);
+        res.send({
+          code: 200,
+          msg: 'Successfully downloaded invoice',
+          url: data.Location,
+        });
+      });
+    } catch (err) {
+      res.send({
+        code: 444,
+        msg: err.msg,
+      });
+    }
+  });
+
   // API for issue invoice and draft invoice
   router.post('/invoicedraft', userAuthCheck, async (req, res) => {
     try {
@@ -1598,11 +1707,11 @@ const usersRouter = () => {
       console.log('invoice draft body', req.body);
       pdf
         .create(invoiceTemplate(body), { timeout: '100000' })
-        .toFile(`${body.clientName}.pdf`, async (err, success) => {
+        .toFile(`${__dirname}../../../../invoicepdf/${body.clientName}.pdf`, async (err, success) => {
           if (err) {
             console.log(err);
           }
-          console.log(success);
+          console.log('filepath', success);
           // success.filename is saved file path
           const buffer = fs.readFileSync(success.filename);
           const type = await fileType.fromBuffer(buffer);
@@ -1707,8 +1816,6 @@ const usersRouter = () => {
           }
         },
       );
-      console.log('invoiceData', invoiceData);
-      console.log('invoice items', invoiceItems);
     } catch (err) {
       res.send({
         code: 444,
@@ -1734,14 +1841,16 @@ const usersRouter = () => {
     }
   });
 
-  // API for cancellation
+  // API for cancellation invoice
   router.post('/cancelInvoice', userAuthCheck, async (req, res) => {
     try {
+      console.log('cancel invoice api hitting');
       const { ...body } = req.body;
       const invoiceId = body.id;
       const invoiceData = {
         type: body.type,
       };
+      console.log('cancel invoice id', invoiceId);
       await DB.update('invoice', invoiceData, { id: invoiceId });
       res.send({
         code: 200,
@@ -2382,6 +2491,160 @@ const usersRouter = () => {
         code: 444,
         msg: 'Some error has occured!',
       });
+    }
+  });
+
+  // Billing related apis
+
+  // API for creating produc and charging customer and activating subscription
+  router.post('/charge', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('charge body', body);
+      const {
+        stripeToken,
+        amount,
+        interval,
+        noOfUnits,
+        currency,
+        planType,
+      } = body;
+      const now = new Date();
+      const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+      const nextMonth = nextdate / 1000;
+      console.log(nextMonth, 'nextMonth');
+      const customer = await stripe.customers.create({
+        source: stripeToken,
+        metadata: { currency },
+      });
+      console.log('customer', customer);
+      const product = await stripe.products.create({
+        name: `Lodgly ${planType} Subscription`,
+        type: 'service',
+      });
+      console.log('product', product);
+      const plan = await stripe.plans.create({
+        nickname: `${interval} plan`,
+        amount: (Math.round(parseFloat(amount) * 100)),
+        interval,
+        product: product.id,
+        currency: `${currency}`,
+      });
+      console.log('plan', plan);
+      let subscriptionid;
+      if (plan.interval === 'month') {
+        const subscription = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [
+            {
+              plan: plan.id,
+            },
+          ],
+          billing_cycle_anchor: nextMonth,
+        });
+        subscriptionid = subscription.id;
+        console.log('subscription', subscription);
+      } else {
+        const subscription = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [
+            {
+              plan: plan.id,
+            },
+          ],
+        });
+        subscriptionid = subscription.id;
+        console.log('subscription', subscription);
+      }
+      const subscriptionObject = {
+        productId: product.id,
+        planId: plan.id,
+        customerId: customer.id,
+        subscriptionId: subscriptionid,
+        subscription: true,
+        userId: body.tokenData.userid,
+        units: noOfUnits,
+        Amount: amount,
+        interval: plan.interval,
+        planType,
+        currency,
+      };
+      console.log('subscription object', subscriptionObject);
+      const id = await DB.insert('subscription', subscriptionObject);
+      console.log(id);
+      res.send({
+        code: 200,
+        msg: 'Transaction successfull',
+      });
+    } catch (err) {
+      console.log(err);
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
+      });
+    }
+  });
+
+  // API for getting transaction
+  router.get('/transactions', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
+      if (transactions && transactions.length) {
+        res.send({
+          code: 200,
+          transactions,
+        });
+      } else {
+        res.send({
+          code: 444,
+        });
+      }
+    } catch (error) {
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for invoice bill
+  router.post('/getBillingInvoice', userAuthCheck, async (req, res) => {
+    console.log('api hitting');
+    try {
+      console.log(req.body.tokenData.userid);
+      const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
+      console.log('data', Data);
+      const { customerId } = Data;
+      const invoicesList = [];
+      await stripe.invoices.list({ customer: customerId }, (
+        err,
+        invoices,
+      ) => {
+        invoices.data.forEach((el) => {
+          const { currency } = el;
+          const amount = el.amount_paid / 100;
+          // let amount =  Math.floor(parseFloat(initial))
+          const { units } = Data[0];
+          const start = new Date(
+            el.lines.data[0].period.start * 1000,
+          ).toDateString();
+          const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
+          const dt = {
+            invoiceId: el.id,
+            start,
+            end,
+            amount,
+            units,
+            currency,
+            pdf: el.invoice_pdf,
+          };
+          invoicesList.push(dt);
+        });
+        res.send({ code: 200, invoicesList });
+      });
+    } catch (e) {
+      res.send({ code: 444, msg: 'Some error has occured.' });
     }
   });
 

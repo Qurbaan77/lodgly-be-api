@@ -5,9 +5,10 @@ const cors = require('cors');
 const { clientPath, clientPath2 } = require('../config/default');
 
 const { getConnection } = require('./services/database');
+// const i = require('./routes/cronJob');
 
 // routes
-const usersRouter = require('./routes/users ')();
+const usersRouter = require('./routes/users')();
 const ownerRouter = require('./routes/owner')();
 const adminRouter = require('./routes/admin')();
 
@@ -26,6 +27,8 @@ app.use(
     extended: false,
   }),
 );
+// i();
+
 app.use(cookieParser('cookiesecret'));
 app.use(express.static(path.join(__dirname, 'public')));
 
