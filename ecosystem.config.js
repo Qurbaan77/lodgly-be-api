@@ -23,7 +23,6 @@ module.exports = {
         'npm ci --only production',
         'ln -sf /var/www/lodgly-mvp-api/shared/.env /var/www/lodgly-mvp-api/current/.env',
         'npm run knex -- migrate:latest',
-        'npm run knex -- seed:run',
         'pm2 startOrRestart /var/www/ecosystem.config.js',
       ].join(' && '),
     },
