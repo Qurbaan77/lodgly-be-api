@@ -5,6 +5,7 @@ const cors = require('cors');
 const { clientPath, clientPath2 } = require('../config/default');
 
 const { getConnection } = require('./services/database');
+// const i = require('./routes/cronJob');
 
 // routes
 const usersRouter = require('./routes/users')();
@@ -26,6 +27,8 @@ app.use(
     extended: false,
   }),
 );
+// i();
+
 app.use(cookieParser('cookiesecret'));
 app.use(express.static(path.join(__dirname, 'public')));
 

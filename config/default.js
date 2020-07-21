@@ -4,6 +4,7 @@ module.exports = {
   clientPath: process.env.FRONTEND_APP,
   clientPath2: process.env.FRONTEND_APP2,
   userJwtKey: process.env.JWT_SECRET,
+  stripeKey: 'sk_test_QGB0mJA7ijHknYtSZsuo2GLL',
   errorHandler: {
     reporting: false,
     mask: false,
