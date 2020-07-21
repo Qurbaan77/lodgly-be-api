@@ -203,10 +203,6 @@ const ownerRouter = () => {
       each(
         propertyData,
         async (items, next) => {
-          // const data = await DB.select('booking', { propertyId: items.id });
-          // data.forEach((el) => {
-          //   (moment(el.startDate).format('MMMM')+' '+el.startDate.getFullYear())
-          // })
           reportData.push(await DB.select('booking', { propertyId: items.id }));
           next();
         },
@@ -279,10 +275,6 @@ const ownerRouter = () => {
       each(
         propertyData,
         async (items, next) => {
-          // const data = await DB.select('booking', { propertyId: items.id });
-          // data.forEach((el) => {
-          //   (moment(el.startDate).format('MMMM')+' '+el.startDate.getFullYear())
-          // })
           reportData.push(await DB.select('booking', { propertyId: items.id }));
           unitTypeData.push(await DB.selectCol('perNight', 'unitType', { propertyId: items.id }));
           next();
@@ -291,7 +283,7 @@ const ownerRouter = () => {
           reportData.map((el) => el.map((ele) => arr.push(ele)));
           unitTypeData.map((el) => el.map((ele) => arr3.push(ele.perNight)));
           arr
-            .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
+            .filter((el) => el.startDate.getFullYear() === body.changeYear)
             .forEach((filter) => {
               arr2.push(filter);
             });
