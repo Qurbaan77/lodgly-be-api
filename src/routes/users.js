@@ -2807,7 +2807,6 @@ const usersRouter = () => {
     }
   });
 
-
   // Billing related apis
 
   // API for creating produc and charging customer and activating subscription

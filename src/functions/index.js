@@ -80,7 +80,6 @@ const verifyOwnerJwt = async (token) => {
   return isTokenValid;
 };
 
-
 // signing jwt token for admin
 const signJwtAdmin = (adminId) => {
   let token;
