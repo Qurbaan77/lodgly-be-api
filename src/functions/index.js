@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
-const { userJwtKey } = require('../../config/default');
+const config = require('config');
 
 // checking if request body is valid
 const checkIfEmpty = (requestBody) => {
@@ -24,8 +24,8 @@ const signJwt = (userid) => {
     const tokenData = {
       userid,
     };
-    token = jwt.sign(tokenData, userJwtKey, {
-      expiresIn: '100h',
+    token = jwt.sign(tokenData, config.get('guards.user.secret'), {
+      expiresIn: config.get('guards.user.accessTokenTtl'),
     });
   } catch (e) {
     token = null;
@@ -60,7 +60,7 @@ const verifyHash = async (password, passwordHash) => {
 const verifyJwt = async (token) => {
   let isTokenValid;
   try {
-    isTokenValid = await jwt.verify(token, userJwtKey);
+    isTokenValid = await jwt.verify(token, config.get('guards.user.secret'));
   } catch (e) {
     console.log('error', e);
     isTokenValid = null;
@@ -72,14 +72,13 @@ const verifyJwt = async (token) => {
 const verifyOwnerJwt = async (token) => {
   let isTokenValid;
   try {
-    isTokenValid = await jwt.verify(token, userJwtKey);
+    isTokenValid = await jwt.verify(token, config.get('guards.user.secret'));
   } catch (e) {
     console.log('error', e);
     isTokenValid = null;
   }
   return isTokenValid;
 };
-
 
 // signing jwt token for admin
 const signJwtAdmin = (adminId) => {
@@ -88,8 +87,8 @@ const signJwtAdmin = (adminId) => {
     const tokenData = {
       adminId,
     };
-    token = jwt.sign(tokenData, userJwtKey, {
-      expiresIn: '100h',
+    token = jwt.sign(tokenData, config.get('guards.user.secret'), {
+      expiresIn: config.get('guards.user.accessTokenTtl'),
     });
   } catch (e) {
     token = null;
@@ -100,7 +99,7 @@ const signJwtAdmin = (adminId) => {
 const verifyJwtAdmin = async (token) => {
   let isTokenValid;
   try {
-    isTokenValid = await jwt.verify(token, userJwtKey);
+    isTokenValid = await jwt.verify(token, config.get('guards.user.secret'));
     if (isTokenValid) {
       return isTokenValid;
     }

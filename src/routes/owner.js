@@ -1,3 +1,4 @@
+const config = require('config');
 const express = require('express');
 const each = require('sync-each');
 const fs = require('fs');
@@ -18,12 +19,9 @@ const ownerRouter = () => {
   const router = express.Router();
 
   // AWS S3 upload function'
-  const ID = 'AKIAXQT7I33QUFVO42Q5';
-  const SECRET = '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';
-  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
   const s3 = new AWS.S3({
-    accessKeyId: ID,
-    secretAccessKey: SECRET,
+    accessKeyId: config.get('aws.accessKey'),
+    secretAccessKey: config.get('aws.accessSecretKey'),
   });
 
   // function for uploading invoice pdf
@@ -31,7 +29,7 @@ const ownerRouter = () => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
-      Bucket: BUCKET_NAME,
+      Bucket: config.get('aws.s3.storageBucketName'),
       Key: `${name}.${type.ext}`,
     };
     const url = await s3.getSignedUrlPromise('putObject', params);
