@@ -15,11 +15,10 @@ const pdf = require('html-pdf');
 const stripe = require('stripe')(config.get('payments.stripeApiKey'));
 const userModel = require('../models/users/repositories');
 const DB = require('../services/database');
-const { checkIfEmpty } = require('../functions');
-const { signJwt } = require('../functions');
-const { hashPassword } = require('../functions');
-const { verifyHash } = require('../functions/index');
-const { domainName } = require('../functions/frontend');
+const {
+  hashPassword, verifyHash, checkIfEmpty, signJwt,
+} = require('../functions');
+const { domainName, frontendUrl } = require('../functions/frontend');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
@@ -100,9 +99,13 @@ const usersRouter = () => {
             };
             await DB.insert('users', userData);
 
+            const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
+              token: userData.verificationhex,
+            });
+
             const msg = {
-              from: 'root@lodgly.com',
-              templateId: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
               personalizations: [
                 {
                   to: [
@@ -113,7 +116,7 @@ const usersRouter = () => {
                   dynamic_template_data: {
                     receipt: true,
                     // username:userData.username,
-                    confirmation_url: `${serverPath}users/verify/${userData.verificationhex}`,
+                    confirmation_url: confirmationUrl,
                     email: userData.email,
                   },
                 },

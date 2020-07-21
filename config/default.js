@@ -26,7 +26,7 @@ module.exports = {
   frontend: {
     endpoint: 'https://%s.lodgly.dev',
     paths: {
-      accountConfirmation: '/auth/account/confirm',
+      accountConfirmation: '/users/verify',
       changePassword: '/auth/password/change',
       resetPassword: '/auth/password/reset',
     },
@@ -43,7 +43,7 @@ module.exports = {
       apiKey: process.env.SENDGRID_API_KEY,
       templates: {
         en: {
-          accountConfirmation: undefined,
+          accountConfirmation: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
           resetPassword: undefined,
         },
       },
