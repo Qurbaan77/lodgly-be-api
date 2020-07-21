@@ -1,0 +1,59 @@
+version: '3.7'
+
+services:
+  # app:
+  #   build: ./
+  #   command: npm run dev
+  #   environment:
+  #     PORT: 8080
+  #   ports:
+  #     - 8080:8080
+  #     - 9230:9229
+  #   volumes:
+  #     - .:/app
+  #     - /app/node_modules
+  #   env_file:
+  #     - .env
+  #   links:
+  #     - mysql
+  #   networks:
+  #     - backend
+
+  mysql:
+    image: mysql:5.7.25
+    restart: always
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      - 3307:3306
+    environment:
+      MYSQL_DATABASE: "lodgly"
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      command: |
+        mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --default-authentication-plugin=mysql_native_password --explicit_defaults_for_timestamp
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u", "root"]
+      timeout: 5s
+      retries: 10
+    networks:
+      - backend
+
+  # migration:
+  #   build: ./
+  #   command: npm run knex -- migrate:latest
+  #   volumes:
+  #     - ./knexfile.js:/var/app/knexfile.js
+  #     - ./database:/var/app/database
+  #   env_file:
+  #     - .env
+  #   links:
+  #     - mysql
+  #   networks:
+  #     - backend
+
+volumes:
+  mysql-data:
+
+networks:
+  backend:
+    driver: "bridge"
