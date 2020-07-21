@@ -14,22 +14,23 @@ const multiparty = require('multiparty');
 const pdf = require('html-pdf');
 const { stripeKey } = require('../../config/default');
 // disabling this because its giving eslint error if i move stripe above it
-// will give another error so currently i do not have any solution will look into it
+// will give another error so currently i do not have any solution, will look into it
 // eslint-disable-next-line import/order
 const stripe = require('stripe')(stripeKey);
 const userModel = require('../models/users/repositories');
-// const unitTypeModel = require('../models/unitType/repositories');
 const DB = require('../services/database');
 const { checkIfEmpty } = require('../functions');
 const { signJwt } = require('../functions');
 const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
-const { clientPath } = require('../../config/default');
+const {
+  clientPath, ID, SECRET, BUCKET_NAME, sendGridKey,
+} = require('../../config/default');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
-sgMail.setApiKey('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');
+sgMail.setApiKey(sendGridKey);
 
 // const serverPath = 'http://localhost:3001/';
 const serverPath = 'http://165.22.87.22:3002/';
@@ -38,9 +39,6 @@ const usersRouter = () => {
   const router = express.Router();
 
   // AWS S3 upload function'
-  const ID = 'AKIAXQT7I33QUFVO42Q5';
-  const SECRET = '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';
-  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
   const s3 = new AWS.S3({
     accessKeyId: ID,
     secretAccessKey: SECRET,
@@ -2807,7 +2805,6 @@ const usersRouter = () => {
     }
   });
 
-
   // Billing related apis
 
   // API for creating produc and charging customer and activating subscription
@@ -2924,11 +2921,8 @@ const usersRouter = () => {
 
   // API for invoice bill
   router.post('/getBillingInvoice', userAuthCheck, async (req, res) => {
-    console.log('api hitting');
     try {
-      console.log(req.body.tokenData.userid);
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
-      console.log('data', Data);
       const { customerId } = Data;
       const invoicesList = [];
       await stripe.invoices.list({ customer: customerId }, (
@@ -2959,6 +2953,105 @@ const usersRouter = () => {
       });
     } catch (e) {
       res.send({ code: 444, msg: 'Some error has occured.' });
+    }
+  });
+
+  // API for cancelling subscription
+  router.post('/cancelSubscription', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      stripe.subscriptions.del(body.subscriptionId, (err, confirmation) => {
+        if (err) {
+          console.log(err);
+          res.send({
+            code: 444,
+            err,
+          });
+        }
+        console.log(confirmation);
+        res.send({
+          code: 200,
+          msg: 'Your bsubscription is cancelled',
+        });
+      });
+    } catch (error) {
+      console.log(error);
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
+      });
+    }
+  });
+
+  // API for changing subscription
+  router.post('/changeSubscription', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const {
+        subscriptionId,
+        amount,
+        interval,
+        noOfUnits,
+        currency,
+        planType,
+      } = body;
+      const Data = await DB.select('subscription', { userId: body.tokenData.userid });
+      const product = await stripe.products.create({
+        name: `Lodgly ${planType} Subscription`,
+        type: 'service',
+      });
+      const updatePlan = await stripe.plans.create({
+        nickname: 'hello',
+        amount: Math.round(parseFloat(amount) * 100),
+        interval,
+        product: product.id,
+        currency,
+      });
+      console.log('plan', updatePlan);
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      const difference = amount - Data[0].Amount;
+      const charge = await stripe.charges.create({
+        amount: Math.round(parseFloat(difference) * 100),
+        currency,
+        customer: subscription.customer,
+        description: 'upgrading the plan',
+      });
+      console.log('charge', charge);
+      const updatedSubscription = await stripe.subscriptions.update(
+        subscriptionId,
+        {
+          cancel_at_period_end: false,
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              plan: updatePlan.id,
+            },
+          ],
+          proration_behavior: 'none',
+        },
+      );
+      console.log('updated subscription', updatedSubscription);
+      const payload = {
+        subscriptionId: updatedSubscription.id,
+        planId: updatedSubscription.plan.id,
+        productId: updatedSubscription.plan.product,
+        units: noOfUnits,
+        interval,
+        planType,
+        amount,
+      };
+      const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
+      console.log(id);
+      res.send({
+        code: 200,
+        msg: 'your plan is successfully changed',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
     }
   });
 
