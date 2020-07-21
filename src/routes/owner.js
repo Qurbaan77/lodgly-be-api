@@ -342,9 +342,8 @@ const ownerRouter = () => {
   // API for getting booking detail of units
   router.post('/getBooking', ownerAuthCheck, async (req, res) => {
     try {
-      const {...body} = req.body;
-      console.log(body)
-      let arr = [];
+      const { ...body } = req.body;
+      const arr = [];
       const bookingData = await DB.select('booking', { propertyId: body.propertyId });
       bookingData.forEach((el) => {
         arr.push({
@@ -352,12 +351,12 @@ const ownerRouter = () => {
           start: new Date(el.startDate.setDate(el.startDate.getDate() + 1)),
           end: el.endDate,
           allDay: false,
-        })
-      })
+        });
+      });
       res.send({
         code: 200,
         bookingData,
-        arr
+        arr,
       });
     } catch (e) {
       console.log('error', e);
@@ -371,15 +370,15 @@ const ownerRouter = () => {
   // API for reservation of property by owner
   router.post('/addOwnerBooking', ownerAuthCheck, async (req, res) => {
     try {
-      const {...body} = req.body;
+      const { ...body } = req.body;
       const data = {
         startDate: new Date(body.startDate),
-        endDate:  new Date(body.endDate),
+        endDate: new Date(body.endDate),
         notes1: body.notes,
-      }
-      console.log(data)
+      };
+      console.log(data);
       // const Id = await DB.insert('booking', bookingData);
-    } catch(e) {
+    } catch (e) {
       console.log('error', e);
       res.send({
         code: 444,

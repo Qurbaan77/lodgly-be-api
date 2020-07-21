@@ -47,7 +47,7 @@
     "nodemailer-smtp-transport": "^2.7.4",
     "randomstring": "^1.1.5",
     "serverless-http": "^2.3.2",
-    "stripe": "^8.76.0",
+    "stripe": "^8.77.0",
     "sync-each": "^1.0.1"
   },
   "devDependencies": {
