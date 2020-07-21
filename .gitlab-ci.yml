@@ -1,0 +1,40 @@
+image: node:alpine
+
+stages:
+  - test
+  - deploy
+
+cache:
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+    - node_modules/
+
+test:
+  stage: test
+  cache:
+    policy: pull
+    paths:
+      - node_modules/
+  script:
+    - npm install --quiet
+    - npm run lint
+
+staging:
+  stage: deploy
+  cache:
+    policy: pull
+    paths:
+      - node_modules/
+  before_script:
+    - apk add --update bash git openssh-client
+    - mkdir -m 700 -p ~/.ssh
+    - echo "${SSH_PRIVATE_KEY_STAGING}" | base64 -d > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/*
+  script:
+    - npx pm2 deploy staging setup 2>&1 || true
+    - npx pm2 deploy staging
+  environment:
+    name: staging
+    url: https://api.lodgly.dev/
+  only:
+    - staging

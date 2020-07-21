@@ -85,6 +85,11 @@ const ownerRouter = () => {
     }
   });
 
+  // post request for logout owner
+  router.post('/logout', async (req, res) => {
+    res.clearCookie('token').send('cookie cleared!');
+  });
+
   // API for fetch Owner property details
   router.post('/getProperty', ownerAuthCheck, async (req, res) => {
     try {
@@ -209,6 +214,7 @@ const ownerRouter = () => {
           res.send({
             code: 200,
             reportData,
+            propertyData,
           });
         },
       );
@@ -324,6 +330,54 @@ const ownerRouter = () => {
           });
         },
       );
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for getting booking detail of units
+  router.post('/getBooking', ownerAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const arr = [];
+      const bookingData = await DB.select('booking', { propertyId: body.propertyId });
+      bookingData.forEach((el) => {
+        arr.push({
+          title: el.totalAmount,
+          start: new Date(el.startDate.setDate(el.startDate.getDate() + 1)),
+          end: el.endDate,
+          allDay: false,
+        });
+      });
+      res.send({
+        code: 200,
+        bookingData,
+        arr,
+      });
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for reservation of property by owner
+  router.post('/addOwnerBooking', ownerAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const data = {
+        startDate: new Date(body.startDate),
+        endDate: new Date(body.endDate),
+        notes1: body.notes,
+      };
+      console.log(data);
+      // const Id = await DB.insert('booking', bookingData);
     } catch (e) {
       console.log('error', e);
       res.send({
