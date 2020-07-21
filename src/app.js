@@ -18,10 +18,10 @@ const app = express();
 // middlewares
 app.use(
   cors({
-    origin: [
+    origin: [...new Set([
       domainName('app'),
       domainName('www'),
-    ],
+    ])],
     credentials: true,
   }),
 );
