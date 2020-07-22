@@ -24,7 +24,7 @@
   "license": "ISC",
   "dependencies": {
     "@sendgrid/mail": "^7.2.1",
-    "aws-sdk": "^2.716.0",
+    "aws-sdk": "^2.717.0",
     "axios": "^0.19.2",
     "bcryptjs": "^2.4.3",
     "bluebird": "^3.7.2",
