@@ -11,7 +11,7 @@ module.exports = {
   deploy: {
     staging: {
       user: 'ubuntu',
-      host: '3.250.220.216',
+      host: '3.249.70.45',
       ref: 'origin/staging',
       repo: 'git@gitlab.com:lodgly/lodgly-be-api.git',
       path: '/var/www/lodgly-mvp-api',
