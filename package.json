@@ -12,12 +12,12 @@
     "url": "https://gitlab.com/lodgly/lodgly-be-api/issues"
   },
   "scripts": {
-    "start": "node bin/server",
+    "start": "env-cmd node bin/server",
     "dev": "env-cmd nodemon bin/server -L --inspect=0.0.0.0:9229",
     "test": "env-cmd jest",
     "deploy": "sls deploy",
     "lint": "eslint src",
-    "knex": "knex"
+    "knex": "env-cmd knex"
   },
   "keywords": [],
   "author": "",
