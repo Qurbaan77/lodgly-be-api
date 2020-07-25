@@ -22,6 +22,7 @@ app.use(
       domainName('app'),
       domainName('www'),
     ])],
+
     credentials: true,
   }),
 );

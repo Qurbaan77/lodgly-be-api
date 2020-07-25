@@ -27,7 +27,7 @@ sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
 
 const clientPath = domainName('app');
 // const serverPath = 'http://localhost:3001/';
-const serverPath = 'http://165.22.87.22:3002/';
+// const serverPath = config.get('serverPath');
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -596,6 +596,7 @@ const usersRouter = () => {
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       let propertiesData;
       if (!body.affiliateId) {
         propertiesData = await DB.select('property', { userId: body.tokenData.userid });
@@ -638,6 +639,7 @@ const usersRouter = () => {
           },
         );
       }
+      console.log(propertiesData);
     } catch (e) {
       console.log(e);
       res.send({
@@ -2130,35 +2132,76 @@ const usersRouter = () => {
           await DB.update('property', { ownerId: saveData }, { id: items });
           next();
         });
-        const transporter = nodemailer.createTransport(
-          smtpTransport({
-            host: 'mail.websultanate.com',
-            port: 587,
-            auth: {
-              user: 'developer@websultanate.com',
-              pass: 'Raviwbst@123',
-            },
-            tls: {
-              rejectUnauthorized: false,
-            },
-            debug: true,
-          }),
-        );
 
-        const mailOptions = {
-          from: 'developer@websultanate.com',
-          to: ownerData.email,
-          subject: 'Please verify your email',
-          text: `You can now access to Owner' s panle for
-          your properties. Your login details: ${password}. You can login here
-          ${serverPath}users/verify/${ownerData.verificationhex}`,
+        const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
+          token: ownerData.verificationhex,
+        });
+
+        const msg = {
+          from: config.get('mailing.from'),
+          templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+          personalizations: [
+            {
+              to: [
+                {
+                  email: ownerData.email,
+                },
+              ],
+              dynamic_template_data: {
+                receipt: true,
+                // username:userData.username,
+                confirmation_url: confirmationUrl,
+                email: ownerData.email,
+              },
+            },
+          ],
         };
 
-        transporter.sendMail(mailOptions);
-        res.send({
-          code: 200,
-          msg: 'Data update successfully!',
+        sgMail.send(msg, (error, result) => {
+          if (error) {
+            console.log(error);
+            res.send({
+              code: 400,
+              msg: 'Some has error occured!',
+            });
+          } else {
+            console.log(result);
+            res.send({
+              code: 200,
+              msg: 'Data saved successfully, please verify your email address!',
+            });
+          }
         });
+
+        // const transporter = nodemailer.createTransport(
+        //   smtpTransport({
+        //     host: 'mail.websultanate.com',
+        //     port: 587,
+        //     auth: {
+        //       user: 'developer@websultanate.com',
+        //       pass: 'Raviwbst@123',
+        //     },
+        //     tls: {
+        //       rejectUnauthorized: false,
+        //     },
+        //     debug: true,
+        //   }),
+        // );
+
+        // const mailOptions = {
+        //   from: 'developer@websultanate.com',
+        //   to: ownerData.email,
+        //   subject: 'Please verify your email',
+        //   text: `You can now access to Owner' s panle for
+        //   your properties. Your login details: ${password}. You can login here
+        //   ${serverPath}users/verify/${ownerData.verificationhex}`,
+        // };
+
+        // transporter.sendMail(mailOptions);
+        // res.send({
+        //   code: 200,
+        //   msg: 'Data update successfully!',
+        // });
       }
     } catch (e) {
       console.log(e);
@@ -2778,21 +2821,22 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const guestData = await DB.select('guest', { userId: body.tokenData.userid });
-
       const country = [];
-      const data = [];
+      const average = [];
       guestData.forEach((el, i, array) => {
-        const countrys = array.filter((ele) => el.country === ele.country);
-        if (countrys.length > 0) {
-          country.push(countrys[0].country);
-          data.push(countrys.length / array.length);
+        const checkexist = country.filter((name) => name === el.country);
+        if (checkexist.length === 0) {
+          const countrys = array.filter((ele) => el.country === ele.country);
+          if (countrys.length > 0) {
+            country.push(countrys[0].country);
+            average.push(countrys.length);
+          }
         }
       });
-      console.log(country, data);
       res.send({
         code: 200,
         country,
-        data,
+        average,
       });
     } catch (e) {
       console.log(e);

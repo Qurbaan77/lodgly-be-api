@@ -7,4 +7,4 @@ module.exports = {
   frontend: {
     endpoint: 'https://%s.lodgly.com',
   },
-}
+};

@@ -1,7 +1,6 @@
 module.exports = {
   environment: process.env.NODE_ENV,
   sentryDsn: process.env.SENTRY_DSN,
-  userJwtKey: process.env.JWT_SECRET,
   errorHandler: {
     reporting: true,
     trace: true,
@@ -31,6 +30,14 @@ module.exports = {
       resetPassword: '/auth/password/reset',
     },
   },
+  ownerFrontend: {
+    endpoint: 'https://d6pfwqgwkxggv.cloudfront.net',
+    paths: {
+      accountConfirmation: '/users/verify',
+      changePassword: '/auth/password/change',
+      resetPassword: '/reset',
+    },
+  },
   payments: {
     stripeApiKey: process.env.STRIPE_API_KEY,
   },
@@ -44,7 +51,7 @@ module.exports = {
       templates: {
         en: {
           accountConfirmation: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
-          resetPassword: undefined,
+          resetPassword: 'd-bb298999667342649f56ab13fe6dc055',
         },
       },
     },
@@ -63,4 +70,5 @@ module.exports = {
       storageBucketName: process.env.S3_BUCKET_NAME,
     },
   },
+  serverPath: process.env.SERVER_PATH,
 };

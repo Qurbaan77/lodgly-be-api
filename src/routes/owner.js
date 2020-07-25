@@ -1,5 +1,7 @@
 const config = require('config');
+const crypto = require('crypto');
 const express = require('express');
+const sgMail = require('@sendgrid/mail');
 const each = require('sync-each');
 const fs = require('fs');
 const AWS = require('aws-sdk');
@@ -11,8 +13,11 @@ const { checkIfEmpty } = require('../functions');
 const { signJwt } = require('../functions');
 const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
+const { ownerPanelUrl } = require('../functions/frontend');
 const { ownerAuthCheck } = require('../middlewares/middlewares');
 const reportTemplate = require('../templates/reportTemplate');
+
+sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
 
 const ownerRouter = () => {
   // router variable for api routing
@@ -59,7 +64,7 @@ const ownerRouter = () => {
           });
           res.send({
             code: 200,
-            msg: 'Authenticated',
+            msg: 'Login successfully',
             token,
           });
         } else {
@@ -88,10 +93,143 @@ const ownerRouter = () => {
     res.clearCookie('token').send('cookie cleared!');
   });
 
+  // API for verify email
+  router.post('/verifyEmail', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const ownerData = await DB.select('owner', { email: body.email });
+      if (ownerData.length > 0) {
+        const forgetPassHex = crypto
+          .createHmac('sha256', 'forgetPasswordHex')
+          .update(ownerData[0].email)
+          .digest('hex');
+        const updatedData = await DB.update(
+          'owner',
+          {
+            forgetPassHex,
+          },
+          {
+            email: body.email,
+          },
+        );
+        if (updatedData) {
+          const confirmationUrl = ownerPanelUrl('', config.get('ownerFrontend.paths.resetPassword'), {
+            token: forgetPassHex,
+          });
+
+          console.log(confirmationUrl);
+
+          const msg = {
+            from: config.get('mailing.from'),
+            templateId: config.get('mailing.sendgrid.templates.en.resetPassword'),
+            personalizations: [
+              {
+                to: [
+                  {
+                    email: body.email,
+                  },
+                ],
+                dynamic_template_data: {
+                  receipt: true,
+                  confirmation_url: confirmationUrl,
+                  email: body.email,
+                },
+              },
+            ],
+          };
+
+          sgMail.send(msg, (error, result) => {
+            if (error) {
+              console.log(error);
+              res.send({
+                code: 400,
+                msg: 'Some has error occured!',
+              });
+            } else {
+              console.log(result);
+              res.send({
+                code: 200,
+                msg: 'Data saved successfully, please verify your email address!',
+              });
+            }
+          });
+
+          res.send({
+            code: 200,
+            msg: 'Please check your email for forget password link!',
+          });
+        } else {
+          res.send({
+            code: 400,
+            msg: 'Try Again.',
+          });
+        }
+      } else {
+        res.send({
+          code: 404,
+          msg: 'Email not found!.',
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for reset password when forget password
+  router.post('/resetPassword', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const ownerData = await DB.select('owner', { forgetPassHex: body.hex });
+      if (ownerData.length > 0) {
+        const newhashedPassword = await hashPassword(body.newpassword);
+        if (newhashedPassword) {
+          const updateData = await DB.update(
+            'owner',
+            {
+              encrypted_password: newhashedPassword,
+              forgetPassHex: '',
+            },
+            {
+              email: ownerData[0].email,
+            },
+          );
+          if (updateData) {
+            res.send({
+              code: 200,
+              msg: 'Password updated successfully!',
+            });
+          } else {
+            res.send({
+              code: 400,
+              msg: 'Try Again.',
+            });
+          }
+        }
+      } else {
+        res.send({
+          code: 404,
+          msg: 'Wrong token!',
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   // API for fetch Owner property details
   router.post('/getProperty', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      const unitData = [];
       const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
       each(
         propertyData,
@@ -101,6 +239,7 @@ const ownerRouter = () => {
           let avgCountPer = 0;
           const bookingData = await DB.select('booking', { propertyId: items.id });
           const unitTypeData = await DB.selectCol('perNight', 'unitType', { propertyId: items.id });
+          unitData.push(await DB.select('unit', { propertyId: items.id }));
 
           const count = [];
           bookingData.forEach((el) => {
@@ -119,6 +258,7 @@ const ownerRouter = () => {
           res.send({
             code: 200,
             propertyData,
+            unitData,
           });
         },
       );
@@ -361,13 +501,24 @@ const ownerRouter = () => {
   router.post('/addOwnerBooking', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const data = {
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
-        notes1: body.notes,
-      };
-      console.log(data);
-      // const Id = await DB.insert('booking', bookingData);
+      console.log(body);
+      const ownerData = await DB.select('owner', { id: body.tokenData.userid });
+      if (ownerData.length > 0) {
+        const ownerBookingData = {
+          startDate: new Date(body.startDate),
+          endDate: new Date(body.endDate),
+          notes1: body.notes,
+          unitId: body.unit,
+          userId: ownerData[0].userId,
+          propertyId: body.propertyId,
+        };
+        const Id = await DB.insert('booking', ownerBookingData);
+        console.log(Id);
+        res.send({
+          code: 200,
+          msg: 'Data saved successfully!',
+        });
+      }
     } catch (e) {
       console.log('error', e);
       res.send({
