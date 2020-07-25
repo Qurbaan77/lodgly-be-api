@@ -23,8 +23,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@sendgrid/mail": "^7.2.1",
-    "aws-sdk": "^2.716.0",
+    "@sendgrid/mail": "^7.2.2",
+    "aws-sdk": "^2.719.0",
     "axios": "^0.19.2",
     "bcryptjs": "^2.4.3",
     "bluebird": "^3.7.2",
@@ -47,7 +47,7 @@
     "nodemailer-smtp-transport": "^2.7.4",
     "randomstring": "^1.1.5",
     "serverless-http": "^2.5.0",
-    "stripe": "^8.77.0",
+    "stripe": "^8.78.0",
     "sync-each": "^1.0.1"
   },
   "devDependencies": {
@@ -57,7 +57,7 @@
     "husky": "^4.2.5",
     "jest": "^26.1.0",
     "nodemon": "^2.0.4",
-    "serverless": "^1.75.1",
+    "serverless": "^1.76.1",
     "serverless-deployment-bucket": "^1.1.2"
   },
   "jest": {
