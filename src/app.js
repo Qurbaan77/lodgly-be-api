@@ -3,7 +3,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
-const { domainName } = require('./functions/frontend');
+const { domainName, ownerPanelDomaimName } = require('./functions/frontend');
 const { getConnection } = require('./services/database');
 
 // const i = require('./routes/cronJob');
@@ -20,7 +20,7 @@ app.use(
   cors({
     origin: [...new Set([
       domainName('app'),
-      domainName('www'),
+      ownerPanelDomaimName('www'),
     ])],
 
     credentials: true,
