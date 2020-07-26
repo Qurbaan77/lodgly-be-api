@@ -473,12 +473,14 @@ const usersRouter = () => {
       h %= 24;
       const remainingDays = 14 - totalDays;
       console.log(remainingDays);
+      const [{ isOnTrial }] = user;
       if (remainingDays === 0) {
         await DB.update('users', { isTrialEnded: true }, { id: body.tokenData.userid });
       }
       res.send({
         code: 200,
         data: remainingDays,
+        isOnTrial,
       });
     } catch (err) {
       res.send({
