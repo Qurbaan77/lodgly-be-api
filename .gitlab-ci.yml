@@ -38,3 +38,23 @@ staging:
     url: https://api.lodgly.dev/
   only:
     - staging
+
+production:
+  stage: deploy
+  cache:
+    policy: pull
+    paths:
+      - node_modules/
+  before_script:
+    - apk add --update bash git openssh-client
+    - mkdir -m 700 -p ~/.ssh
+    - echo "${SSH_PRIVATE_KEY_PRODUCTION}" | base64 -d > ~/.ssh/id_rsa
+    - chmod 600 ~/.ssh/*
+  script:
+    - npx pm2 deploy production setup 2>&1 || true
+    - npx pm2 deploy production
+  environment:
+    name: staging
+    url: https://api.lodgly.com/
+  only:
+    - master
