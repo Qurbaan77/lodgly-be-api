@@ -2,8 +2,6 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-
-const { domainName } = require('./functions/frontend');
 const { getConnection } = require('./services/database');
 
 // const i = require('./routes/cronJob');
@@ -16,16 +14,8 @@ const adminRouter = require('./routes/admin')();
 const app = express();
 
 // middlewares
-app.use(
-  cors({
-    origin: [...new Set([
-      domainName('app'),
-      domainName('www'),
-    ])],
+app.use(cors({ credentials: true, origin: true }));
 
-    credentials: true,
-  }),
-);
 app.use(express.json());
 app.use(
   express.urlencoded({

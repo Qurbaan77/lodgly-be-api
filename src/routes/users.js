@@ -473,12 +473,14 @@ const usersRouter = () => {
       h %= 24;
       const remainingDays = 14 - totalDays;
       console.log(remainingDays);
+      const [{ isOnTrial }] = user;
       if (remainingDays === 0) {
         await DB.update('users', { isTrialEnded: true }, { id: body.tokenData.userid });
       }
       res.send({
         code: 200,
         data: remainingDays,
+        isOnTrial,
       });
     } catch (err) {
       res.send({
@@ -3093,6 +3095,34 @@ const usersRouter = () => {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const userSubsDetails = await DB.selectCol(['isOnTrial', 'isSubscribed', 'created_at'],
+        'users', { id: body.tokenData.userid });
+      console.log(userSubsDetails);
+      const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
+      let s = Math.floor(diff / 1000);
+      let m = Math.floor(s / 60);
+      s %= 60;
+      let h = Math.floor(m / 60);
+      m %= 60;
+      const totalDays = Math.floor(h / 24);
+      h %= 24;
+      const remainingDays = 14 - totalDays;
+      userSubsDetails[0].days = remainingDays;
+      res.send({
+        code: 200,
+        userSubsDetails,
+      });
+    } catch (err) {
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
       });
     }
   });

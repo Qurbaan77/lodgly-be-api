@@ -10,8 +10,8 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('address');
   table.string('package');
   table.string('image');
-  table.string('isSubscribed').defaultTo(false);
-  table.string('isTrialEnded').defaultTo(false);
+  table.boolean('isSubscribed').defaultTo(false);
+  table.boolean('isOnTrial').defaultTo(true);
   table.string('verificationhex');
   table.boolean('isvalid').defaultTo(false);
   table.string('forgetPassHex');
