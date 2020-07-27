@@ -48,12 +48,6 @@ const usersRouter = () => {
     };
     const url = await s3.getSignedUrlPromise('putObject', params);
     return s3.upload(params, url).promise();
-    // s3.upload(params, function (err, data) {
-    //   if (err) {
-    //     console.log(err);
-    //   }
-    //   console.log(`File uploaded successfully`, data);
-    // });
   };
 
   // function for uploading invoice pdf
@@ -479,7 +473,7 @@ const usersRouter = () => {
       }
       res.send({
         code: 200,
-        data: remainingDays,
+        remainingDays,
         isOnTrial,
       });
     } catch (err) {
@@ -859,11 +853,16 @@ const usersRouter = () => {
   router.post('/getUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('Body', body);
       const unitData = await DB.select('unit', { propertyId: body.propertyId });
+      const data0 = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
+      const data1 = await DB.selectCol(['isOnTrial'], 'users', { id: body.tokenData.userid });
+      const [{ units }] = data0;
+      const [{ isOnTrial }] = data1;
       res.send({
         code: 200,
         unitData,
+        units,
+        isOnTrial,
       });
     } catch (e) {
       res.send({
@@ -878,12 +877,25 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const unitData = await DB.select('unit', { userId: body.tokenData.userid });
-      const totalUnit = unitData.length;
-      res.send({
-        code: 200,
-        data: totalUnit,
-      });
+      const data0 = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
+      if (unitData && unitData.length && data0) {
+        const totalUnit = unitData.length;
+        const [{ units }] = data0;
+        console.log(totalUnit);
+        console.log(units);
+        res.send({
+          code: 200,
+          totalUnit,
+          units,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'units not found',
+        });
+      }
     } catch (error) {
+      console.log(error);
       res.send({
         code: 444,
         msg: error,
@@ -2864,11 +2876,14 @@ const usersRouter = () => {
         currency,
         planType,
       } = body;
+      const data = await DB.selectCol(['email'], 'users', { id: req.body.tokenData.userid });
+      const [{ email }] = data;
       const now = new Date();
       const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
       const nextMonth = nextdate / 1000;
       console.log(nextMonth, 'nextMonth');
       const customer = await stripe.customers.create({
+        email,
         source: stripeToken,
         metadata: { currency },
       });
@@ -2925,6 +2940,8 @@ const usersRouter = () => {
         currency,
       };
       console.log('subscription object', subscriptionObject);
+      await DB.insert('subscription', subscriptionObject);
+      await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
       const id = await DB.insert('subscription', subscriptionObject);
       console.log(id);
       res.send({
@@ -2945,10 +2962,16 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
+      const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
+      console.log('subscription', subscription);
+      const endDate = subscription.current_period_end * 1000;
+      console.log(new Date(endDate));
+      console.log(subscription);
       if (transactions && transactions.length) {
         res.send({
           code: 200,
           transactions,
+          endDate,
         });
       } else {
         res.send({
@@ -2962,36 +2985,36 @@ const usersRouter = () => {
       });
     }
   });
-
-  // API for invoice bill
   router.post('/getBillingInvoice', userAuthCheck, async (req, res) => {
     try {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
-      const { customerId } = Data;
+      const [{ customerId }] = Data;
       const invoicesList = [];
       await stripe.invoices.list({ customer: customerId }, (
         err,
         invoices,
       ) => {
         invoices.data.forEach((el) => {
-          const { currency } = el;
-          const amount = el.amount_paid / 100;
-          // let amount =  Math.floor(parseFloat(initial))
-          const { units } = Data[0];
-          const start = new Date(
-            el.lines.data[0].period.start * 1000,
-          ).toDateString();
-          const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
-          const dt = {
-            invoiceId: el.id,
-            start,
-            end,
-            amount,
-            units,
-            currency,
-            pdf: el.invoice_pdf,
-          };
-          invoicesList.push(dt);
+          if (el.customer === customerId) {
+            const { currency } = el;
+            const amount = el.amount_paid / 100;
+            // let amount = Math.floor(parseFloat(initial))
+            // const { units } = Data[0];
+            const start = new Date(
+              el.lines.data[0].period.start * 1000,
+            ).toDateString();
+            const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
+            const dt = {
+              invoiceId: el.id,
+              start,
+              end,
+              amount,
+              // units,
+              currency,
+              pdf: el.invoice_pdf,
+            };
+            invoicesList.push(dt);
+          }
         });
         res.send({ code: 200, invoicesList });
       });
@@ -3054,13 +3077,15 @@ const usersRouter = () => {
       console.log('plan', updatePlan);
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       const difference = amount - Data[0].Amount;
-      const charge = await stripe.charges.create({
-        amount: Math.round(parseFloat(difference) * 100),
-        currency,
-        customer: subscription.customer,
-        description: 'upgrading the plan',
-      });
-      console.log('charge', charge);
+      if (difference > 0) {
+        const charge = await stripe.charges.create({
+          amount: Math.round(parseFloat(difference) * 100),
+          currency,
+          customer: subscription.customer,
+          description: 'upgrading the plan',
+        });
+        console.log('charge', charge);
+      }
       const updatedSubscription = await stripe.subscriptions.update(
         subscriptionId,
         {
@@ -3099,11 +3124,39 @@ const usersRouter = () => {
     }
   });
 
-  router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
+  // API for getting subscription status and updating the databse accordingly
+  router.get('/getSubscriptionStatus', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userSubsDetails = await DB.selectCol(['isOnTrial', 'isSubscribed', 'created_at'],
-        'users', { id: body.tokenData.userid });
+      const Data = await DB.selectCol(['subscriptionId'], 'subscription', { userId: body.tokenData.userid });
+      const [{ subscriptionId }] = Data;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      console.log('active subscription', subscription);
+      if (subscription) {
+        const now = new Date();
+        const endDate = new Date(subscription.current_period_end * 1000);
+        if (now > endDate) {
+          await DB.update('users', { issubscriptionEnded: true }, { id: body.tokenData.userid });
+        }
+      }
+      res.send({
+        code: 200,
+        msg: 'subscription status updated',
+      });
+    } catch (error) {
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // getting subscribed status of user
+  router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { userid } = req.body.tokenData;
+      const userSubsDetails = await DB.selectCol(['isSubscribed',
+        'isOnTrial', 'issubscriptionEnded', 'created_at'], 'users', { id: userid });
       console.log(userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
       let s = Math.floor(diff / 1000);
@@ -3119,10 +3172,11 @@ const usersRouter = () => {
         code: 200,
         userSubsDetails,
       });
-    } catch (err) {
+    } catch (error) {
+      console.log(error);
       res.send({
         code: 444,
-        msg: 'some error occured!',
+        msg: 'some error occured',
       });
     }
   });
