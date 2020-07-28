@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
-const { getConnection } = require('./services/database');
 
 // const i = require('./routes/cronJob');
 
@@ -34,10 +33,8 @@ app.use('/owner', ownerRouter);
 
 app.use('/admin', adminRouter);
 
-app.get('/', async (req, res) => {
-  const row = await getConnection().raw('SELECT 1000 as total');
-
-  res.json({ data: row[0][0] });
+app.get('/healthz', async (req, res) => {
+  res.sendStatus(200);
 });
 
 module.exports = app;
