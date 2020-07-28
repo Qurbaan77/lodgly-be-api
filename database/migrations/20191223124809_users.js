@@ -12,7 +12,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('address');
   table.string('package');
   table.string('image');
-  table.string('requsetedUnits');
+  table.string('requestedUnits');
   table.boolean('isSubscribed').defaultTo(false);
   table.boolean('isOnTrial').defaultTo(true);
   table.boolean('isSubscriptionEnded').defaultTo(false);

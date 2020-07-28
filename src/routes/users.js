@@ -88,6 +88,7 @@ const usersRouter = () => {
             }
             const userData = {
               fullname: body.name,
+              companyName: body.company,
               requestedUnits: body.employees,
               encrypted_password: body.encrypted_password,
               email: body.email,
