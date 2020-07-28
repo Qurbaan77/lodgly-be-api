@@ -9,7 +9,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('subscriptionId');
   table.string('subscription');
   table.integer('units');
-  table.integer('Amount');
+  table.decimal('Amount');
   table.string('interval');
   table.string('planType');
   table.string('currency');
