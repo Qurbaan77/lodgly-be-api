@@ -4,6 +4,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
   table.string('fullname');
   table.string('email');
+  table.string('companyName');
   table.bigInteger('phone');
   table.string('username');
   table.string('fname');
@@ -11,7 +12,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('address');
   table.string('package');
   table.string('image');
-  table.integer('requsetedUnits');
+  table.string('requsetedUnits');
   table.boolean('isSubscribed').defaultTo(false);
   table.boolean('isOnTrial').defaultTo(true);
   table.boolean('isSubscriptionEnded').defaultTo(false);
