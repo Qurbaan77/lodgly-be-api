@@ -432,7 +432,6 @@ const usersRouter = () => {
   router.get('/validateToken', userAuthCheck, async (req, res) => {
     try {
       const { tokenData } = req.body;
-      console.log('tokenData', tokenData);
       const userData = await userModel.getOneBy({ id: tokenData.userid });
       if (userData.length) {
         const resData = {
@@ -504,7 +503,6 @@ const usersRouter = () => {
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       let id;
       if (body.affiliateId) {
         id = body.affiliateId;
@@ -531,7 +529,6 @@ const usersRouter = () => {
       };
 
       const propertyExist = await DB.select('property', { userId: id, propertyNo: body.propertyNo });
-      console.log(propertyExist.length);
       if (propertyExist.length) {
         await DB.update('property', propertyData, {
           userId: id,
@@ -592,7 +589,6 @@ const usersRouter = () => {
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       let propertiesData;
       if (!body.affiliateId) {
         propertiesData = await DB.select('property', { userId: body.tokenData.userid });
@@ -748,10 +744,12 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const unittypeData = await DB.select('unitType', { propertyId: body.propertyId });
+      const units = await DB.select('unit', { userId: body.tokenData.userid });
       if (unittypeData) {
         res.send({
           code: 200,
           unittypeData,
+          units,
         });
       } else {
         res.send({
