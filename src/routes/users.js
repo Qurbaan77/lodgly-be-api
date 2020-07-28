@@ -72,13 +72,14 @@ const usersRouter = () => {
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = await req.body;
+    console.log('sign Up', body);
     // verifying if request body data is valid
-    const { isValid } = checkIfEmpty(body.username, body.password, body.email, body.package, body.phone);
+    const { isValid } = checkIfEmpty(body.name, body.company, body.employees, body.email, body.password);
     // if request body data is valid
     try {
       if (isValid) {
         const userExists = await userModel.getOneBy({
-          email: body.email,
+          companyName: body.company,
         });
         if (!userExists.length) {
           const hashedPassword = await hashPassword(body.password);
@@ -88,16 +89,24 @@ const usersRouter = () => {
             const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
 
             body.verificationhex = hash;
-
+            if (body.phone === '') {
+              body.phone = null;
+            }
             const userData = {
-              username: body.username,
+              fullname: body.name,
+              requestedUnits: body.employees,
               encrypted_password: body.encrypted_password,
               email: body.email,
-              package: body.package,
               phone: body.phone,
               verificationhex: body.verificationhex,
             };
             await DB.insert('users', userData);
+            // const data = {
+            //   userId: saveData,
+            //   name: body.company,
+            // };
+            // const saveCompany = await DB.insert('organizations', data);
+            // console.log(saveCompany);
 
             const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
               token: userData.verificationhex,
@@ -115,7 +124,6 @@ const usersRouter = () => {
                   ],
                   dynamic_template_data: {
                     receipt: true,
-                    // username:userData.username,
                     confirmation_url: confirmationUrl,
                     email: userData.email,
                   },
@@ -138,31 +146,6 @@ const usersRouter = () => {
                 });
               }
             });
-
-            // const transporter = nodemailer.createTransport(
-            //   smtpTransport({
-            //     host: 'mail.websultanate.com',
-            //     port: 587,
-            //     auth: {
-            //       user: 'developer@websultanate.com',
-            //       pass: 'Raviwbst@123',
-            //     },
-            //     tls: {
-            //       rejectUnauthorized: false,
-            //     },
-            //     debug: true,
-            //   }),
-            // );
-
-            // const mailOptions = {
-            //   from: 'developer@websultanate.com',
-            //   to: userData.email,
-            //   subject: 'Please verify your email',
-            //   text: `Please click on this link to verify your email address
-            //   ${serverPath}users/verify/${userData.verificationhex}`,
-            // };
-
-            // transporter.sendMail(mailOptions);
           } else {
             res.send({
               code: 400,
@@ -171,7 +154,7 @@ const usersRouter = () => {
           }
         } else {
           res.send({
-            code: 400,
+            code: 409,
             msg: 'Email already exists!',
           });
         }

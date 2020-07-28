@@ -2,6 +2,7 @@ const TABLE_NAME = 'users';
 
 exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
+  table.string('fullname');
   table.string('email');
   table.bigInteger('phone');
   table.string('username');
@@ -10,6 +11,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('address');
   table.string('package');
   table.string('image');
+  table.integer('requsetedUnits');
   table.boolean('isSubscribed').defaultTo(false);
   table.boolean('isOnTrial').defaultTo(true);
   table.string('verificationhex');
