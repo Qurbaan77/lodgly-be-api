@@ -96,6 +96,10 @@ const usersRouter = () => {
               verificationhex: body.verificationhex,
             };
             await DB.insert('users', userData);
+            res.send({
+              code: 200,
+              msg: 'Data saved successfully, please verify your email address!',
+            });
             // const data = {
             //   userId: saveData,
             //   name: body.company,
@@ -103,44 +107,44 @@ const usersRouter = () => {
             // const saveCompany = await DB.insert('organizations', data);
             // console.log(saveCompany);
 
-            const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
-              token: userData.verificationhex,
-            });
+            // const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
+            //   token: userData.verificationhex,
+            // });
 
-            const msg = {
-              from: config.get('mailing.from'),
-              templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
-              personalizations: [
-                {
-                  to: [
-                    {
-                      email: userData.email,
-                    },
-                  ],
-                  dynamic_template_data: {
-                    receipt: true,
-                    confirmation_url: confirmationUrl,
-                    email: userData.email,
-                  },
-                },
-              ],
-            };
+            // const msg = {
+            //   from: config.get('mailing.from'),
+            //   templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+            //   personalizations: [
+            //     {
+            //       to: [
+            //         {
+            //           email: userData.email,
+            //         },
+            //       ],
+            //       dynamic_template_data: {
+            //         receipt: true,
+            //         confirmation_url: confirmationUrl,
+            //         email: userData.email,
+            //       },
+            //     },
+            //   ],
+            // };
 
-            sgMail.send(msg, (error, result) => {
-              if (error) {
-                console.log(error);
-                res.send({
-                  code: 400,
-                  msg: 'Some has error occured!',
-                });
-              } else {
-                console.log(result);
-                res.send({
-                  code: 200,
-                  msg: 'Data saved successfully, please verify your email address!',
-                });
-              }
-            });
+            // sgMail.send(msg, (error, result) => {
+            //   if (error) {
+            //     console.log(error);
+            //     res.send({
+            //       code: 400,
+            //       msg: 'Some has error occured!',
+            //     });
+            //   } else {
+            //     console.log(result);
+            //     res.send({
+            //       code: 200,
+            //       msg: 'Data saved successfully, please verify your email address!',
+            //     });
+            //   }
+            // });
           } else {
             res.send({
               code: 400,
