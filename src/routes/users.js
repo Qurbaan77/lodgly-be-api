@@ -23,8 +23,7 @@ const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
-sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
-
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 const clientPath = domainName('app');
 // const serverPath = 'http://localhost:3001/';
 // const serverPath = config.get('serverPath');
