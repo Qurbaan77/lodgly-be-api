@@ -6,6 +6,7 @@ const each = require('sync-each');
 const fs = require('fs');
 const AWS = require('aws-sdk');
 const fileType = require('file-type');
+const multiparty = require('multiparty');
 const pdf = require('html-pdf');
 const DB = require('../services/database');
 const ownerModel = require('../models/owner/repositories');
@@ -31,6 +32,17 @@ const ownerRouter = () => {
 
   // function for uploading invoice pdf
   const uploadPdf = async (buffer, name, type) => {
+    const params = {
+      ACL: 'public-read',
+      Body: buffer,
+      Bucket: config.get('aws.s3.storageBucketName'),
+      Key: `${name}.${type.ext}`,
+    };
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    return s3.upload(params, url).promise();
+  };
+
+  const uploadImg = async (buffer, name, type) => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
@@ -526,6 +538,29 @@ const ownerRouter = () => {
         msg: 'Some error has occured!',
       });
     }
+  });
+
+  router.post('/uploadImg', async (req, res) => {
+    const form = new multiparty.Form();
+    form.parse(req, async (error, fields, files) => {
+      if (error) throw new Error(error);
+      try {
+        console.log(files);
+        const { path } = files.file[0];
+        const buffer = fs.readFileSync(path);
+        const type = await fileType.fromBuffer(buffer);
+        const timestamp = Date.now().toString();
+        const fileName = `bucketFolder/${timestamp}-lg`;
+        const data = await uploadImg(buffer, fileName, type);
+        console.log('dataa in profile Image', data);
+        res.send({
+          code: 200,
+          data,
+        });
+      } catch (e) {
+        console.log(e);
+      }
+    });
   });
 
   return router;
