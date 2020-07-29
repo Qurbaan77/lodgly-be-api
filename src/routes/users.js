@@ -72,10 +72,8 @@ const usersRouter = () => {
     // if request body data is valid
     try {
       if (isValid) {
-        const userExists = await userModel.getOneBy({
-          companyName: body.company,
-        });
-        if (!userExists.length) {
+        const companyExists = await DB.select('users', { companyName: body.company });
+        if (!companyExists.length) {
           const hashedPassword = await hashPassword(body.password);
           if (hashedPassword) {
             body.encrypted_password = hashedPassword;
@@ -95,56 +93,51 @@ const usersRouter = () => {
               phone: body.phone,
               verificationhex: body.verificationhex,
             };
-            await DB.insert('users', userData);
-            res.send({
-              code: 200,
-              msg: 'Data saved successfully, please verify your email address!',
+            const saveData = await DB.insert('users', userData);
+            const data = {
+              userId: saveData,
+              name: body.company,
+            };
+            await DB.insert('organizations', data);
+
+            const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
+              token: userData.verificationhex,
             });
-            // const data = {
-            //   userId: saveData,
-            //   name: body.company,
-            // };
-            // const saveCompany = await DB.insert('organizations', data);
-            // console.log(saveCompany);
 
-            // const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
-            //   token: userData.verificationhex,
-            // });
+            const msg = {
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+              personalizations: [
+                {
+                  to: [
+                    {
+                      email: userData.email,
+                    },
+                  ],
+                  dynamic_template_data: {
+                    receipt: true,
+                    confirmation_url: confirmationUrl,
+                    email: userData.email,
+                  },
+                },
+              ],
+            };
 
-            // const msg = {
-            //   from: config.get('mailing.from'),
-            //   templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
-            //   personalizations: [
-            //     {
-            //       to: [
-            //         {
-            //           email: userData.email,
-            //         },
-            //       ],
-            //       dynamic_template_data: {
-            //         receipt: true,
-            //         confirmation_url: confirmationUrl,
-            //         email: userData.email,
-            //       },
-            //     },
-            //   ],
-            // };
-
-            // sgMail.send(msg, (error, result) => {
-            //   if (error) {
-            //     console.log(error);
-            //     res.send({
-            //       code: 400,
-            //       msg: 'Some has error occured!',
-            //     });
-            //   } else {
-            //     console.log(result);
-            //     res.send({
-            //       code: 200,
-            //       msg: 'Data saved successfully, please verify your email address!',
-            //     });
-            //   }
-            // });
+            sgMail.send(msg, (error, result) => {
+              if (error) {
+                console.log(error);
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              } else {
+                console.log(result);
+                res.send({
+                  code: 200,
+                  msg: 'Data saved successfully, please verify your email address!',
+                });
+              }
+            });
           } else {
             res.send({
               code: 400,

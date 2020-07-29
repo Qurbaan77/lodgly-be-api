@@ -241,6 +241,7 @@ const ownerRouter = () => {
   router.post('/getProperty', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       const unitData = [];
       const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
       each(
@@ -540,25 +541,31 @@ const ownerRouter = () => {
     }
   });
 
-  router.post('/uploadImg', async (req, res) => {
+  router.post('/uploadImg', ownerAuthCheck, async (req, res) => {
+    console.log(req);
     const form = new multiparty.Form();
     form.parse(req, async (error, fields, files) => {
       if (error) throw new Error(error);
       try {
-        console.log(files);
+        const { ...body } = req.body;
         const { path } = files.file[0];
         const buffer = fs.readFileSync(path);
         const type = await fileType.fromBuffer(buffer);
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
         const data = await uploadImg(buffer, fileName, type);
-        console.log('dataa in profile Image', data);
+        await DB.update('owner', { image: data.Location }, { id: body.tokenData.userid });
         res.send({
           code: 200,
           data,
+          msg: 'Image upload successfully!',
         });
       } catch (e) {
         console.log(e);
+        res.send({
+          code: 404,
+          msg: 'Some error occured!',
+        });
       }
     });
   });
