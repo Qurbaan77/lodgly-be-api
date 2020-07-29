@@ -24,6 +24,7 @@ const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+console.log(process.env.SENDGRID_API_KEY);
 const clientPath = domainName('app');
 // const serverPath = 'http://localhost:3001/';
 // const serverPath = config.get('serverPath');
@@ -159,6 +160,32 @@ const usersRouter = () => {
       console.log('error', e);
       res.send({
         code: 400,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // serach company name and add on the subdomain
+  router.post('/searchComapany', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const companyExists = await DB.select('users', { companyName: body.companyName });
+      if (companyExists.length > 0) {
+        res.send({
+          code: 200,
+          msg: 'comapny found!',
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'comapny not found!',
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
         msg: 'Some error has occured!',
       });
     }
