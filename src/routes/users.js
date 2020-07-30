@@ -24,7 +24,6 @@ const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
 const clientPath = domainName('app');
-// const serverPath = 'http://localhost:3001/';
 // const serverPath = config.get('serverPath');
 const usersRouter = () => {
   // router variable for api routing
@@ -96,10 +95,10 @@ const usersRouter = () => {
               name: body.company,
             };
             await DB.insert('organizations', data);
-
-            const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
+            const confirmationUrl = frontendUrl(body.company, '/', {
               token: userData.verificationhex,
             });
+
             sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
             const msg = {
               from: config.get('mailing.from'),
@@ -192,16 +191,15 @@ const usersRouter = () => {
   router.get('/verify/:hex', async (req, res) => {
     try {
       const verificationhex = req.params.hex;
-
       const isExist = await userModel.getOneBy({ verificationhex });
-      //  console.log('isExist',isExist[0].id)
       if (isExist.length) {
         const updatedData = await DB.update('users', { isvalid: true }, { id: isExist[0].id });
-        // console.log('updatedData==>',updatedData)
+        const url = frontendUrl(isExist[0].companyName, config.get('frontend.paths.accountConfirmation'));
         if (updatedData) {
-          // res.redirect(`${clientPath}?verified=true`);
           res.send({
             code: 200,
+            msg: 'verified',
+            url,
           });
         } else {
           res.send({
