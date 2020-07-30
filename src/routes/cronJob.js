@@ -13,16 +13,16 @@ const cronJob = schedule.scheduleJob('00 00 12 0-6', async () => {
   }
 });
 
-// const i = async () => {
-//   try {
-//     const response = await axios.get('https://api.exchangeratesapi.io/latest?symbols=GBP,PLN,CHF');
-//     console.log(response.data.rates);
+const i = async () => {
+  try {
+    const response = await axios.get('https://api.exchangeratesapi.io/latest?symbols=GBP,PLN,CHF');
+    console.log(response.data.rates);
 
-//     const res = await DB.insert('exchangeRate', response.data.rates, {});
-//     console.log(res);
-//   } catch (error) {
-//     console.log(error);
-//   }
-// };
+    const res = await DB.insert('exchangeRate', response.data.rates, {});
+    console.log(res);
+  } catch (error) {
+    console.log(error);
+  }
+};
 
-module.exports = cronJob;
+module.exports = { cronJob, i };

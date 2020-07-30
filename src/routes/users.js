@@ -21,7 +21,9 @@ const {
 const { domainName, frontendUrl } = require('../functions/frontend');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
+const { i: j } = require('./cronJob');
 
+j();
 console.log(config.get('mailing.sendgrid.apiKey'));
 AWS.config.setPromisesDependency(bluebird);
 const clientPath = domainName('app');

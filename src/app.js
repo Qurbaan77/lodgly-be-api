@@ -3,7 +3,7 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
-// const i = require('./routes/cronJob');
+const { i } = require('./routes/cronJob');
 
 // routes
 const usersRouter = require('./routes/users')();
@@ -21,7 +21,7 @@ app.use(
     extended: false,
   }),
 );
-// i();
+i();
 
 app.use(cookieParser('cookiesecret'));
 app.use(express.static(path.join(__dirname, 'public')));
