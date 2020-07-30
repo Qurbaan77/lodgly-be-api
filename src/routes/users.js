@@ -22,9 +22,8 @@ const { domainName, frontendUrl } = require('../functions/frontend');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
+console.log(config.get('mailing.sendgrid.apiKey'));
 AWS.config.setPromisesDependency(bluebird);
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-console.log(process.env.SENDGRID_API_KEY);
 const clientPath = domainName('app');
 // const serverPath = 'http://localhost:3001/';
 // const serverPath = config.get('serverPath');
@@ -103,7 +102,8 @@ const usersRouter = () => {
             const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
               token: userData.verificationhex,
             });
-
+            sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
+            console.log(config.get('mailing.sendgrid.apiKey'));
             const msg = {
               from: config.get('mailing.from'),
               templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),

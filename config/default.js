@@ -47,7 +47,7 @@ module.exports = {
       email: 'no-reply@lodgly.com',
     },
     sendgrid: {
-      apiKey: process.env.SENDGRID_API_KEY,
+      apiKey: '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',
       templates: {
         en: {
           accountConfirmation: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
