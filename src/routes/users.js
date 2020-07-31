@@ -856,7 +856,11 @@ const usersRouter = () => {
       const unitData = await DB.select('unit', { propertyId: body.propertyId });
       const data0 = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
       const data1 = await DB.selectCol(['isOnTrial'], 'users', { id: body.tokenData.userid });
-      const [{ units }] = data0;
+      let units;
+      if (data0 && data0.length > 0) {
+        units = data0[0].units;
+      }
+      console.log('shsfts', units);
       const [{ isOnTrial }] = data1;
       res.send({
         code: 200,
@@ -865,6 +869,7 @@ const usersRouter = () => {
         isOnTrial,
       });
     } catch (e) {
+      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -880,7 +885,10 @@ const usersRouter = () => {
       const data0 = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
       if (unitData && unitData.length && data0) {
         const totalUnit = unitData.length;
-        const [{ units }] = data0;
+        let units;
+        if (data0 && data0.length > 0) {
+          units = data0[0].units;
+        }
         console.log(totalUnit);
         console.log(units);
         res.send({
@@ -1579,7 +1587,7 @@ const usersRouter = () => {
 
       res.send({
         code: 200,
-        msg: 'Booking save successfully!',
+        msg: 'Reservation save successfully!',
       });
     } catch (e) {
       console.log(e);
@@ -1967,8 +1975,9 @@ const usersRouter = () => {
           statsWrite: body.statsWrite,
           ownerRead: body.ownerRead,
           ownerWrite: body.ownerWrite,
+          biilingRead: body.billingRead,
+          billingWrite: body.billingWrite,
         };
-        console.log(teamData);
         if (body.id) {
           await DB.update('team', teamData, { id: body.id });
           res.send({
@@ -2163,7 +2172,6 @@ const usersRouter = () => {
               ],
               dynamic_template_data: {
                 receipt: true,
-                // username:userData.username,
                 confirmation_url: confirmationUrl,
                 email: ownerData.email,
               },
@@ -2186,36 +2194,6 @@ const usersRouter = () => {
             });
           }
         });
-
-        // const transporter = nodemailer.createTransport(
-        //   smtpTransport({
-        //     host: 'mail.websultanate.com',
-        //     port: 587,
-        //     auth: {
-        //       user: 'developer@websultanate.com',
-        //       pass: 'Raviwbst@123',
-        //     },
-        //     tls: {
-        //       rejectUnauthorized: false,
-        //     },
-        //     debug: true,
-        //   }),
-        // );
-
-        // const mailOptions = {
-        //   from: 'developer@websultanate.com',
-        //   to: ownerData.email,
-        //   subject: 'Please verify your email',
-        //   text: `You can now access to Owner' s panle for
-        //   your properties. Your login details: ${password}. You can login here
-        //   ${serverPath}users/verify/${ownerData.verificationhex}`,
-        // };
-
-        // transporter.sendMail(mailOptions);
-        // res.send({
-        //   code: 200,
-        //   msg: 'Data update successfully!',
-        // });
       }
     } catch (e) {
       console.log(e);
@@ -3068,7 +3046,7 @@ const usersRouter = () => {
         type: 'service',
       });
       const updatePlan = await stripe.plans.create({
-        nickname: 'hello',
+        nickname: `Lodgly ${planType} Subscription`,
         amount: Math.round(parseFloat(amount) * 100),
         interval,
         product: product.id,
@@ -3174,6 +3152,40 @@ const usersRouter = () => {
       });
     } catch (error) {
       console.log(error);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for put data in Calendar
+  router.post('/fetchCalendar', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const propertyData = await DB.select('property', { userId: body.tokenData.userid });
+      const unitType = [];
+      const unit = [];
+      each(
+        propertyData,
+        async (items, next) => {
+          const itemsCopy = items;
+          unitType.push(await DB.select('unitType', { propertyId: items.id }));
+          unit.push(await DB.select('unit', { propertyId: items.id }));
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            propertyData,
+            unitType,
+            unit,
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occured',
