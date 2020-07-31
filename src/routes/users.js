@@ -2146,7 +2146,6 @@ const usersRouter = () => {
         ownerData.verificationhex = hash;
         ownerData.encrypted_password = hashedPassword;
         const saveData = await DB.insert('owner', ownerData);
-        console.log(saveData);
         each(body.properties, async (items, next) => {
           await DB.update('property', { ownerId: saveData }, { id: items });
           next();
@@ -2169,7 +2168,7 @@ const usersRouter = () => {
               dynamic_template_data: {
                 receipt: true,
                 confirmation_url: confirmationUrl,
-                email: ownerData.email,
+                email: password,
               },
             },
           ],
