@@ -193,7 +193,7 @@ const usersRouter = () => {
       const verificationhex = req.params.hex;
       const isExist = await userModel.getOneBy({ verificationhex });
       if (isExist.length) {
-        const updatedData = await DB.update('users', { isvalid: true }, { id: isExist[0].id });
+        const updatedData = await DB.update('users', { isvalid: 1 }, { id: isExist[0].id });
         const url = frontendUrl(isExist[0].companyName, config.get('frontend.paths.accountConfirmation'));
         if (updatedData) {
           res.send({
@@ -225,29 +225,25 @@ const usersRouter = () => {
   // post request to login user
   router.post('/login', async (req, res) => {
     try {
-      console.log(req.body);
-      const { isValid } = checkIfEmpty(req.body);
+      const { ...body } = req.body;
+      console.log(body);
+      const { isValid } = checkIfEmpty(body);
       if (isValid) {
-        const { email, password } = req.body;
-        // finding user with email
-        const isUserExists = await userModel.getOneBy({
-          email,
-        });
-        console.log(isUserExists);
+        // finding user with email and company name
+        const isUserExists = await DB.select('users', { email: body.email, companyName: body.company });
+        console.log('isUserExists', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
-          // eslint-disable-next-line object-shorthand
-          subUser = await DB.select('team', { email: email });
+          subUser = await DB.select('team', { email: body.email });
         }
         if (isUserExists.length) {
-          if (isUserExists[0].isvalid === false) {
-            // isvalid value need to change 0 on Live
+          if (isUserExists[0].isvalid === 0) {
             res.send({
               code: 403,
               msg: 'This email is not verified',
             });
           } else {
-            const isPasswordValid = await verifyHash(password, isUserExists[0].encrypted_password);
+            const isPasswordValid = await verifyHash(body.password, isUserExists[0].encrypted_password);
             if (isPasswordValid) {
               // valid password
               const token = signJwt(isUserExists[0].id);
@@ -271,7 +267,7 @@ const usersRouter = () => {
         } else {
           res.send({
             code: 404,
-            msg: 'User not found!',
+            msg: 'Company name or Email is Invalid!',
           });
         }
       } else {
