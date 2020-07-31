@@ -31,7 +31,7 @@ module.exports = {
     },
   },
   ownerFrontend: {
-    endpoint: 'https://d6pfwqgwkxggv.cloudfront.net',
+    endpoint: 'https://lodglyowners.dev',
     paths: {
       accountConfirmation: '/users/verify',
       changePassword: '/auth/password/change',
@@ -52,6 +52,7 @@ module.exports = {
         en: {
           accountConfirmation: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
           resetPassword: 'd-bb298999667342649f56ab13fe6dc055',
+          ownerConfirmation: 'd-8a26674aae6b463c825663face51c180',
         },
       },
     },

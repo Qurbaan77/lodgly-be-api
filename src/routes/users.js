@@ -2151,13 +2151,9 @@ const usersRouter = () => {
           next();
         });
 
-        const confirmationUrl = frontendUrl('app', config.get('frontend.paths.accountConfirmation'), {
-          token: ownerData.verificationhex,
-        });
-
         const msg = {
           from: config.get('mailing.from'),
-          templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+          templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
           personalizations: [
             {
               to: [
@@ -2167,8 +2163,8 @@ const usersRouter = () => {
               ],
               dynamic_template_data: {
                 receipt: true,
-                confirmation_url: confirmationUrl,
-                email: password,
+                password,
+                link: config.get('ownerFrontend.endpoint'),
               },
             },
           ],
