@@ -25,7 +25,7 @@ module.exports = {
   frontend: {
     endpoint: 'https://%s.lodgly.dev',
     paths: {
-      accountConfirmation: '/users/verify',
+      accountConfirmation: '/company',
       changePassword: '/auth/password/change',
       resetPassword: '/auth/password/reset',
     },
