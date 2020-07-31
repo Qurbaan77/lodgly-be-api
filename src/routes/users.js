@@ -21,10 +21,7 @@ const {
 const { domainName, frontendUrl } = require('../functions/frontend');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
-const { i: j } = require('./cronJob');
 
-j();
-console.log(config.get('mailing.sendgrid.apiKey'));
 AWS.config.setPromisesDependency(bluebird);
 const clientPath = domainName('app');
 // const serverPath = 'http://localhost:3001/';
@@ -105,7 +102,6 @@ const usersRouter = () => {
               token: userData.verificationhex,
             });
             sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
-            console.log(config.get('mailing.sendgrid.apiKey'));
             const msg = {
               from: config.get('mailing.from'),
               templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
@@ -913,6 +909,7 @@ const usersRouter = () => {
   router.post('/addGroup', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       let prevCheckDate;
       let nextCheckDate;
       if (body.prevCheck || body.nextCheck) {

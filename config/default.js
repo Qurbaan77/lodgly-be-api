@@ -71,4 +71,5 @@ module.exports = {
     },
   },
   serverPath: process.env.SERVER_PATH,
+  sentry_dsn: process.env.SENTRY_DSN,
 };

@@ -1,7 +1,9 @@
 const express = require('express');
+const Sentry = require('@sentry/node');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
+const config = require('config');
 
 const { i } = require('./routes/cronJob');
 
@@ -11,8 +13,9 @@ const ownerRouter = require('./routes/owner')();
 const adminRouter = require('./routes/admin')();
 
 const app = express();
-
+Sentry.init({ dsn: config.get('sentry_dsn') });
 // middlewares
+app.use(Sentry.Handlers.requestHandler());
 app.use(cors({ credentials: true, origin: true }));
 
 app.use(express.json());
