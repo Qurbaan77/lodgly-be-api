@@ -34,7 +34,9 @@ const usersRouter = () => {
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
   });
-
+  console.log(config.get('aws.accessKey'));
+  console.log(config.get('aws.accessSecretKey'));
+  console.log(config.get('aws.s3.storageBucketName'));
   const uploadFile = async (buffer, name, type) => {
     const params = {
       ACL: 'public-read',
