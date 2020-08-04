@@ -18,7 +18,7 @@ const i = async () => {
     const response = await axios.get('https://api.exchangeratesapi.io/latest?symbols=GBP,PLN,CHF');
     console.log(response.data.rates);
 
-    const res = await DB.insert('exchangeRate', response.data.rates, {});
+    const res = await DB.update('exchangeRate', response.data.rates, {});
     console.log(res);
   } catch (error) {
     console.log(error);
