@@ -67,13 +67,12 @@ module.exports = {
     },
   },
   aws: {
-    accessKey: process.env.AWS_ACCESS_KEY,
-    accessSecretKey: process.env.AWS_ACCESS_SECRET_KEY,
+    accessKey: 'AKIAXQT7I33Q5CBXSSSM',
+    accessSecretKey: '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',
     s3: {
       storageBucketName: process.env.S3_BUCKET_NAME,
     },
   },
   serverPath: process.env.SERVER_PATH,
   sentry_dsn: process.env.SENTRY_DSN,
-  random_key: process.env.Random_key,
 };
