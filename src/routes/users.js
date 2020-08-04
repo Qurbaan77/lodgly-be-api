@@ -1984,7 +1984,7 @@ const usersRouter = () => {
           statsWrite: body.statsWrite,
           ownerRead: body.ownerRead,
           ownerWrite: body.ownerWrite,
-          biilingRead: body.billingRead,
+          billingRead: body.billingRead,
           billingWrite: body.billingWrite,
         };
         if (body.id) {
