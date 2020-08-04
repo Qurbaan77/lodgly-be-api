@@ -38,15 +38,23 @@ const usersRouter = () => {
   console.log(config.get('aws.accessSecretKey'));
   console.log(config.get('aws.s3.storageBucketName'));
   const uploadFile = async (buffer, name, type) => {
-    const params = {
-      ACL: 'public-read',
-      Body: buffer,
-      Bucket: config.get('aws.s3.storageBucketName'),
-      ContentType: type.mime,
-      Key: `${name}.${type.ext}`,
-    };
-    const url = await s3.getSignedUrlPromise('putObject', params);
-    return s3.upload(params, url).promise();
+    try {
+      console.log(config.get('aws.accessKey'));
+      console.log(config.get('aws.accessSecretKey'));
+      console.log(config.get('aws.s3.storageBucketName'));
+      const params = {
+        ACL: 'public-read',
+        Body: buffer,
+        Bucket: config.get('aws.s3.storageBucketName'),
+        ContentType: type.mime,
+        Key: `${name}.${type.ext}`,
+      };
+      const url = await s3.getSignedUrlPromise('putObject', params);
+      return s3.upload(params, url).promise();
+    } catch (err) {
+      console.log(err);
+      return err;
+    }
   };
 
   // function for uploading invoice pdf
