@@ -49,16 +49,21 @@ const usersRouter = () => {
 
   // function for uploading invoice pdf
   const uploadPdf = async (buffer, name, type) => {
-    const params = {
-      ACL: 'public-read',
-      Body: buffer,
-      Bucket: config.get('aws.s3.storageBucketName'),
-      ContentType: 'application/pdf',
-      Key: `${name}.${type.ext}`,
-      ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
-    };
-    const url = await s3.getSignedUrlPromise('putObject', params);
-    return s3.upload(params, url).promise();
+    try {
+      const params = {
+        ACL: 'public-read',
+        Body: buffer,
+        Bucket: config.get('aws.s3.storageBucketName'),
+        ContentType: 'application/pdf',
+        Key: `${name}.${type.ext}`,
+        ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
+      };
+      const url = await s3.getSignedUrlPromise('putObject', params);
+      return s3.upload(params, url).promise();
+    } catch (err) {
+      console.log('upload pdf aws error', err);
+      return err;
+    }
   };
   // post request to signup user
   router.post('/signup', async (req, res) => {
