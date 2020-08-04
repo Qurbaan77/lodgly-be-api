@@ -2,8 +2,8 @@ const express = require('express');
 const config = require('config');
 const crypto = require('crypto');
 const randomstring = require('randomstring');
-const nodemailer = require('nodemailer');
-const smtpTransport = require('nodemailer-smtp-transport');
+// const nodemailer = require('nodemailer');
+// const smtpTransport = require('nodemailer-smtp-transport');
 const each = require('sync-each');
 const sgMail = require('@sendgrid/mail');
 const fs = require('fs');
@@ -18,12 +18,12 @@ const DB = require('../services/database');
 const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
-const { domainName, frontendUrl } = require('../functions/frontend');
+const { frontendUrl } = require('../functions/frontend');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
-const clientPath = domainName('app');
+// const clientPath = domainName('app');
 // const serverPath = config.get('serverPath');
 const usersRouter = () => {
   // router variable for api routing
@@ -49,11 +49,12 @@ const usersRouter = () => {
 
   // function for uploading invoice pdf
   const uploadPdf = async (buffer, name, type) => {
+    console.log(config.get('aws.s3.storageBucketName'));
     const params = {
       ACL: 'public-read',
       Body: buffer,
       Bucket: config.get('aws.s3.storageBucketName'),
-      ContentType: 'application/pdf',
+      // ContentType: 'application/pdf',
       Key: `${name}.${type.ext}`,
       ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
     };
@@ -346,15 +347,12 @@ const usersRouter = () => {
     }
   });
 
-  // post request for reset password
   router.post('/resetpassword', async (req, res) => {
     try {
       const { isValid } = checkIfEmpty(req.body);
-      const { email } = req.body;
+      const { email, company } = req.body;
       if (isValid) {
-        const userData = await userModel.getOneBy({
-          email,
-        });
+        const userData = await DB.select('users', { email });
         if (userData.length) {
           const forgetPassHex = crypto
             .createHmac('sha256', 'forgetPasswordHex')
@@ -371,33 +369,44 @@ const usersRouter = () => {
           );
 
           if (updatedData) {
-            const transporter = nodemailer.createTransport(
-              smtpTransport({
-                host: 'mail.websultanate.com',
-                port: 587,
-                auth: {
-                  user: 'developer@websultanate.com',
-                  pass: 'Raviwbst@123',
-                },
-                tls: {
-                  rejectUnauthorized: false,
-                },
-                debug: true,
-              }),
-            );
+            const url = frontendUrl(company, '/reset', {
+              hh: forgetPassHex,
+            });
 
-            const mailOptions = {
-              from: 'developer@websultanate.com',
-              to: userData[0].email,
-              subject: 'Reset your password',
-              text: `Please click on this link to reset your password ${clientPath}/reset?hh=${forgetPassHex}`,
+            sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
+            const msg = {
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en. userResetPassword'),
+              personalizations: [
+                {
+                  to: [
+                    {
+                      email,
+                    },
+                  ],
+                  dynamic_template_data: {
+                    receipt: true,
+                    first_name: userData[0].fname,
+                    change_password_url: url,
+                  },
+                },
+              ],
             };
 
-            transporter.sendMail(mailOptions);
-
-            res.send({
-              code: 200,
-              msg: 'Please check your email for forget password link!',
+            sgMail.send(msg, (error, result) => {
+              if (error) {
+                console.log(error);
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              } else {
+                console.log(result);
+                res.send({
+                  code: 200,
+                  msg: 'Please check your email for forget password link!',
+                });
+              }
             });
           } else {
             res.send({
@@ -1724,8 +1733,9 @@ const usersRouter = () => {
         const buffer = fs.readFileSync(success.filename);
         const type = await fileType.fromBuffer(buffer);
         const fileName = `bucketFolder/${req.body.clientName}`;
+        const hash = crypto.createHash('md5').update(fileName).digest('hex');
         // upload to AWS S3 bucket
-        const data = await uploadPdf(buffer, fileName, type);
+        const data = await uploadPdf(buffer, hash, type);
         console.log('s3 response', data);
         // data.Location is uploaded url
         // this will remove pdf file after it is uploaded
@@ -1760,8 +1770,9 @@ const usersRouter = () => {
           const buffer = fs.readFileSync(success.filename);
           const type = await fileType.fromBuffer(buffer);
           const fileName = `bucketFolder/${req.body.clientName}`;
+          const hash = crypto.createHash('md5').update(fileName).digest('hex');
           // upload to AWS S3 bucket
-          const data = await uploadPdf(buffer, fileName, type);
+          const data = await uploadPdf(buffer, hash, type);
           console.log('s3 response', data);
           // data.Location is uploaded url
           // this will remove pdf file after it is uploaded
@@ -1943,9 +1954,10 @@ const usersRouter = () => {
       } else {
         id = body.tokenData.userid;
       }
-      const userExists = await userModel.getOneBy({
-        email: body.email,
-      });
+      // const userExists = await userModel.getOneBy({
+      //   email: body.email,
+      // });
+      const userExists = await DB.select('users', { email: body.email });
       if (!userExists.length) {
         const password = randomstring.generate(7);
         console.log('password', password);
@@ -1990,9 +2002,45 @@ const usersRouter = () => {
             encrypted_password: hashedPassword,
           };
           await DB.insert('users', userData);
-          res.send({
-            code: 200,
-            msg: 'Data save successfully!',
+
+          const url = frontendUrl(body.company, '/', {
+            token: userData.verificationhex,
+          });
+
+          const msg = {
+            from: config.get('mailing.from'),
+            templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
+            personalizations: [
+              {
+                to: [
+                  {
+                    email: body.email,
+                  },
+                ],
+                dynamic_template_data: {
+                  receipt: true,
+                  role: body.role,
+                  password,
+                  link: url,
+                },
+              },
+            ],
+          };
+
+          sgMail.send(msg, (error, result) => {
+            if (error) {
+              console.log(error);
+              res.send({
+                code: 400,
+                msg: 'Some has error occured!',
+              });
+            } else {
+              console.log(result);
+              res.send({
+                code: 200,
+                msg: 'Data saved successfully, please verify your email address!',
+              });
+            }
           });
         }
       } else {
@@ -2009,7 +2057,6 @@ const usersRouter = () => {
       });
     }
   });
-
   // API for update sub userv details
   router.post('/updateSubUser', userAuthCheck, async (req, res) => {
     try {
@@ -2300,7 +2347,6 @@ const usersRouter = () => {
 
   // API for upload picture
   router.post('/photo/:id', async (req, res) => {
-    console.log('Hit ho raha hai');
     const form = new multiparty.Form();
     form.parse(req, async (error, fields, files) => {
       if (error) {
@@ -2313,8 +2359,8 @@ const usersRouter = () => {
         const type = await fileType.fromBuffer(buffer);
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
-        console.log(fileName);
-        const data = await uploadFile(buffer, fileName, type);
+        const hash = crypto.createHash('md5').update(fileName).digest('hex');
+        const data = await uploadFile(buffer, hash, type);
         console.log('photo url', data.Location);
         const d0 = await DB.update('users', { image: data.Location }, { id: req.params.id });
         console.log(d0);
@@ -2461,7 +2507,7 @@ const usersRouter = () => {
       } else {
         res.send({
           code: 401,
-          msg: 'Invalid Credential!',
+          msg: 'Invalid Old Password!',
         });
       }
     } catch (e) {
@@ -2839,7 +2885,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       console.log('charge body', body);
       const {
-        stripeToken,
+        // stripeToken,
         amount,
         interval,
         noOfUnits,
@@ -2854,7 +2900,7 @@ const usersRouter = () => {
       console.log(nextMonth, 'nextMonth');
       const customer = await stripe.customers.create({
         email,
-        source: stripeToken,
+        // source: stripeToken,
         metadata: { currency },
       });
       console.log('customer', customer);

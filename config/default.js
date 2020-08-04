@@ -53,6 +53,8 @@ module.exports = {
           accountConfirmation: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
           resetPassword: 'd-bb298999667342649f56ab13fe6dc055',
           ownerConfirmation: 'd-8a26674aae6b463c825663face51c180',
+          subUserConfirmation: 'd-7683efe41a07402b969a4fb1f497905f',
+          userResetPassword: 'd-e3c4a6289ca041f9bb65e5172417843b',
         },
       },
     },
