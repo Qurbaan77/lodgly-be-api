@@ -36,6 +36,9 @@ const usersRouter = () => {
   });
   const uploadFile = async (buffer, name, type) => {
     try {
+      console.log(process.env.AWS_ACCESS_KEY);
+      console.log(process.env.AWS_ACCESS_SECRET_KEY);
+      console.log(process.env.S3_BUCKET_NAME);
       console.log(config.get('aws.accessKey'));
       console.log(config.get('aws.accessSecretKey'));
       console.log(config.get('aws.s3.storageBucketName'));
