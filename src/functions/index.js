@@ -58,7 +58,6 @@ const verifyHash = async (password, passwordHash) => {
 
 // verify jwt token
 const verifyJwt = async (token) => {
-  console.log('verify jwt coming token', token);
   let isTokenValid;
   try {
     isTokenValid = await jwt.verify(token, config.get('guards.user.secret'));
