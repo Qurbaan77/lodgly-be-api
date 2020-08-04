@@ -70,6 +70,7 @@ const ownerRouter = () => {
         if (isPasswordValid) {
           // valid password
           const token = signJwt(isOwnerExists[0].id);
+          console.log('token on login', token);
           res.cookie('token', token, {
             maxAge: 999999999999,
             signed: true,

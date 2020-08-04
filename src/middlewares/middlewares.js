@@ -25,8 +25,10 @@ const userAuthCheck = async (req, res, next) => {
 
 const ownerAuthCheck = async (req, res, next) => {
   try {
+    console.log('signedcookie', req.signedCookies);
     const cookie = req.signedCookies;
     if (cookie) {
+      console.log('cookie', cookie.token);
       const isCookieValid = await verifyOwnerJwt(cookie.token);
       if (isCookieValid) {
         req.body.tokenData = isCookieValid;
