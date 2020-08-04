@@ -75,4 +75,5 @@ module.exports = {
   },
   serverPath: process.env.SERVER_PATH,
   sentry_dsn: process.env.SENTRY_DSN,
+  random_key: process.env.Random_key,
 };
