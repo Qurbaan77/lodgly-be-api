@@ -56,6 +56,7 @@ const ownerRouter = () => {
   // login API for Owner Panel
   router.post('/ownerLogin', async (req, res) => {
     const { ...body } = await req.body;
+    console.log(body);
     try {
       const { isValid } = checkIfEmpty(body.email, body.password);
       console.log(isValid);
@@ -289,6 +290,7 @@ const ownerRouter = () => {
   router.post('/addOwnerInfo', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       const ownerData = {
         fname: body.firstname,
         lname: body.lastname,
@@ -525,6 +527,8 @@ const ownerRouter = () => {
           unitId: body.unit,
           userId: ownerData[0].userId,
           propertyId: body.propertyId,
+          propertyName: body.propertyName,
+          totalAmount: body.totalAmount,
         };
         const Id = await DB.insert('booking', ownerBookingData);
         console.log(Id);

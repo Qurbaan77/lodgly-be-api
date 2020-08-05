@@ -1,12 +1,16 @@
-const TABLE_NAME = 'notes';
+const TABLE_NAME = 'organizations';
 
 exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
-  table.integer('reservationId').unsigned();
-  table.string('note');
+  table.string('name');
+  table.string('address');
+  table.string('country');
+  table.string('state');
+  table.string('city');
+  table.integer('zip');
+  table.integer('vatId');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
-  table.foreign('reservationId').references('reservation.id').onUpdate('CASCADE').onDelete('CASCADE');
 });
 
 exports.down = (knex) => knex.schema.dropTable(TABLE_NAME);

@@ -31,7 +31,8 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.integer('totalAmount');
   table.integer('deposit');
   table.string('depositType');
-  table.string('status');
+  table.string('status').defaultTo('booked');
+  table.string('statusColour').defaultTo('red');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
   table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');

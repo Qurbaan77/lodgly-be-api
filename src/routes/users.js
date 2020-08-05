@@ -36,9 +36,6 @@ const usersRouter = () => {
   });
   const uploadFile = async (buffer, name, type) => {
     try {
-      console.log(process.env.AWS_ACCESS_KEY);
-      console.log(process.env.AWS_ACCESS_SECRET_KEY);
-      console.log(process.env.S3_BUCKET_NAME);
       console.log(config.get('aws.accessKey'));
       console.log(config.get('aws.accessSecretKey'));
       console.log(config.get('aws.s3.storageBucketName'));
@@ -73,40 +70,37 @@ const usersRouter = () => {
   };
   // post request to signup user
   router.post('/signup', async (req, res) => {
-    const { ...body } = await req.body;
-    // verifying if request body data is valid
+    const { ...body } = req.body;
     const { isValid } = checkIfEmpty(body.name, body.company, body.employees, body.email, body.password);
-    // if request body data is valid
     try {
       if (isValid) {
-        const companyExists = await DB.select('users', { companyName: body.company });
+        const company = body.company.replace(/ /g, '').toLowerCase();
+        const companyExists = await DB.select('organizations', { name: company });
         if (!companyExists.length) {
           const hashedPassword = await hashPassword(body.password);
           if (hashedPassword) {
-            body.encrypted_password = hashedPassword;
-            // generating email verification hex
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const data = {
+              name: company,
+            };
+            const saveData = await DB.insert('organizations', data);
 
+            body.encrypted_password = hashedPassword;
+            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
             body.verificationhex = hash;
+
             if (body.phone === '') {
               body.phone = null;
             }
             const userData = {
+              organizationId: saveData,
               fullname: body.name,
-              companyName: body.company,
-              requestedUnits: body.employees,
               encrypted_password: body.encrypted_password,
               email: body.email,
               phone: body.phone,
               verificationhex: body.verificationhex,
             };
-            const saveData = await DB.insert('users', userData);
-            const data = {
-              userId: saveData,
-              name: body.company,
-            };
-            await DB.insert('organizations', data);
-            const confirmationUrl = frontendUrl(body.company, '/', {
+            await DB.insert('users', userData);
+            const confirmationUrl = frontendUrl(company, '/', {
               token: userData.verificationhex,
             });
 
@@ -154,7 +148,7 @@ const usersRouter = () => {
         } else {
           res.send({
             code: 409,
-            msg: 'Email already exists!',
+            msg: 'Company already exists!',
           });
         }
       } else {
@@ -177,7 +171,8 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log(body);
-      const companyExists = await DB.select('users', { companyName: body.companyName });
+      const company = body.company.replace(/ /g, '').toLowerCase();
+      const companyExists = await DB.select('organizations', { name: company });
       if (companyExists.length > 0) {
         res.send({
           code: 200,
@@ -202,15 +197,14 @@ const usersRouter = () => {
   router.get('/verify/:hex', async (req, res) => {
     try {
       const verificationhex = req.params.hex;
-      const isExist = await userModel.getOneBy({ verificationhex });
+      // const isExist = await userModel.getOneBy({ verificationhex });
+      const isExist = await DB.select('users', { verificationhex });
       if (isExist.length) {
         const updatedData = await DB.update('users', { isvalid: 1 }, { id: isExist[0].id });
-        const url = frontendUrl(isExist[0].companyName, config.get('frontend.paths.accountConfirmation'));
         if (updatedData) {
           res.send({
             code: 200,
-            msg: 'verified',
-            url,
+            msg: 'Email verified successfully.',
           });
         } else {
           res.send({
@@ -241,7 +235,8 @@ const usersRouter = () => {
       const { isValid } = checkIfEmpty(body);
       if (isValid) {
         // finding user with email and company name
-        const isUserExists = await DB.select('users', { email: body.email, companyName: body.company });
+        const companyData = await DB.select('organizations', { name: body.company });
+        const isUserExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
         console.log('isUserExists', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
@@ -898,7 +893,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       const unitData = await DB.select('unit', { userId: body.tokenData.userid });
       const data0 = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
-      if (unitData && unitData.length && data0) {
+      if (unitData.length || data0) {
         const totalUnit = unitData.length;
         let units;
         if (data0 && data0.length > 0) {
@@ -2004,9 +1999,11 @@ const usersRouter = () => {
             msg: 'Data update successfully!',
           });
         } else {
+          const companyData = await DB.select('organizations', { name: body.company });
           await DB.insert('team', teamData);
           const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
           const userData = {
+            organizationId: companyData[0].id,
             email: body.email,
             verificationhex: hash,
             encrypted_password: hashedPassword,
@@ -2144,7 +2141,12 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log('Delete sub user id', req.body);
+      const user = await DB.selectCol(['email'], 'team', { id: body.deleteId });
+      console.log(user);
+      const [{ email }] = user;
+      console.log('email', email);
       await DB.remove('team', { id: body.deleteId });
+      await DB.remove('users', { email });
       res.send({
         code: 200,
         msg: 'Sub User removed successfully!',
@@ -2160,6 +2162,7 @@ const usersRouter = () => {
   // API for adding sub owner
   router.post('/addOwner', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    console.log(body.properties);
     try {
       let id;
       if (!body.affiliateId) {
@@ -2239,7 +2242,7 @@ const usersRouter = () => {
             console.log(result);
             res.send({
               code: 200,
-              msg: 'Data saved successfully, please verify your email address!',
+              msg: 'Data saved successfully!',
             });
           }
         });
@@ -3232,6 +3235,35 @@ const usersRouter = () => {
           });
         },
       );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for set status of booking
+  router.post('/setStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let colour;
+      if (body.status === 'booked') {
+        colour = 'red';
+      } else if (body.status === 'open') {
+        colour = 'green';
+      } else if (body.status === 'tentative') {
+        colour = 'orange';
+      } else if (body.status === 'decline') {
+        colour = 'grey';
+      }
+      await DB.update('booking', { status: body.status, statusColour: colour }, { id: body.bookingId });
+      res.send({
+        code: 200,
+        msg: 'Status added successfully!',
+      });
     } catch (e) {
       console.log(e);
       res.send({

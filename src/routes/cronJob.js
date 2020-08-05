@@ -14,7 +14,7 @@ const cronJob = schedule.scheduleJob('00 00 12 0-6', async () => {
 const i = async () => {
   try {
     const response = await axios.get('https://api.exchangeratesapi.io/latest?symbols=GBP,PLN,CHF');
-    await DB.update('exchangeRate', response.data.rates, {});
+    await DB.insert('exchangeRate', response.data.rates, {});
   } catch (error) {
     console.log(error);
   }
