@@ -2914,6 +2914,7 @@ const usersRouter = () => {
       const customer = await stripe.customers.create({
         email,
         // source: stripeToken,
+        source: 'tok_visa',
         metadata: { currency },
       });
       console.log('customer', customer);

@@ -354,6 +354,7 @@ const ownerRouter = () => {
       const { ...body } = req.body;
       const reportData = [];
       const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
+      const unitData = await DB.select('unit', { userId: body.tokenData.userid });
       each(
         propertyData,
         async (items, next) => {
@@ -365,6 +366,7 @@ const ownerRouter = () => {
             code: 200,
             reportData,
             propertyData,
+            unitData,
           });
         },
       );
@@ -490,9 +492,10 @@ const ownerRouter = () => {
     try {
       const { ...body } = req.body;
       const arr = [];
-      const bookingData = await DB.select('booking', { propertyId: body.propertyId });
+      const bookingData = await DB.select('booking', { propertyId: body.propertyId, status: 'booked' });
       bookingData.forEach((el) => {
         arr.push({
+          id: el.id,
           title: el.totalAmount,
           start: new Date(el.startDate.setDate(el.startDate.getDate() + 1)),
           end: el.endDate,
@@ -517,7 +520,7 @@ const ownerRouter = () => {
   router.post('/addOwnerBooking', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
+      console.log('addOwnerBooking', body);
       const ownerData = await DB.select('owner', { id: body.tokenData.userid });
       if (ownerData.length > 0) {
         const ownerBookingData = {
@@ -525,11 +528,13 @@ const ownerRouter = () => {
           endDate: new Date(body.endDate),
           notes1: body.notes,
           unitId: body.unit,
+          unitName: body.unitName,
           userId: ownerData[0].userId,
           propertyId: body.propertyId,
           propertyName: body.propertyName,
           totalAmount: body.totalAmount,
         };
+        await DB.update('booking', { status: 'decline', statusColour: 'grey' }, { id: body.bookingId });
         const Id = await DB.insert('booking', ownerBookingData);
         console.log(Id);
         res.send({
