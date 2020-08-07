@@ -2537,8 +2537,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const userData = {
-        fname: body.fname,
-        lname: body.lname,
+        fullname: body.fullname,
         address: body.address,
         email: body.email,
         phone: body.phone,
@@ -2562,7 +2561,6 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const companyData = {
-        userId: body.tokenData.userid,
         name: body.name,
         address: body.address,
         country: body.country,
@@ -2589,7 +2587,7 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectCol(['fname', 'lname', 'address', 'email', 'phone', 'image'], 'users', {
+      const userData = await DB.selectCol(['fullname', 'fname', 'lname', 'address', 'email', 'phone', 'image'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
