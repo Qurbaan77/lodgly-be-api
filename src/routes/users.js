@@ -171,8 +171,8 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log(body);
-      const company = body.company.replace(/ /g, '').toLowerCase();
-      const companyExists = await DB.select('organizations', { name: company });
+      const companyExists = await DB.select('organizations', { name: body.companyName });
+      console.log(companyExists);
       if (companyExists.length > 0) {
         res.send({
           code: 200,
