@@ -2569,7 +2569,7 @@ const usersRouter = () => {
         zip: body.zip,
         vatid: body.vatId,
       };
-      await DB.insert('organizations', companyData);
+      await DB.update('organizations', companyData, { name: body.name });
       res.send({
         code: 200,
         msg: 'Data saved successfully!',
@@ -2607,7 +2607,8 @@ const usersRouter = () => {
   router.post('/getCompanyData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const companyData = await DB.select('organizations', { id: body.tokenData.userid });
+      console.log(body);
+      const companyData = await DB.select('organizations', { name: body.company });
       res.send({
         code: 200,
         companyData,
