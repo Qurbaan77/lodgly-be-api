@@ -1807,23 +1807,40 @@ const usersRouter = () => {
             status: body.status,
             type: body.type,
           };
-          const Id = await DB.insert('invoice', invoiceData);
-          console.log('invoice id', Id);
-          body.itemData.map(async (el) => {
-            const Data = {
-              invoiceId: Id,
-              itemDescription: el.itemDescription,
-              quantity: el.quantity,
-              price: el.price,
-              amount: el.amount,
-              discount: el.discount,
-              discountPer: el.discountPer,
-              itemTotal: el.itemTotal,
-            };
-            await DB.insert('invoiceItems', Data);
-          });
-          if (body.deleteInvoiceItemId) {
-            await DB.remove('invoiceItems', { id: body.deleteInvoiceItemId });
+          if (!body.id) {
+            const Id = await DB.insert('invoice', invoiceData);
+            console.log('invoice id', Id);
+            body.itemData.map(async (el) => {
+              const Data = {
+                invoiceId: Id,
+                itemDescription: el.itemDescription,
+                quantity: el.quantity,
+                price: el.price,
+                amount: el.amount,
+                discount: el.discount,
+                discountPer: el.discountPer,
+                itemTotal: el.itemTotal,
+              };
+              await DB.insert('invoiceItems', Data);
+            });
+            if (body.deleteInvoiceItemId) {
+              await DB.remove('invoiceItems', { id: body.deleteInvoiceItemId });
+            }
+          } else {
+            await DB.update('invoice', invoiceData, { id: body.id });
+            body.itemData.map(async (el) => {
+              const Data = {
+                invoiceId: body.id,
+                itemDescription: el.itemDescription,
+                quantity: el.quantity,
+                price: el.price,
+                amount: el.amount,
+                discount: el.discount,
+                discountPer: el.discountPer,
+                itemTotal: el.itemTotal,
+              };
+              await DB.update('invoiceItems', Data);
+            });
           }
           res.send({
             code: 200,
