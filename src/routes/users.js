@@ -68,6 +68,7 @@ const usersRouter = () => {
     const url = await s3.getSignedUrlPromise('putObject', params);
     return s3.upload(params, url).promise();
   };
+
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = req.body;
@@ -99,7 +100,11 @@ const usersRouter = () => {
               phone: body.phone,
               verificationhex: body.verificationhex,
             };
-            await DB.insert('users', userData);
+            const userSaveData = await DB.insert('users', userData);
+            const featureData = {
+              userId: userSaveData,
+            };
+            await DB.insert('feature', featureData);
             const confirmationUrl = frontendUrl(company, '/', {
               token: userData.verificationhex,
             });
@@ -460,6 +465,24 @@ const usersRouter = () => {
     } catch (e) {
       console.log('error', e);
       res.send({ code: 444, msg: 'Some error has occured.' });
+    }
+  });
+
+  // get request for geting feature data
+  router.get('/getFeature', userAuthCheck, async (req, res) => {
+    try {
+      const { tokenData } = req.body;
+      const featureData = await DB.select('feature', { userId: tokenData.userid });
+      res.send({
+        code: 200,
+        featureData,
+      });
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured.',
+      });
     }
   });
 
