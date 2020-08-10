@@ -986,7 +986,8 @@ const usersRouter = () => {
 
   router.post('/groupList', userAuthCheck, async (req, res) => {
     try {
-      const groupDetail = await DB.select('groups', {});
+      const { ...body } = req.body;
+      const groupDetail = await DB.select('groups', { userId: body.tokenData.userid });
       res.send({
         code: 200,
         groupDetail,
@@ -3034,13 +3035,13 @@ const usersRouter = () => {
       const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
       console.log('subscription', subscription);
       const endDate = subscription.current_period_end * 1000;
-      console.log(new Date(endDate));
-      console.log(subscription);
+      const { status } = subscription;
       if (transactions && transactions.length) {
         res.send({
           code: 200,
           transactions,
           endDate,
+          status,
         });
       } else {
         res.send({
@@ -3107,7 +3108,7 @@ const usersRouter = () => {
         console.log(confirmation);
         res.send({
           code: 200,
-          msg: 'Your bsubscription is cancelled',
+          msg: 'Your subscription is cancelled',
         });
       });
     } catch (error) {
@@ -3202,9 +3203,7 @@ const usersRouter = () => {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       console.log('active subscription', subscription);
       if (subscription) {
-        const now = new Date();
-        const endDate = new Date(subscription.current_period_end * 1000);
-        if (now > endDate) {
+        if (subscription.status !== 'active') {
           await DB.update('users', { issubscriptionEnded: true }, { id: body.tokenData.userid });
         }
       }
