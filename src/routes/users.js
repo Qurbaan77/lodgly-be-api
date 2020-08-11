@@ -469,10 +469,16 @@ const usersRouter = () => {
   });
 
   // get request for geting feature data
-  router.get('/getFeature', userAuthCheck, async (req, res) => {
+  router.post('/getFeature', userAuthCheck, async (req, res) => {
     try {
-      const { tokenData } = req.body;
-      const featureData = await DB.select('feature', { userId: tokenData.userid });
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const featureData = await DB.select('feature', { userId: id });
       res.send({
         code: 200,
         featureData,
@@ -778,8 +784,14 @@ const usersRouter = () => {
   router.post('/getUnittype', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
       const unittypeData = await DB.select('unitType', { propertyId: body.propertyId });
-      const units = await DB.select('unit', { userId: body.tokenData.userid });
+      const units = await DB.select('unit', { userId: id });
       if (unittypeData) {
         res.send({
           code: 200,
@@ -956,6 +968,7 @@ const usersRouter = () => {
       }
       const groupData = {
         userId: body.tokenData.userid,
+        propertyId: body.propertyId,
         groupName: body.groupname,
         checkCount: body.count,
         checkInterval: body.interval,
@@ -987,7 +1000,8 @@ const usersRouter = () => {
   router.post('/groupList', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const groupDetail = await DB.select('groups', { userId: body.tokenData.userid });
+      console.log(body);
+      const groupDetail = await DB.select('groups', { userId: body.tokenData.userid, propertyId: body.propertyId });
       res.send({
         code: 200,
         groupDetail,
@@ -2628,7 +2642,7 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectCol(['fullname', 'fname', 'lname', 'address', 'email', 'phone', 'image'], 'users', {
+      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
