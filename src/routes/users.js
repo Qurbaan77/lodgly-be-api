@@ -72,7 +72,7 @@ const usersRouter = () => {
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = req.body;
-    const { isValid } = checkIfEmpty(body.name, body.company, body.employees, body.email, body.password);
+    const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password);
     try {
       if (isValid) {
         const company = body.company.replace(/ /g, '').toLowerCase();
@@ -100,9 +100,10 @@ const usersRouter = () => {
               phone: body.phone,
               verificationhex: body.verificationhex,
             };
-            const userSaveData = await DB.insert('users', userData);
+            await DB.insert('users', userData);
+
             const featureData = {
-              userId: userSaveData,
+              organizationId: saveData,
             };
             await DB.insert('feature', featureData);
             const confirmationUrl = frontendUrl(company, '/', {
@@ -257,7 +258,7 @@ const usersRouter = () => {
             const isPasswordValid = await verifyHash(body.password, isUserExists[0].encrypted_password);
             if (isPasswordValid) {
               // valid password
-              const token = signJwt(isUserExists[0].id);
+              const token = signJwt(isUserExists[0].id, companyData[0].id);
               res.cookie('token', token, {
                 maxAge: 999999999999,
                 signed: true,
@@ -468,6 +469,58 @@ const usersRouter = () => {
     }
   });
 
+  // Post API for adding plans detail
+  router.post('/addPlan', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const planData = {
+        name: body.name,
+        booking: body.booking,
+        calendar: body.calendar,
+        properties: body.properties,
+        team: body.team,
+        invoice: body.invoice,
+        stats: body.stats,
+        owner: body.owner,
+        websideBuilder: body.websideBuilder,
+        channelManager: body.channelManager,
+      };
+      await DB.insert('plan', planData);
+      res.send({
+        code: 200,
+        msg: 'Data add sucessfully',
+
+      });
+    } catch (e) {
+      console.log('error', e);
+      res.send({ code: 444, msg: 'Some error has occured.' });
+    }
+  });
+
+  // // get request for geting feature data
+  // router.post('/getFeature', userAuthCheck, async (req, res) => {
+  //   try {
+  //     const { ...body } = req.body;
+  //     let id;
+  //     if (body.affiliateId) {
+  //       id = body.affiliateId;
+  //     } else {
+  //       id = body.tokenData.userid;
+  //     }
+  //     const featureData = await DB.select('feature', { userId: id });
+  //     res.send({
+  //       code: 200,
+  //       featureData,
+  //     });
+  //   } catch (e) {
+  //     console.log('error', e);
+  //     res.send({
+  //       code: 444,
+  //       msg: 'Some error has occured.',
+  //     });
+  //   }
+  // });
+
   // get request for geting feature data
   router.post('/getFeature', userAuthCheck, async (req, res) => {
     try {
@@ -476,13 +529,33 @@ const usersRouter = () => {
       if (body.affiliateId) {
         id = body.affiliateId;
       } else {
-        id = body.tokenData.userid;
+        id = body.tokenData.organizationid;
       }
-      const featureData = await DB.select('feature', { userId: id });
-      res.send({
-        code: 200,
-        featureData,
-      });
+      const organizationPlan = await DB.selectCol(['planType'], 'organization', { id });
+      const [{ planType }] = organizationPlan;
+      if (planType === 'basic') {
+        const data0 = await DB.selectCol(['websiteBuilder', 'channelManager'], 'plan', { planType });
+        const data1 = await DB.selectCol(['websiteBuilder', 'channelManager'], 'feature', { organizationId: id });
+        const webPerm = data1[0].websiteBuilder;
+        const chanPerm = data1[0].channelManager;
+        if (webPerm || chanPerm) {
+          res.send({
+            code: 200,
+            data1,
+          });
+        } else {
+          res.send({
+            code: 200,
+            data0,
+          });
+        }
+      } else {
+        const data = await DB.select('plan', { planType });
+        res.send({
+          code: 200,
+          data,
+        });
+      }
     } catch (e) {
       console.log('error', e);
       res.send({
@@ -3026,6 +3099,13 @@ const usersRouter = () => {
       console.log('subscription object', subscriptionObject);
       await DB.insert('subscription', subscriptionObject);
       await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
+      if (planType === 'basic') {
+        await DB.update(
+          'feature',
+          { websiteBuilder: 0, channelManager: 0 },
+          { organizationId: body.tokenData.organizationId },
+        );
+      }
       const id = await DB.insert('subscription', subscriptionObject);
       console.log(id);
       res.send({
@@ -3195,6 +3275,13 @@ const usersRouter = () => {
       };
       const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
       console.log(id);
+      if (planType === 'basic') {
+        await DB.update(
+          'feature',
+          { websiteBuilder: 0, channelManager: 0 },
+          { organizationId: body.tokenData.organizationId },
+        );
+      }
       res.send({
         code: 200,
         msg: 'your plan is successfully changed',

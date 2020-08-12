@@ -18,11 +18,12 @@ const checkIfEmpty = (requestBody) => {
 };
 
 // signing jwt token
-const signJwt = (userid) => {
+const signJwt = (userid, organizationid) => {
   let token;
   try {
     const tokenData = {
       userid,
+      organizationid,
     };
     token = jwt.sign(tokenData, config.get('guards.user.secret'), {
       expiresIn: config.get('guards.user.accessTokenTtl'),
