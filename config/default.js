@@ -70,7 +70,7 @@ module.exports = {
     accessKey: 'AKIAXQT7I33Q5CBXSSSM',
     accessSecretKey: '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',
     s3: {
-      storageBucketName: process.env.S3_BUCKET_NAME,
+      storageBucketName: 'storage.lodgly.dev-eu-west-1',
     },
   },
   serverPath: process.env.SERVER_PATH,

@@ -82,6 +82,7 @@ const usersRouter = () => {
           if (hashedPassword) {
             const data = {
               name: company,
+              planType: 'advance',
             };
             const saveData = await DB.insert('organizations', data);
 
@@ -475,6 +476,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       const planData = {
         name: body.name,
+        planType: body.planType,
         booking: body.booking,
         calendar: body.calendar,
         properties: body.properties,
@@ -497,30 +499,6 @@ const usersRouter = () => {
     }
   });
 
-  // // get request for geting feature data
-  // router.post('/getFeature', userAuthCheck, async (req, res) => {
-  //   try {
-  //     const { ...body } = req.body;
-  //     let id;
-  //     if (body.affiliateId) {
-  //       id = body.affiliateId;
-  //     } else {
-  //       id = body.tokenData.userid;
-  //     }
-  //     const featureData = await DB.select('feature', { userId: id });
-  //     res.send({
-  //       code: 200,
-  //       featureData,
-  //     });
-  //   } catch (e) {
-  //     console.log('error', e);
-  //     res.send({
-  //       code: 444,
-  //       msg: 'Some error has occured.',
-  //     });
-  //   }
-  // });
-
   // get request for geting feature data
   router.post('/getFeature', userAuthCheck, async (req, res) => {
     try {
@@ -531,29 +509,32 @@ const usersRouter = () => {
       } else {
         id = body.tokenData.organizationid;
       }
-      const organizationPlan = await DB.selectCol(['planType'], 'organization', { id });
+      const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
       const [{ planType }] = organizationPlan;
       if (planType === 'basic') {
-        const data0 = await DB.selectCol(['websiteBuilder', 'channelManager'], 'plan', { planType });
-        const data1 = await DB.selectCol(['websiteBuilder', 'channelManager'], 'feature', { organizationId: id });
-        const webPerm = data1[0].websiteBuilder;
+        const data0 = await DB.select('plan', { planType });
+        const data1 = await DB.select('feature', { organizationId: id });
+        const webPerm = data1[0].websideBuilder;
         const chanPerm = data1[0].channelManager;
         if (webPerm || chanPerm) {
+          const featureData = data1;
           res.send({
             code: 200,
-            data1,
+            featureData,
           });
         } else {
+          const featureData = data0;
           res.send({
             code: 200,
-            data0,
+            featureData,
           });
         }
       } else {
         const data = await DB.select('plan', { planType });
+        const featureData = data;
         res.send({
           code: 200,
-          data,
+          featureData,
         });
       }
     } catch (e) {
@@ -857,6 +838,7 @@ const usersRouter = () => {
   router.post('/getUnittype', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('body', body);
       let id;
       if (body.affiliateId) {
         id = body.affiliateId;
@@ -864,6 +846,7 @@ const usersRouter = () => {
         id = body.tokenData.userid;
       }
       const unittypeData = await DB.select('unitType', { propertyId: body.propertyId });
+      console.log('unittypeData', unittypeData);
       const units = await DB.select('unit', { userId: id });
       if (unittypeData) {
         res.send({
@@ -3102,9 +3085,10 @@ const usersRouter = () => {
       if (planType === 'basic') {
         await DB.update(
           'feature',
-          { websiteBuilder: 0, channelManager: 0 },
-          { organizationId: body.tokenData.organizationId },
+          { websideBuilder: 0, channelManager: 0 },
+          { organizationId: body.tokenData.organizationid },
         );
+        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
       }
       const id = await DB.insert('subscription', subscriptionObject);
       console.log(id);
@@ -3278,9 +3262,10 @@ const usersRouter = () => {
       if (planType === 'basic') {
         await DB.update(
           'feature',
-          { websiteBuilder: 0, channelManager: 0 },
-          { organizationId: body.tokenData.organizationId },
+          { websideBuilder: 0, channelManager: 0 },
+          { organizationId: body.tokenData.organizationid },
         );
+        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
       }
       res.send({
         code: 200,
