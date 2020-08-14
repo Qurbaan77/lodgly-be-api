@@ -475,7 +475,6 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const planData = {
-        name: body.name,
         planType: body.planType,
         booking: body.booking,
         calendar: body.calendar,
