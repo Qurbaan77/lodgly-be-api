@@ -87,7 +87,7 @@ const usersRouter = () => {
             const saveData = await DB.insert('organizations', data);
 
             body.encrypted_password = hashedPassword;
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
             body.verificationhex = hash;
 
             if (body.phone === '') {
@@ -2069,9 +2069,6 @@ const usersRouter = () => {
       } else {
         id = body.tokenData.userid;
       }
-      // const userExists = await userModel.getOneBy({
-      //   email: body.email,
-      // });
       const userExists = await DB.select('users', { email: body.email });
       if (!userExists.length) {
         const password = randomstring.generate(7);
@@ -3388,6 +3385,106 @@ const usersRouter = () => {
         code: 200,
         msg: 'Status added successfully!',
       });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for adding group reservation
+  router.post('/groupReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let id;
+      const startDateTime = new Date(body.groupname[0]);
+      const endDateTime = new Date(body.groupname[1]);
+
+      if (!body.affiliateId) {
+        console.log('no affiliaate id');
+        id = body.tokenData.userid;
+      } else {
+        console.log('affiliate id');
+        id = body.affiliateId;
+      }
+
+      body.unitType.forEach((ele) => {
+        each(
+          ele.bookedUnits,
+          async (items, next) => {
+            const itemsCopy = items;
+            const reservationData = {
+              userId: id,
+              propertyId: body.propertyId,
+              unitId: items,
+              startDate: startDateTime,
+              endDate: endDateTime,
+              acknowledge: body.acknowledge,
+              channel: body.channel,
+              commission: body.commissionPercentage,
+              notes1: body.notes1,
+              perNight: ele.perNight,
+              night: body.night,
+              amt: ele.amt,
+              discount: body.discount,
+              totalAmount: body.totalAmount,
+            };
+            console.log('reservation data', reservationData);
+            const saveData = await DB.insert('reservation', reservationData);
+            console.log('saveData', saveData);
+
+            const Data = {
+              userId: id,
+              reservationId: saveData,
+              fullname: body.fullName,
+              country: body.country,
+              email: body.email,
+              phone: body.phone,
+            };
+            console.log(Data);
+            await DB.insert('guest', Data);
+            next();
+            return itemsCopy;
+          },
+          () => {},
+        );
+      });
+      res.send({
+        code: 200,
+        msg: 'Group Reservation save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for deleting bookings
+  router.post('/deleteBookings', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      each(
+        body.bookings,
+        async (items, next) => {
+          const itemsCopy = items;
+          await DB.remove('booking', { id: items });
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            msg: 'Booking delete successfully!',
+          });
+        },
+      );
     } catch (e) {
       console.log(e);
       res.send({

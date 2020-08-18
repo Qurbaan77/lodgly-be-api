@@ -6,7 +6,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('fullname');
   table.string('email');
   table.string('companyName');
-  table.bigInteger('phone');
+  table.string('phone');
   table.string('username');
   table.string('fname');
   table.string('lname');

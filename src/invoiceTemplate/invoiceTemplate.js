@@ -7,6 +7,7 @@ module.exports = ({
   paymentType,
   clientName,
   email,
+  userEmail,
   address,
   vat,
   itemData,
@@ -74,7 +75,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                         <tr>
                             <td></td>  
                             <td align="right">
-                            ${`${email}`}
+                            ${`${userEmail}`}
                             </td>                       
                         </tr>  
                         
