@@ -26,5 +26,22 @@ module.exports = {
         'pm2 startOrRestart /var/www/ecosystem.config.js --name lodgly-mvp-api',
       ].join(' && '),
     },
+    production: {
+      user: 'ubuntu',
+      host: '34.244.4.71',
+      ref: 'origin/master',
+      repo: 'git@gitlab.com:lodgly/lodgly-be-api.git',
+      path: '/var/www/lodgly-mvp-api',
+      ssh_options: 'StrictHostKeyChecking=no',
+      env: {
+        NODE_ENV: 'production',
+      },
+      'post-deploy': [
+        'npm ci --only production',
+        'ln -sf /var/www/lodgly-mvp-api/shared/.env /var/www/lodgly-mvp-api/current/.env',
+        'npm run knex -- migrate:latest',
+        'pm2 startOrRestart /var/www/ecosystem.config.js --name lodgly-mvp-api',
+      ].join(' && '),
+    },
   },
 };
