@@ -54,7 +54,7 @@ production:
     - npx pm2 deploy production setup 2>&1 || true
     - npx pm2 deploy production
   environment:
-    name: staging
+    name: production
     url: https://api.lodgly.com/
   only:
     - master
