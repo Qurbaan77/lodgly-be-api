@@ -67,10 +67,10 @@ module.exports = {
     },
   },
   aws: {
-    accessKey: 'AKIAXQT7I33Q5CBXSSSM',
-    accessSecretKey: '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',
+    accessKey: process.env.AWS_ACCESS_KEY,
+    accessSecretKey: process.env.AWS_ACCESS_SECRET_KEY,
     s3: {
-      storageBucketName: 'storage.lodgly.dev-eu-west-1',
+      storageBucketName: process.env.S3_STORAGE_BUCKET_NAME,
     },
   },
   serverPath: process.env.SERVER_PATH,
