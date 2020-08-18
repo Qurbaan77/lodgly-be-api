@@ -4,12 +4,12 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
   table.integer('userId').notNull().unsigned();
   table.string('productId');
-  table.string(' planId');
+  table.string('planId');
   table.string('customerId');
   table.string('subscriptionId');
   table.string('subscription');
   table.integer('units');
-  table.integer('Amount');
+  table.decimal('amount');
   table.string('interval');
   table.string('planType');
   table.string('currency');

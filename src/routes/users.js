@@ -1,9 +1,9 @@
 const express = require('express');
-// const knex = require('knex');
+const config = require('config');
 const crypto = require('crypto');
 const randomstring = require('randomstring');
-const nodemailer = require('nodemailer');
-const smtpTransport = require('nodemailer-smtp-transport');
+// const nodemailer = require('nodemailer');
+// const smtpTransport = require('nodemailer-smtp-transport');
 const each = require('sync-each');
 const sgMail = require('@sendgrid/mail');
 const fs = require('fs');
@@ -12,102 +12,109 @@ const fileType = require('file-type');
 const bluebird = require('bluebird');
 const multiparty = require('multiparty');
 const pdf = require('html-pdf');
-const { stripeKey } = require('../../config/default');
-// disabling this because its giving eslint error if i move stripe above it
-// will give another error so currently i do not have any solution, will look into it
-// eslint-disable-next-line import/order
-const stripe = require('stripe')(stripeKey);
+const stripe = require('stripe')(config.get('payments.stripeApiKey'));
 const userModel = require('../models/users/repositories');
 const DB = require('../services/database');
-const { checkIfEmpty } = require('../functions');
-const { signJwt } = require('../functions');
-const { hashPassword } = require('../functions');
-const { verifyHash } = require('../functions');
 const {
-  clientPath, ID, SECRET, BUCKET_NAME, sendGridKey,
-} = require('../../config/default');
+  hashPassword, verifyHash, checkIfEmpty, signJwt,
+} = require('../functions');
+const { frontendUrl } = require('../functions/frontend');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
-sgMail.setApiKey(sendGridKey);
-
-// const serverPath = 'http://localhost:3001/';
-const serverPath = 'http://165.22.87.22:3002/';
+// const clientPath = domainName('app');
+// const serverPath = config.get('serverPath');
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
 
   // AWS S3 upload function'
   const s3 = new AWS.S3({
-    accessKeyId: ID,
-    secretAccessKey: SECRET,
+    accessKeyId: config.get('aws.accessKey'),
+    secretAccessKey: config.get('aws.accessSecretKey'),
   });
-
   const uploadFile = async (buffer, name, type) => {
-    const params = {
-      ACL: 'public-read',
-      Body: buffer,
-      Bucket: BUCKET_NAME,
-      ContentType: type.mime,
-      Key: `${name}.${type.ext}`,
-    };
-    const url = await s3.getSignedUrlPromise('putObject', params);
-    return s3.upload(params, url).promise();
-    // s3.upload(params, function (err, data) {
-    //   if (err) {
-    //     console.log(err);
-    //   }
-    //   console.log(`File uploaded successfully`, data);
-    // });
+    try {
+      console.log(config.get('aws.accessKey'));
+      console.log(config.get('aws.accessSecretKey'));
+      console.log(config.get('aws.s3.storageBucketName'));
+      const params = {
+        ACL: 'public-read',
+        Body: buffer,
+        Bucket: config.get('aws.s3.storageBucketName'),
+        ContentType: type.mime,
+        Key: `${name}.${type.ext}`,
+      };
+      const url = await s3.getSignedUrlPromise('putObject', params);
+      return s3.upload(params, url).promise();
+    } catch (err) {
+      console.log(err);
+      return err;
+    }
   };
 
   // function for uploading invoice pdf
   const uploadPdf = async (buffer, name, type) => {
+    console.log(config.get('aws.s3.storageBucketName'));
     const params = {
       ACL: 'public-read',
       Body: buffer,
-      Bucket: BUCKET_NAME,
-      ContentType: 'application/pdf',
+      Bucket: config.get('aws.s3.storageBucketName'),
+      // ContentType: 'application/pdf',
       Key: `${name}.${type.ext}`,
       ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
     };
     const url = await s3.getSignedUrlPromise('putObject', params);
     return s3.upload(params, url).promise();
   };
+
   // post request to signup user
   router.post('/signup', async (req, res) => {
-    const { ...body } = await req.body;
-    // verifying if request body data is valid
-    const { isValid } = checkIfEmpty(body.username, body.password, body.email, body.package, body.phone);
-    // if request body data is valid
+    const { ...body } = req.body;
+    const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password);
     try {
       if (isValid) {
-        const userExists = await userModel.getOneBy({
-          email: body.email,
-        });
-        if (!userExists.length) {
+        const company = body.company.replace(/ /g, '').toLowerCase();
+        const companyExists = await DB.select('organizations', { name: company });
+        if (!companyExists.length) {
           const hashedPassword = await hashPassword(body.password);
           if (hashedPassword) {
-            body.encrypted_password = hashedPassword;
-            // generating email verification hex
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const data = {
+              name: company,
+              planType: 'advance',
+            };
+            const saveData = await DB.insert('organizations', data);
 
+            body.encrypted_password = hashedPassword;
+            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
             body.verificationhex = hash;
 
+            if (body.phone === '') {
+              body.phone = null;
+            }
             const userData = {
-              username: body.username,
+              organizationId: saveData,
+              fullname: body.name,
               encrypted_password: body.encrypted_password,
               email: body.email,
-              package: body.package,
               phone: body.phone,
               verificationhex: body.verificationhex,
             };
             await DB.insert('users', userData);
 
+            const featureData = {
+              organizationId: saveData,
+            };
+            await DB.insert('feature', featureData);
+            const confirmationUrl = frontendUrl(company, '/', {
+              token: userData.verificationhex,
+            });
+
+            sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
             const msg = {
-              from: 'root@lodgly.com',
-              templateId: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
               personalizations: [
                 {
                   to: [
@@ -117,8 +124,7 @@ const usersRouter = () => {
                   ],
                   dynamic_template_data: {
                     receipt: true,
-                    // username:userData.username,
-                    confirmation_url: `${serverPath}users/verify/${userData.verificationhex}`,
+                    confirmation_url: confirmationUrl,
                     email: userData.email,
                   },
                 },
@@ -140,31 +146,6 @@ const usersRouter = () => {
                 });
               }
             });
-
-            // const transporter = nodemailer.createTransport(
-            //   smtpTransport({
-            //     host: 'mail.websultanate.com',
-            //     port: 587,
-            //     auth: {
-            //       user: 'developer@websultanate.com',
-            //       pass: 'Raviwbst@123',
-            //     },
-            //     tls: {
-            //       rejectUnauthorized: false,
-            //     },
-            //     debug: true,
-            //   }),
-            // );
-
-            // const mailOptions = {
-            //   from: 'developer@websultanate.com',
-            //   to: userData.email,
-            //   subject: 'Please verify your email',
-            //   text: `Please click on this link to verify your email address
-            //   ${serverPath}users/verify/${userData.verificationhex}`,
-            // };
-
-            // transporter.sendMail(mailOptions);
           } else {
             res.send({
               code: 400,
@@ -173,8 +154,8 @@ const usersRouter = () => {
           }
         } else {
           res.send({
-            code: 400,
-            msg: 'Email already exists!',
+            code: 409,
+            msg: 'Company already exists!',
           });
         }
       } else {
@@ -192,20 +173,45 @@ const usersRouter = () => {
     }
   });
 
+  // serach company name and add on the subdomain
+  router.post('/searchComapany', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const companyExists = await DB.select('organizations', { name: body.companyName });
+      console.log(companyExists);
+      if (companyExists.length > 0) {
+        res.send({
+          code: 200,
+          msg: 'comapny found!',
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'comapny not found!',
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   // get request to verify user email
   router.get('/verify/:hex', async (req, res) => {
     try {
       const verificationhex = req.params.hex;
-
-      const isExist = await userModel.getOneBy({ verificationhex });
-      //  console.log('isExist',isExist[0].id)
+      // const isExist = await userModel.getOneBy({ verificationhex });
+      const isExist = await DB.select('users', { verificationhex });
       if (isExist.length) {
-        const updatedData = await DB.update('users', { isvalid: true }, { id: isExist[0].id });
-        // console.log('updatedData==>',updatedData)
+        const updatedData = await DB.update('users', { isvalid: 1 }, { id: isExist[0].id });
         if (updatedData) {
-          // res.redirect(`${clientPath}?verified=true`);
           res.send({
             code: 200,
+            msg: 'Email verified successfully.',
           });
         } else {
           res.send({
@@ -231,32 +237,29 @@ const usersRouter = () => {
   // post request to login user
   router.post('/login', async (req, res) => {
     try {
-      console.log(req.body);
-      const { isValid } = checkIfEmpty(req.body);
+      const { ...body } = req.body;
+      console.log(body);
+      const { isValid } = checkIfEmpty(body);
       if (isValid) {
-        const { email, password } = req.body;
-        // finding user with email
-        const isUserExists = await userModel.getOneBy({
-          email,
-        });
-        console.log(isUserExists);
+        // finding user with email and company name
+        const companyData = await DB.select('organizations', { name: body.company });
+        const isUserExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
+        console.log('isUserExists', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
-          // eslint-disable-next-line object-shorthand
-          subUser = await DB.select('team', { email: email });
+          subUser = await DB.select('team', { email: body.email });
         }
         if (isUserExists.length) {
-          if (isUserExists[0].isvalid === false) {
-            // isvalid value need to change 0 on Live
+          if (isUserExists[0].isvalid === 0) {
             res.send({
               code: 403,
               msg: 'This email is not verified',
             });
           } else {
-            const isPasswordValid = await verifyHash(password, isUserExists[0].encrypted_password);
+            const isPasswordValid = await verifyHash(body.password, isUserExists[0].encrypted_password);
             if (isPasswordValid) {
               // valid password
-              const token = signJwt(isUserExists[0].id);
+              const token = signJwt(isUserExists[0].id, companyData[0].id);
               res.cookie('token', token, {
                 maxAge: 999999999999,
                 signed: true,
@@ -277,7 +280,7 @@ const usersRouter = () => {
         } else {
           res.send({
             code: 404,
-            msg: 'User not found!',
+            msg: 'Company name or Email is Invalid!',
           });
         }
       } else {
@@ -356,15 +359,12 @@ const usersRouter = () => {
     }
   });
 
-  // post request for reset password
   router.post('/resetpassword', async (req, res) => {
     try {
       const { isValid } = checkIfEmpty(req.body);
-      const { email } = req.body;
+      const { email, company } = req.body;
       if (isValid) {
-        const userData = await userModel.getOneBy({
-          email,
-        });
+        const userData = await DB.select('users', { email });
         if (userData.length) {
           const forgetPassHex = crypto
             .createHmac('sha256', 'forgetPasswordHex')
@@ -381,33 +381,44 @@ const usersRouter = () => {
           );
 
           if (updatedData) {
-            const transporter = nodemailer.createTransport(
-              smtpTransport({
-                host: 'mail.websultanate.com',
-                port: 587,
-                auth: {
-                  user: 'developer@websultanate.com',
-                  pass: 'Raviwbst@123',
-                },
-                tls: {
-                  rejectUnauthorized: false,
-                },
-                debug: true,
-              }),
-            );
+            const url = frontendUrl(company, '/reset', {
+              hh: forgetPassHex,
+            });
 
-            const mailOptions = {
-              from: 'developer@websultanate.com',
-              to: userData[0].email,
-              subject: 'Reset your password',
-              text: `Please click on this link to reset your password ${clientPath}/reset?hh=${forgetPassHex}`,
+            sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
+            const msg = {
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en. userResetPassword'),
+              personalizations: [
+                {
+                  to: [
+                    {
+                      email,
+                    },
+                  ],
+                  dynamic_template_data: {
+                    receipt: true,
+                    first_name: userData[0].fname,
+                    change_password_url: url,
+                  },
+                },
+              ],
             };
 
-            transporter.sendMail(mailOptions);
-
-            res.send({
-              code: 200,
-              msg: 'Please check your email for forget password link!',
+            sgMail.send(msg, (error, result) => {
+              if (error) {
+                console.log(error);
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              } else {
+                console.log(result);
+                res.send({
+                  code: 200,
+                  msg: 'Please check your email for forget password link!',
+                });
+              }
             });
           } else {
             res.send({
@@ -440,7 +451,6 @@ const usersRouter = () => {
   router.get('/validateToken', userAuthCheck, async (req, res) => {
     try {
       const { tokenData } = req.body;
-      console.log('tokenData', tokenData);
       const userData = await userModel.getOneBy({ id: tokenData.userid });
       if (userData.length) {
         const resData = {
@@ -460,6 +470,81 @@ const usersRouter = () => {
     }
   });
 
+  // Post API for adding plans detail
+  router.post('/addPlan', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const planData = {
+        planType: body.planType,
+        booking: body.booking,
+        calendar: body.calendar,
+        properties: body.properties,
+        team: body.team,
+        invoice: body.invoice,
+        stats: body.stats,
+        owner: body.owner,
+        websideBuilder: body.websideBuilder,
+        channelManager: body.channelManager,
+      };
+      await DB.insert('plan', planData);
+      res.send({
+        code: 200,
+        msg: 'Data add sucessfully',
+
+      });
+    } catch (e) {
+      console.log('error', e);
+      res.send({ code: 444, msg: 'Some error has occured.' });
+    }
+  });
+
+  // get request for geting feature data
+  router.post('/getFeature', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.organizationid;
+      }
+      const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
+      const [{ planType }] = organizationPlan;
+      if (planType === 'basic') {
+        const data0 = await DB.select('plan', { planType });
+        const data1 = await DB.select('feature', { organizationId: id });
+        const webPerm = data1[0].websideBuilder;
+        const chanPerm = data1[0].channelManager;
+        if (webPerm || chanPerm) {
+          const featureData = data1;
+          res.send({
+            code: 200,
+            featureData,
+          });
+        } else {
+          const featureData = data0;
+          res.send({
+            code: 200,
+            featureData,
+          });
+        }
+      } else {
+        const data = await DB.select('plan', { planType });
+        const featureData = data;
+        res.send({
+          code: 200,
+          featureData,
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured.',
+      });
+    }
+  });
+
   // API for check trial days
   router.post('/trialDays', userAuthCheck, async (req, res) => {
     try {
@@ -475,12 +560,14 @@ const usersRouter = () => {
       h %= 24;
       const remainingDays = 14 - totalDays;
       console.log(remainingDays);
+      const [{ isOnTrial }] = user;
       if (remainingDays === 0) {
         await DB.update('users', { isTrialEnded: true }, { id: body.tokenData.userid });
       }
       res.send({
         code: 200,
-        data: remainingDays,
+        remainingDays,
+        isOnTrial,
       });
     } catch (err) {
       res.send({
@@ -510,7 +597,6 @@ const usersRouter = () => {
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       let id;
       if (body.affiliateId) {
         id = body.affiliateId;
@@ -537,7 +623,6 @@ const usersRouter = () => {
       };
 
       const propertyExist = await DB.select('property', { userId: id, propertyNo: body.propertyNo });
-      console.log(propertyExist.length);
       if (propertyExist.length) {
         await DB.update('property', propertyData, {
           userId: id,
@@ -640,6 +725,7 @@ const usersRouter = () => {
           },
         );
       }
+      console.log(propertiesData);
     } catch (e) {
       console.log(e);
       res.send({
@@ -751,11 +837,21 @@ const usersRouter = () => {
   router.post('/getUnittype', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('body', body);
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
       const unittypeData = await DB.select('unitType', { propertyId: body.propertyId });
+      console.log('unittypeData', unittypeData);
+      const units = await DB.select('unit', { userId: id });
       if (unittypeData) {
         res.send({
           code: 200,
           unittypeData,
+          units,
         });
       } else {
         res.send({
@@ -857,13 +953,23 @@ const usersRouter = () => {
   router.post('/getUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('Body', body);
       const unitData = await DB.select('unit', { propertyId: body.propertyId });
+      const data0 = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
+      const data1 = await DB.selectCol(['isOnTrial'], 'users', { id: body.tokenData.userid });
+      let units;
+      if (data0 && data0.length > 0) {
+        units = data0[0].units;
+      }
+      console.log('shsfts', units);
+      const [{ isOnTrial }] = data1;
       res.send({
         code: 200,
         unitData,
+        units,
+        isOnTrial,
       });
     } catch (e) {
+      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -876,12 +982,28 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const unitData = await DB.select('unit', { userId: body.tokenData.userid });
-      const totalUnit = unitData.length;
-      res.send({
-        code: 200,
-        data: totalUnit,
-      });
+      const data0 = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
+      if (unitData.length || data0) {
+        const totalUnit = unitData.length;
+        let units;
+        if (data0 && data0.length > 0) {
+          units = data0[0].units;
+        }
+        console.log(totalUnit);
+        console.log(units);
+        res.send({
+          code: 200,
+          totalUnit,
+          units,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'units not found',
+        });
+      }
     } catch (error) {
+      console.log(error);
       res.send({
         code: 444,
         msg: error,
@@ -892,6 +1014,7 @@ const usersRouter = () => {
   router.post('/addGroup', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       let prevCheckDate;
       let nextCheckDate;
       if (body.prevCheck || body.nextCheck) {
@@ -900,6 +1023,7 @@ const usersRouter = () => {
       }
       const groupData = {
         userId: body.tokenData.userid,
+        propertyId: body.propertyId,
         groupName: body.groupname,
         checkCount: body.count,
         checkInterval: body.interval,
@@ -930,7 +1054,9 @@ const usersRouter = () => {
 
   router.post('/groupList', userAuthCheck, async (req, res) => {
     try {
-      const groupDetail = await DB.select('groups', {});
+      const { ...body } = req.body;
+      console.log(body);
+      const groupDetail = await DB.select('groups', { userId: body.tokenData.userid, propertyId: body.propertyId });
       res.send({
         code: 200,
         groupDetail,
@@ -1565,7 +1691,7 @@ const usersRouter = () => {
 
       res.send({
         code: 200,
-        msg: 'Booking save successfully!',
+        msg: 'Reservation save successfully!',
       });
     } catch (e) {
       console.log(e);
@@ -1705,8 +1831,9 @@ const usersRouter = () => {
         const buffer = fs.readFileSync(success.filename);
         const type = await fileType.fromBuffer(buffer);
         const fileName = `bucketFolder/${req.body.clientName}`;
+        const hash = crypto.createHash('md5').update(fileName).digest('hex');
         // upload to AWS S3 bucket
-        const data = await uploadPdf(buffer, fileName, type);
+        const data = await uploadPdf(buffer, hash, type);
         console.log('s3 response', data);
         // data.Location is uploaded url
         // this will remove pdf file after it is uploaded
@@ -1741,8 +1868,9 @@ const usersRouter = () => {
           const buffer = fs.readFileSync(success.filename);
           const type = await fileType.fromBuffer(buffer);
           const fileName = `bucketFolder/${req.body.clientName}`;
+          const hash = crypto.createHash('md5').update(fileName).digest('hex');
           // upload to AWS S3 bucket
-          const data = await uploadPdf(buffer, fileName, type);
+          const data = await uploadPdf(buffer, hash, type);
           console.log('s3 response', data);
           // data.Location is uploaded url
           // this will remove pdf file after it is uploaded
@@ -1772,23 +1900,40 @@ const usersRouter = () => {
             status: body.status,
             type: body.type,
           };
-          const Id = await DB.insert('invoice', invoiceData);
-          console.log('invoice id', Id);
-          body.itemData.map(async (el) => {
-            const Data = {
-              invoiceId: Id,
-              itemDescription: el.itemDescription,
-              quantity: el.quantity,
-              price: el.price,
-              amount: el.amount,
-              discount: el.discount,
-              discountPer: el.discountPer,
-              itemTotal: el.itemTotal,
-            };
-            await DB.insert('invoiceItems', Data);
-          });
-          if (body.deleteInvoiceItemId) {
-            await DB.remove('invoiceItems', { id: body.deleteInvoiceItemId });
+          if (!body.id) {
+            const Id = await DB.insert('invoice', invoiceData);
+            console.log('invoice id', Id);
+            body.itemData.map(async (el) => {
+              const Data = {
+                invoiceId: Id,
+                itemDescription: el.itemDescription,
+                quantity: el.quantity,
+                price: el.price,
+                amount: el.amount,
+                discount: el.discount,
+                discountPer: el.discountPer,
+                itemTotal: el.itemTotal,
+              };
+              await DB.insert('invoiceItems', Data);
+            });
+            if (body.deleteInvoiceItemId) {
+              await DB.remove('invoiceItems', { id: body.deleteInvoiceItemId });
+            }
+          } else {
+            await DB.update('invoice', invoiceData, { id: body.id });
+            body.itemData.map(async (el) => {
+              const Data = {
+                invoiceId: body.id,
+                itemDescription: el.itemDescription,
+                quantity: el.quantity,
+                price: el.price,
+                amount: el.amount,
+                discount: el.discount,
+                discountPer: el.discountPer,
+                itemTotal: el.itemTotal,
+              };
+              await DB.update('invoiceItems', Data);
+            });
           }
           res.send({
             code: 200,
@@ -1924,9 +2069,7 @@ const usersRouter = () => {
       } else {
         id = body.tokenData.userid;
       }
-      const userExists = await userModel.getOneBy({
-        email: body.email,
-      });
+      const userExists = await DB.select('users', { email: body.email });
       if (!userExists.length) {
         const password = randomstring.generate(7);
         console.log('password', password);
@@ -1953,8 +2096,9 @@ const usersRouter = () => {
           statsWrite: body.statsWrite,
           ownerRead: body.ownerRead,
           ownerWrite: body.ownerWrite,
+          billingRead: body.billingRead,
+          billingWrite: body.billingWrite,
         };
-        console.log(teamData);
         if (body.id) {
           await DB.update('team', teamData, { id: body.id });
           res.send({
@@ -1962,17 +2106,55 @@ const usersRouter = () => {
             msg: 'Data update successfully!',
           });
         } else {
+          const companyData = await DB.select('organizations', { name: body.company });
           await DB.insert('team', teamData);
           const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
           const userData = {
+            organizationId: companyData[0].id,
             email: body.email,
             verificationhex: hash,
             encrypted_password: hashedPassword,
           };
           await DB.insert('users', userData);
-          res.send({
-            code: 200,
-            msg: 'Data save successfully!',
+
+          const url = frontendUrl(body.company, '/', {
+            token: userData.verificationhex,
+          });
+
+          const msg = {
+            from: config.get('mailing.from'),
+            templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
+            personalizations: [
+              {
+                to: [
+                  {
+                    email: body.email,
+                  },
+                ],
+                dynamic_template_data: {
+                  receipt: true,
+                  role: body.role,
+                  password,
+                  link: url,
+                },
+              },
+            ],
+          };
+
+          sgMail.send(msg, (error, result) => {
+            if (error) {
+              console.log(error);
+              res.send({
+                code: 400,
+                msg: 'Some has error occured!',
+              });
+            } else {
+              console.log(result);
+              res.send({
+                code: 200,
+                msg: 'Data saved successfully, please verify your email address!',
+              });
+            }
           });
         }
       } else {
@@ -1989,7 +2171,6 @@ const usersRouter = () => {
       });
     }
   });
-
   // API for update sub userv details
   router.post('/updateSubUser', userAuthCheck, async (req, res) => {
     try {
@@ -2067,7 +2248,12 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log('Delete sub user id', req.body);
+      const user = await DB.selectCol(['email'], 'team', { id: body.deleteId });
+      console.log(user);
+      const [{ email }] = user;
+      console.log('email', email);
       await DB.remove('team', { id: body.deleteId });
+      await DB.remove('users', { email });
       res.send({
         code: 200,
         msg: 'Sub User removed successfully!',
@@ -2083,6 +2269,7 @@ const usersRouter = () => {
   // API for adding sub owner
   router.post('/addOwner', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    console.log(body.properties);
     try {
       let id;
       if (!body.affiliateId) {
@@ -2127,39 +2314,44 @@ const usersRouter = () => {
         ownerData.verificationhex = hash;
         ownerData.encrypted_password = hashedPassword;
         const saveData = await DB.insert('owner', ownerData);
-        console.log(saveData);
         each(body.properties, async (items, next) => {
           await DB.update('property', { ownerId: saveData }, { id: items });
           next();
         });
-        const transporter = nodemailer.createTransport(
-          smtpTransport({
-            host: 'mail.websultanate.com',
-            port: 587,
-            auth: {
-              user: 'developer@websultanate.com',
-              pass: 'Raviwbst@123',
-            },
-            tls: {
-              rejectUnauthorized: false,
-            },
-            debug: true,
-          }),
-        );
 
-        const mailOptions = {
-          from: 'developer@websultanate.com',
-          to: ownerData.email,
-          subject: 'Please verify your email',
-          text: `You can now access to Owner' s panle for
-          your properties. Your login details: ${password}. You can login here
-          ${serverPath}users/verify/${ownerData.verificationhex}`,
+        const msg = {
+          from: config.get('mailing.from'),
+          templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
+          personalizations: [
+            {
+              to: [
+                {
+                  email: ownerData.email,
+                },
+              ],
+              dynamic_template_data: {
+                receipt: true,
+                password,
+                link: config.get('ownerFrontend.endpoint'),
+              },
+            },
+          ],
         };
 
-        transporter.sendMail(mailOptions);
-        res.send({
-          code: 200,
-          msg: 'Data update successfully!',
+        sgMail.send(msg, (error, result) => {
+          if (error) {
+            console.log(error);
+            res.send({
+              code: 400,
+              msg: 'Some has error occured!',
+            });
+          } else {
+            console.log(result);
+            res.send({
+              code: 200,
+              msg: 'Data saved successfully!',
+            });
+          }
         });
       }
     } catch (e) {
@@ -2275,7 +2467,6 @@ const usersRouter = () => {
 
   // API for upload picture
   router.post('/photo/:id', async (req, res) => {
-    console.log('Hit ho raha hai');
     const form = new multiparty.Form();
     form.parse(req, async (error, fields, files) => {
       if (error) {
@@ -2288,8 +2479,8 @@ const usersRouter = () => {
         const type = await fileType.fromBuffer(buffer);
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
-        console.log(fileName);
-        const data = await uploadFile(buffer, fileName, type);
+        const hash = crypto.createHash('md5').update(fileName).digest('hex');
+        const data = await uploadFile(buffer, hash, type);
         console.log('photo url', data.Location);
         const d0 = await DB.update('users', { image: data.Location }, { id: req.params.id });
         console.log(d0);
@@ -2436,7 +2627,7 @@ const usersRouter = () => {
       } else {
         res.send({
           code: 401,
-          msg: 'Invalid Credential!',
+          msg: 'Invalid Old Password!',
         });
       }
     } catch (e) {
@@ -2453,8 +2644,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const userData = {
-        fname: body.fname,
-        lname: body.lname,
+        fullname: body.fullname,
         address: body.address,
         email: body.email,
         phone: body.phone,
@@ -2478,7 +2668,6 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const companyData = {
-        userId: body.tokenData.userid,
         name: body.name,
         address: body.address,
         country: body.country,
@@ -2487,7 +2676,7 @@ const usersRouter = () => {
         zip: body.zip,
         vatid: body.vatId,
       };
-      await DB.insert('organizations', companyData);
+      await DB.update('organizations', companyData, { name: body.name });
       res.send({
         code: 200,
         msg: 'Data saved successfully!',
@@ -2505,7 +2694,7 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectCol(['fname', 'lname', 'address', 'email', 'phone', 'image'], 'users', {
+      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
@@ -2525,7 +2714,8 @@ const usersRouter = () => {
   router.post('/getCompanyData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const companyData = await DB.select('organizations', { id: body.tokenData.userid });
+      console.log(body);
+      const companyData = await DB.select('organizations', { name: body.company });
       res.send({
         code: 200,
         companyData,
@@ -2780,21 +2970,22 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const guestData = await DB.select('guest', { userId: body.tokenData.userid });
-
       const country = [];
-      const data = [];
+      const average = [];
       guestData.forEach((el, i, array) => {
-        const countrys = array.filter((ele) => el.country === ele.country);
-        if (countrys.length > 0) {
-          country.push(countrys[0].country);
-          data.push(countrys.length / array.length);
+        const checkexist = country.filter((name) => name === el.country);
+        if (checkexist.length === 0) {
+          const countrys = array.filter((ele) => el.country === ele.country);
+          if (countrys.length > 0) {
+            country.push(countrys[0].country);
+            average.push(countrys.length);
+          }
         }
       });
-      console.log(country, data);
       res.send({
         code: 200,
         country,
-        data,
+        average,
       });
     } catch (e) {
       console.log(e);
@@ -2813,19 +3004,23 @@ const usersRouter = () => {
       const { ...body } = req.body;
       console.log('charge body', body);
       const {
-        stripeToken,
+        // stripeToken,
         amount,
         interval,
         noOfUnits,
         currency,
         planType,
       } = body;
+      const data = await DB.selectCol(['email'], 'users', { id: req.body.tokenData.userid });
+      const [{ email }] = data;
       const now = new Date();
       const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
       const nextMonth = nextdate / 1000;
       console.log(nextMonth, 'nextMonth');
       const customer = await stripe.customers.create({
-        source: stripeToken,
+        email,
+        // source: stripeToken,
+        source: 'tok_visa',
         metadata: { currency },
       });
       console.log('customer', customer);
@@ -2881,6 +3076,16 @@ const usersRouter = () => {
         currency,
       };
       console.log('subscription object', subscriptionObject);
+      await DB.insert('subscription', subscriptionObject);
+      await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
+      if (planType === 'basic') {
+        await DB.update(
+          'feature',
+          { websideBuilder: 0, channelManager: 0 },
+          { organizationId: body.tokenData.organizationid },
+        );
+        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+      }
       const id = await DB.insert('subscription', subscriptionObject);
       console.log(id);
       res.send({
@@ -2901,10 +3106,16 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
+      const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
+      console.log('subscription', subscription);
+      const endDate = subscription.current_period_end * 1000;
+      const { status } = subscription;
       if (transactions && transactions.length) {
         res.send({
           code: 200,
           transactions,
+          endDate,
+          status,
         });
       } else {
         res.send({
@@ -2918,36 +3129,36 @@ const usersRouter = () => {
       });
     }
   });
-
-  // API for invoice bill
   router.post('/getBillingInvoice', userAuthCheck, async (req, res) => {
     try {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
-      const { customerId } = Data;
+      const [{ customerId }] = Data;
       const invoicesList = [];
       await stripe.invoices.list({ customer: customerId }, (
         err,
         invoices,
       ) => {
         invoices.data.forEach((el) => {
-          const { currency } = el;
-          const amount = el.amount_paid / 100;
-          // let amount =  Math.floor(parseFloat(initial))
-          const { units } = Data[0];
-          const start = new Date(
-            el.lines.data[0].period.start * 1000,
-          ).toDateString();
-          const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
-          const dt = {
-            invoiceId: el.id,
-            start,
-            end,
-            amount,
-            units,
-            currency,
-            pdf: el.invoice_pdf,
-          };
-          invoicesList.push(dt);
+          if (el.customer === customerId) {
+            const { currency } = el;
+            const amount = el.amount_paid / 100;
+            // let amount = Math.floor(parseFloat(initial))
+            // const { units } = Data[0];
+            const start = new Date(
+              el.lines.data[0].period.start * 1000,
+            ).toDateString();
+            const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
+            const dt = {
+              invoiceId: el.id,
+              start,
+              end,
+              amount,
+              // units,
+              currency,
+              pdf: el.invoice_pdf,
+            };
+            invoicesList.push(dt);
+          }
         });
         res.send({ code: 200, invoicesList });
       });
@@ -2971,7 +3182,7 @@ const usersRouter = () => {
         console.log(confirmation);
         res.send({
           code: 200,
-          msg: 'Your bsubscription is cancelled',
+          msg: 'Your subscription is cancelled',
         });
       });
     } catch (error) {
@@ -3001,7 +3212,7 @@ const usersRouter = () => {
         type: 'service',
       });
       const updatePlan = await stripe.plans.create({
-        nickname: 'hello',
+        nickname: `Lodgly ${planType} Subscription`,
         amount: Math.round(parseFloat(amount) * 100),
         interval,
         product: product.id,
@@ -3010,13 +3221,15 @@ const usersRouter = () => {
       console.log('plan', updatePlan);
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       const difference = amount - Data[0].Amount;
-      const charge = await stripe.charges.create({
-        amount: Math.round(parseFloat(difference) * 100),
-        currency,
-        customer: subscription.customer,
-        description: 'upgrading the plan',
-      });
-      console.log('charge', charge);
+      if (difference > 0) {
+        const charge = await stripe.charges.create({
+          amount: Math.round(parseFloat(difference) * 100),
+          currency,
+          customer: subscription.customer,
+          description: 'upgrading the plan',
+        });
+        console.log('charge', charge);
+      }
       const updatedSubscription = await stripe.subscriptions.update(
         subscriptionId,
         {
@@ -3042,6 +3255,14 @@ const usersRouter = () => {
       };
       const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
       console.log(id);
+      if (planType === 'basic') {
+        await DB.update(
+          'feature',
+          { websideBuilder: 0, channelManager: 0 },
+          { organizationId: body.tokenData.organizationid },
+        );
+        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+      }
       res.send({
         code: 200,
         msg: 'your plan is successfully changed',
@@ -3051,6 +3272,224 @@ const usersRouter = () => {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for getting subscription status and updating the databse accordingly
+  router.get('/getSubscriptionStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const Data = await DB.selectCol(['subscriptionId'], 'subscription', { userId: body.tokenData.userid });
+      const [{ subscriptionId }] = Data;
+      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+      console.log('active subscription', subscription);
+      if (subscription) {
+        if (subscription.status !== 'active') {
+          await DB.update('users', { issubscriptionEnded: true }, { id: body.tokenData.userid });
+        }
+      }
+      res.send({
+        code: 200,
+        msg: 'subscription status updated',
+      });
+    } catch (error) {
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // getting subscribed status of user
+  router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { userid } = req.body.tokenData;
+      const userSubsDetails = await DB.selectCol(['isSubscribed',
+        'isOnTrial', 'issubscriptionEnded', 'created_at'], 'users', { id: userid });
+      console.log(userSubsDetails);
+      const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
+      let s = Math.floor(diff / 1000);
+      let m = Math.floor(s / 60);
+      s %= 60;
+      let h = Math.floor(m / 60);
+      m %= 60;
+      const totalDays = Math.floor(h / 24);
+      h %= 24;
+      const remainingDays = 14 - totalDays;
+      userSubsDetails[0].days = remainingDays;
+      res.send({
+        code: 200,
+        userSubsDetails,
+      });
+    } catch (error) {
+      console.log(error);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for put data in Calendar
+  router.post('/fetchCalendar', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const propertyData = await DB.select('property', { userId: body.tokenData.userid });
+      const unitType = [];
+      const unit = [];
+      each(
+        propertyData,
+        async (items, next) => {
+          const itemsCopy = items;
+          unitType.push(await DB.select('unitType', { propertyId: items.id }));
+          unit.push(await DB.select('unit', { propertyId: items.id }));
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            propertyData,
+            unitType,
+            unit,
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for set status of booking
+  router.post('/setStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let colour;
+      if (body.status === 'booked') {
+        colour = 'red';
+      } else if (body.status === 'open') {
+        colour = 'green';
+      } else if (body.status === 'tentative') {
+        colour = 'orange';
+      } else if (body.status === 'decline') {
+        colour = 'grey';
+      }
+      await DB.update('booking', { status: body.status, statusColour: colour }, { id: body.bookingId });
+      res.send({
+        code: 200,
+        msg: 'Status added successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for adding group reservation
+  router.post('/groupReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let id;
+      const startDateTime = new Date(body.groupname[0]);
+      const endDateTime = new Date(body.groupname[1]);
+
+      if (!body.affiliateId) {
+        console.log('no affiliaate id');
+        id = body.tokenData.userid;
+      } else {
+        console.log('affiliate id');
+        id = body.affiliateId;
+      }
+
+      body.unitType.forEach((ele) => {
+        each(
+          ele.bookedUnits,
+          async (items, next) => {
+            const itemsCopy = items;
+            const reservationData = {
+              userId: id,
+              propertyId: body.propertyId,
+              unitId: items,
+              startDate: startDateTime,
+              endDate: endDateTime,
+              acknowledge: body.acknowledge,
+              channel: body.channel,
+              commission: body.commissionPercentage,
+              notes1: body.notes1,
+              perNight: ele.perNight,
+              night: body.night,
+              amt: ele.amt,
+              discount: body.discount,
+              totalAmount: body.totalAmount,
+            };
+            console.log('reservation data', reservationData);
+            const saveData = await DB.insert('reservation', reservationData);
+            console.log('saveData', saveData);
+
+            const Data = {
+              userId: id,
+              reservationId: saveData,
+              fullname: body.fullName,
+              country: body.country,
+              email: body.email,
+              phone: body.phone,
+            };
+            console.log(Data);
+            await DB.insert('guest', Data);
+            next();
+            return itemsCopy;
+          },
+          () => {},
+        );
+      });
+      res.send({
+        code: 200,
+        msg: 'Group Reservation save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for deleting bookings
+  router.post('/deleteBookings', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      each(
+        body.bookings,
+        async (items, next) => {
+          const itemsCopy = items;
+          await DB.remove('booking', { id: items });
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            msg: 'Booking delete successfully!',
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
       });
     }
   });

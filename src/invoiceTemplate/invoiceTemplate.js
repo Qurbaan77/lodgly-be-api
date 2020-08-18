@@ -1,5 +1,3 @@
-/* eslint-disable indent */
-
 module.exports = ({
   label,
   date,
@@ -9,6 +7,7 @@ module.exports = ({
   paymentType,
   clientName,
   email,
+  userEmail,
   address,
   vat,
   itemData,
@@ -18,9 +17,8 @@ module.exports = ({
   phone,
   total,
   impression,
-}) => {
-  console.log(clientName);
-  return `
+}) => (
+  `
 <!doctype html>
 <html>
 <head style="margin: 0;padding: 0;">
@@ -43,8 +41,8 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                     <table style="margin: 0;padding: 0;width: 100%;">
                         <tr style="margin: 0;padding: 0;">
                             <td align="center" style="margin: 0;padding: 0;"><a href="#">
-                            <img src=
-                    "https://s3.eu-west-1.amazonaws.com/lodgly.dev-files-eu-west-1/bucketFolder/1594274557462-lg.png"
+                            <img src="https://s3.eu-west-1.
+                            amazonaws.com/storage.lodgly.dev-eu-west-1/bucketFolder/1595937581175-lg.jpg"
                             style="margin: 10px 10px; width: 50px;"></a></td>
                         </tr>
                     </table>
@@ -75,9 +73,10 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                         </tr> 
 
                         <tr>
+                            <td></td>  
                             <td align="right">
-                            ${`${email}`}
-                            </td>                     
+                            ${`${userEmail}`}
+                            </td>                       
                         </tr>  
                         
                         <tr>
@@ -214,8 +213,8 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                         <tbody>
                             
                         ${`${itemData.map((el) => {
-                          console.log('hi');
-                          return `
+    console.log('hi');
+    return `
                             <tr>
                             <td style="padding:5px;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemDescription}`}</span>
@@ -240,7 +239,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                             </td>     
                         </tr> 
                         `;
-                        })}`}
+  })}`}
                         
                         </tbody>
                     </table>
@@ -308,5 +307,5 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
 
 </body>
 </html>
-`;
-};
+`
+);

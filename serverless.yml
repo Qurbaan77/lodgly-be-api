@@ -46,7 +46,7 @@ provider:
     NODE_ENV: ${self:provider.stage}
     IS_SENTRY_ENABLED: ${self:custom.stages.${self:provider.stage}.IS_SENTRY_ENABLED}
     SENTRY_DSN: ""
-    JWT_SECRET: 'H2BRPHUErdQ32aYkrpwnpync5vEPxAHSjbK57RdJ'
+    JWT_USER_SECRET: 'H2BRPHUErdQ32aYkrpwnpync5vEPxAHSjbK57RdJ'
     API_HOST: ${self:custom.stages.${self:provider.stage}.API_HOST}
     DATABASE_HOST: ${ssm:/${self:provider.stage}/${self:service}/database/DB_HOST}
     DATABASE_PORT: ${ssm:/${self:provider.stage}/${self:service}/database/DB_PORT}

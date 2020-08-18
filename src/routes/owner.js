@@ -1,8 +1,12 @@
+const config = require('config');
+const crypto = require('crypto');
 const express = require('express');
+const sgMail = require('@sendgrid/mail');
 const each = require('sync-each');
 const fs = require('fs');
 const AWS = require('aws-sdk');
 const fileType = require('file-type');
+const multiparty = require('multiparty');
 const pdf = require('html-pdf');
 const DB = require('../services/database');
 const ownerModel = require('../models/owner/repositories');
@@ -10,20 +14,20 @@ const { checkIfEmpty } = require('../functions');
 const { signJwt } = require('../functions');
 const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
+const { ownerPanelUrl } = require('../functions/frontend');
 const { ownerAuthCheck } = require('../middlewares/middlewares');
 const reportTemplate = require('../templates/reportTemplate');
+
+sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
 
 const ownerRouter = () => {
   // router variable for api routing
   const router = express.Router();
 
   // AWS S3 upload function'
-  const ID = 'AKIAXQT7I33QUFVO42Q5';
-  const SECRET = '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';
-  const BUCKET_NAME = 'lodgly.dev-files-eu-west-1';
   const s3 = new AWS.S3({
-    accessKeyId: ID,
-    secretAccessKey: SECRET,
+    accessKeyId: config.get('aws.accessKey'),
+    secretAccessKey: config.get('aws.accessSecretKey'),
   });
 
   // function for uploading invoice pdf
@@ -31,7 +35,18 @@ const ownerRouter = () => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
-      Bucket: BUCKET_NAME,
+      Bucket: config.get('aws.s3.storageBucketName'),
+      Key: `${name}.${type.ext}`,
+    };
+    const url = await s3.getSignedUrlPromise('putObject', params);
+    return s3.upload(params, url).promise();
+  };
+
+  const uploadImg = async (buffer, name, type) => {
+    const params = {
+      ACL: 'public-read',
+      Body: buffer,
+      Bucket: config.get('aws.s3.storageBucketName'),
       Key: `${name}.${type.ext}`,
     };
     const url = await s3.getSignedUrlPromise('putObject', params);
@@ -41,6 +56,7 @@ const ownerRouter = () => {
   // login API for Owner Panel
   router.post('/ownerLogin', async (req, res) => {
     const { ...body } = await req.body;
+    console.log(body);
     try {
       const { isValid } = checkIfEmpty(body.email, body.password);
       console.log(isValid);
@@ -55,13 +71,14 @@ const ownerRouter = () => {
         if (isPasswordValid) {
           // valid password
           const token = signJwt(isOwnerExists[0].id);
+          console.log('token on login', token);
           res.cookie('token', token, {
             maxAge: 999999999999,
             signed: true,
           });
           res.send({
             code: 200,
-            msg: 'Authenticated',
+            msg: 'Login successfully',
             token,
           });
         } else {
@@ -90,10 +107,144 @@ const ownerRouter = () => {
     res.clearCookie('token').send('cookie cleared!');
   });
 
+  // API for verify email
+  router.post('/verifyEmail', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const ownerData = await DB.select('owner', { email: body.email });
+      if (ownerData.length > 0) {
+        const forgetPassHex = crypto
+          .createHmac('sha256', 'forgetPasswordHex')
+          .update(ownerData[0].email)
+          .digest('hex');
+        const updatedData = await DB.update(
+          'owner',
+          {
+            forgetPassHex,
+          },
+          {
+            email: body.email,
+          },
+        );
+        if (updatedData) {
+          const confirmationUrl = ownerPanelUrl('', config.get('ownerFrontend.paths.resetPassword'), {
+            token: forgetPassHex,
+          });
+
+          console.log(confirmationUrl);
+
+          const msg = {
+            from: config.get('mailing.from'),
+            templateId: config.get('mailing.sendgrid.templates.en.resetPassword'),
+            personalizations: [
+              {
+                to: [
+                  {
+                    email: body.email,
+                  },
+                ],
+                dynamic_template_data: {
+                  receipt: true,
+                  confirmation_url: confirmationUrl,
+                  email: body.email,
+                },
+              },
+            ],
+          };
+
+          sgMail.send(msg, (error, result) => {
+            if (error) {
+              console.log(error);
+              res.send({
+                code: 400,
+                msg: 'Some has error occured!',
+              });
+            } else {
+              console.log(result);
+              res.send({
+                code: 200,
+                msg: 'Data saved successfully, please verify your email address!',
+              });
+            }
+          });
+
+          res.send({
+            code: 200,
+            msg: 'Please check your email for forget password link!',
+          });
+        } else {
+          res.send({
+            code: 400,
+            msg: 'Try Again.',
+          });
+        }
+      } else {
+        res.send({
+          code: 404,
+          msg: 'Email not found!.',
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for reset password when forget password
+  router.post('/resetPassword', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const ownerData = await DB.select('owner', { forgetPassHex: body.hex });
+      if (ownerData.length > 0) {
+        const newhashedPassword = await hashPassword(body.newpassword);
+        if (newhashedPassword) {
+          const updateData = await DB.update(
+            'owner',
+            {
+              encrypted_password: newhashedPassword,
+              forgetPassHex: '',
+            },
+            {
+              email: ownerData[0].email,
+            },
+          );
+          if (updateData) {
+            res.send({
+              code: 200,
+              msg: 'Password updated successfully!',
+            });
+          } else {
+            res.send({
+              code: 400,
+              msg: 'Try Again.',
+            });
+          }
+        }
+      } else {
+        res.send({
+          code: 404,
+          msg: 'Wrong token!',
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   // API for fetch Owner property details
   router.post('/getProperty', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
+      const unitData = [];
       const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
       each(
         propertyData,
@@ -103,6 +254,7 @@ const ownerRouter = () => {
           let avgCountPer = 0;
           const bookingData = await DB.select('booking', { propertyId: items.id });
           const unitTypeData = await DB.selectCol('perNight', 'unitType', { propertyId: items.id });
+          unitData.push(await DB.select('unit', { propertyId: items.id }));
 
           const count = [];
           bookingData.forEach((el) => {
@@ -121,6 +273,7 @@ const ownerRouter = () => {
           res.send({
             code: 200,
             propertyData,
+            unitData,
           });
         },
       );
@@ -137,6 +290,7 @@ const ownerRouter = () => {
   router.post('/addOwnerInfo', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       const ownerData = {
         fname: body.firstname,
         lname: body.lastname,
@@ -200,13 +354,10 @@ const ownerRouter = () => {
       const { ...body } = req.body;
       const reportData = [];
       const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
+      const unitData = await DB.select('unit', { userId: body.tokenData.userid });
       each(
         propertyData,
         async (items, next) => {
-          // const data = await DB.select('booking', { propertyId: items.id });
-          // data.forEach((el) => {
-          //   (moment(el.startDate).format('MMMM')+' '+el.startDate.getFullYear())
-          // })
           reportData.push(await DB.select('booking', { propertyId: items.id }));
           next();
         },
@@ -215,6 +366,7 @@ const ownerRouter = () => {
             code: 200,
             reportData,
             propertyData,
+            unitData,
           });
         },
       );
@@ -279,10 +431,6 @@ const ownerRouter = () => {
       each(
         propertyData,
         async (items, next) => {
-          // const data = await DB.select('booking', { propertyId: items.id });
-          // data.forEach((el) => {
-          //   (moment(el.startDate).format('MMMM')+' '+el.startDate.getFullYear())
-          // })
           reportData.push(await DB.select('booking', { propertyId: items.id }));
           unitTypeData.push(await DB.selectCol('perNight', 'unitType', { propertyId: items.id }));
           next();
@@ -291,7 +439,7 @@ const ownerRouter = () => {
           reportData.map((el) => el.map((ele) => arr.push(ele)));
           unitTypeData.map((el) => el.map((ele) => arr3.push(ele.perNight)));
           arr
-            .filter((el) => el.startDate.getFullYear() === new Date().getFullYear())
+            .filter((el) => el.startDate.getFullYear() === body.changeYear)
             .forEach((filter) => {
               arr2.push(filter);
             });
@@ -344,9 +492,10 @@ const ownerRouter = () => {
     try {
       const { ...body } = req.body;
       const arr = [];
-      const bookingData = await DB.select('booking', { propertyId: body.propertyId });
+      const bookingData = await DB.select('booking', { propertyId: body.propertyId, status: 'booked' });
       bookingData.forEach((el) => {
         arr.push({
+          id: el.id,
           title: el.totalAmount,
           start: new Date(el.startDate.setDate(el.startDate.getDate() + 1)),
           end: el.endDate,
@@ -371,13 +520,28 @@ const ownerRouter = () => {
   router.post('/addOwnerBooking', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const data = {
-        startDate: new Date(body.startDate),
-        endDate: new Date(body.endDate),
-        notes1: body.notes,
-      };
-      console.log(data);
-      // const Id = await DB.insert('booking', bookingData);
+      console.log('addOwnerBooking', body);
+      const ownerData = await DB.select('owner', { id: body.tokenData.userid });
+      if (ownerData.length > 0) {
+        const ownerBookingData = {
+          startDate: new Date(body.startDate),
+          endDate: new Date(body.endDate),
+          notes1: body.notes,
+          unitId: body.unit,
+          unitName: body.unitName,
+          userId: ownerData[0].userId,
+          propertyId: body.propertyId,
+          propertyName: body.propertyName,
+          totalAmount: body.totalAmount,
+        };
+        await DB.update('booking', { status: 'decline', statusColour: 'grey' }, { id: body.bookingId });
+        const Id = await DB.insert('booking', ownerBookingData);
+        console.log(Id);
+        res.send({
+          code: 200,
+          msg: 'Data saved successfully!',
+        });
+      }
     } catch (e) {
       console.log('error', e);
       res.send({
@@ -385,6 +549,35 @@ const ownerRouter = () => {
         msg: 'Some error has occured!',
       });
     }
+  });
+
+  router.post('/uploadImg', ownerAuthCheck, async (req, res) => {
+    console.log(req);
+    const form = new multiparty.Form();
+    form.parse(req, async (error, fields, files) => {
+      if (error) throw new Error(error);
+      try {
+        const { ...body } = req.body;
+        const { path } = files.file[0];
+        const buffer = fs.readFileSync(path);
+        const type = await fileType.fromBuffer(buffer);
+        const timestamp = Date.now().toString();
+        const fileName = `bucketFolder/${timestamp}-lg`;
+        const data = await uploadImg(buffer, fileName, type);
+        await DB.update('owner', { image: data.Location }, { id: body.tokenData.userid });
+        res.send({
+          code: 200,
+          data,
+          msg: 'Image upload successfully!',
+        });
+      } catch (e) {
+        console.log(e);
+        res.send({
+          code: 404,
+          msg: 'Some error occured!',
+        });
+      }
+    });
   });
 
   return router;

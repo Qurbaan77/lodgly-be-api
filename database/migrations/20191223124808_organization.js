@@ -1,9 +1,15 @@
-const TABLE_NAME = 'exchangeRate';
+const TABLE_NAME = 'organizations';
 
 exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
-  table.decimal('CHF').notNull();
-  table.decimal('PLN').notNull();
-  table.decimal('GBP').notNull();
+  table.increments('id');
+  table.string('name');
+  table.string('planType');
+  table.string('address');
+  table.string('country');
+  table.string('state');
+  table.string('city');
+  table.integer('zip');
+  table.integer('vatId');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
 });

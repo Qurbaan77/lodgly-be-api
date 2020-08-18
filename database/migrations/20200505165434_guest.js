@@ -12,7 +12,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.date('dob');
   table.string('gender');
   table.string('typeOfDoc');
-  table.integer('docNo');
+  table.string('docNo');
   table.string('citizenShip');
   table.string('place');
   table.string('notes');
