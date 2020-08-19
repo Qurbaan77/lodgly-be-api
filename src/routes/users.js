@@ -34,15 +34,17 @@ const usersRouter = () => {
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
   });
-  const uploadFile = async (buffer, name, type) => {
+  const uploadFile = async (buffer, name, type, organizationid) => {
     try {
+      console.log('organization id in upload file', organizationid);
       console.log(config.get('aws.accessKey'));
       console.log(config.get('aws.accessSecretKey'));
       console.log(config.get('aws.s3.storageBucketName'));
+      const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
         Body: buffer,
-        Bucket: config.get('aws.s3.storageBucketName'),
+        Bucket: `${bucket}/${organizationid}/photos`,
         ContentType: type.mime,
         Key: `${name}.${type.ext}`,
       };
@@ -55,12 +57,13 @@ const usersRouter = () => {
   };
 
   // function for uploading invoice pdf
-  const uploadPdf = async (buffer, name, type) => {
+  const uploadPdf = async (buffer, name, type, organizationid) => {
     console.log(config.get('aws.s3.storageBucketName'));
+    const bucket = config.get('aws.s3.storageBucketName');
     const params = {
       ACL: 'public-read',
       Body: buffer,
-      Bucket: config.get('aws.s3.storageBucketName'),
+      Bucket: `${bucket}/${organizationid}/Invoices`,
       // ContentType: 'application/pdf',
       Key: `${name}.${type.ext}`,
       ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
@@ -1833,7 +1836,7 @@ const usersRouter = () => {
         const fileName = `bucketFolder/${req.body.clientName}`;
         const hash = crypto.createHash('md5').update(fileName).digest('hex');
         // upload to AWS S3 bucket
-        const data = await uploadPdf(buffer, hash, type);
+        const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
         console.log('s3 response', data);
         // data.Location is uploaded url
         // this will remove pdf file after it is uploaded
@@ -1870,7 +1873,7 @@ const usersRouter = () => {
           const fileName = `bucketFolder/${req.body.clientName}`;
           const hash = crypto.createHash('md5').update(fileName).digest('hex');
           // upload to AWS S3 bucket
-          const data = await uploadPdf(buffer, hash, type);
+          const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
           console.log('s3 response', data);
           // data.Location is uploaded url
           // this will remove pdf file after it is uploaded
@@ -2466,8 +2469,9 @@ const usersRouter = () => {
   });
 
   // API for upload picture
-  router.post('/photo/:id', async (req, res) => {
+  router.post('/photo', async (req, res) => {
     const form = new multiparty.Form();
+    console.log(req.query);
     form.parse(req, async (error, fields, files) => {
       if (error) {
         console.log(error);
@@ -2480,9 +2484,9 @@ const usersRouter = () => {
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
         const hash = crypto.createHash('md5').update(fileName).digest('hex');
-        const data = await uploadFile(buffer, hash, type);
+        const data = await uploadFile(buffer, hash, type, req.query.organizationid);
         console.log('photo url', data.Location);
-        const d0 = await DB.update('users', { image: data.Location }, { id: req.params.id });
+        const d0 = await DB.update('users', { image: data.Location }, { id: req.query.userid });
         console.log(d0);
         return res.json({
           image: data.Location,
@@ -2499,8 +2503,9 @@ const usersRouter = () => {
   });
 
   // API for upload property picture
-  router.post('/propertyPicture/:id', async (req, res) => {
+  router.post('/propertyPicture', async (req, res) => {
     const form = new multiparty.Form();
+    console.log(req.query);
     form.parse(req, async (error, fields, files) => {
       if (error) {
         console.log(error);
@@ -2511,8 +2516,9 @@ const usersRouter = () => {
         const type = await fileType.fromBuffer(buffer);
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
-        const data = await uploadFile(buffer, fileName, type);
-        await DB.update('property', { image: data.Location }, { id: req.params.id });
+        const hash = crypto.createHash('md5').update(fileName).digest('hex');
+        const data = await uploadFile(buffer, hash, type, req.query.organizationid);
+        await DB.update('property', { image: data.Location }, { id: req.query.propertyid });
         return res.json({
           image: data.Location,
         });
