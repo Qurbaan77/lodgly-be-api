@@ -2332,7 +2332,7 @@ const usersRouter = () => {
               dynamic_template_data: {
                 receipt: true,
                 password,
-                link: config.get('ownerFrontend.endpoint'),
+                link: config.get('frontend.owners.endpoint'),
               },
             },
           ],

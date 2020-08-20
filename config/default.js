@@ -23,19 +23,21 @@ module.exports = {
     },
   },
   frontend: {
-    endpoint: 'https://%s.lodgly.dev',
-    paths: {
-      accountConfirmation: '/company',
-      changePassword: '/auth/password/change',
-      resetPassword: '/auth/password/reset',
+    app: {
+      endpoint: 'https://%s.lodgly.dev',
+      paths: {
+        accountConfirmation: '/company',
+        changePassword: '/auth/password/change',
+        resetPassword: '/auth/password/reset',
+      },
     },
-  },
-  ownerFrontend: {
-    endpoint: 'https://lodglyowners.dev',
-    paths: {
-      accountConfirmation: '/users/verify',
-      changePassword: '/auth/password/change',
-      resetPassword: '/reset',
+    owners: {
+      endpoint: 'https://lodglyowners.dev',
+      paths: {
+        accountConfirmation: '/users/verify',
+        changePassword: '/auth/password/change',
+        resetPassword: '/reset',
+      },
     },
   },
   payments: {
