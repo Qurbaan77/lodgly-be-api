@@ -128,7 +128,7 @@ const ownerRouter = () => {
           },
         );
         if (updatedData) {
-          const confirmationUrl = ownerPanelUrl('', config.get('ownerFrontend.paths.resetPassword'), {
+          const confirmationUrl = ownerPanelUrl('', config.get('frontend.owners.paths.resetPassword'), {
             token: forgetPassHex,
           });
 
