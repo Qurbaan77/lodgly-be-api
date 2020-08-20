@@ -25,6 +25,9 @@ const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 AWS.config.setPromisesDependency(bluebird);
 // const clientPath = domainName('app');
 // const serverPath = config.get('serverPath');
+console.log(process.env.AWS_ACCESS_KEY);
+console.log(process.env.AWS_ACCESS_SECRET_KEY);
+console.log(process.env.S3_STORAGE_BUCKET_NAME);
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
