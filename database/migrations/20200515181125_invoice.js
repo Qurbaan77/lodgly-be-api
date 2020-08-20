@@ -13,7 +13,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('clientName');
   table.string('email');
   table.string('address');
-  table.integer('vat');
+  table.string('vat');
   table.string('impression');
   table.string('pdfurl');
   table.integer('total');
