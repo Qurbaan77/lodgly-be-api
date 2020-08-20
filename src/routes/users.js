@@ -117,6 +117,8 @@ const usersRouter = () => {
               token: userData.verificationhex,
             });
 
+            // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
+
             sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
             const msg = {
               from: config.get('mailing.from'),
@@ -311,14 +313,11 @@ const usersRouter = () => {
 
   // post request for forget password
   router.post('/forgetpassword', async (req, res) => {
-    console.log(req.body);
     try {
       const { newpassword, hex } = req.body;
       const { isValid } = checkIfEmpty(req.body);
       if (isValid) {
-        const userData = await userModel.getOneBy({
-          forgetPassHex: hex,
-        });
+        const userData = await DB.select('users', { forgetPassHex: hex });
         if (userData.length) {
           const newhashedPassword = await hashPassword(newpassword);
           if (newhashedPassword) {
@@ -329,7 +328,7 @@ const usersRouter = () => {
                 forgetPassHex: '',
               },
               {
-                email: userData[0].email,
+                forgetPassHex: hex,
               },
             );
             if (updateData) {
@@ -370,11 +369,13 @@ const usersRouter = () => {
       const { isValid } = checkIfEmpty(req.body);
       const { email, company } = req.body;
       if (isValid) {
+        const companyData = await DB.selectCol(['id'], 'organizations', { name: company });
+        const organizationId = companyData[0].id;
         const userData = await DB.select('users', { email });
-        if (userData.length) {
+        if (userData.length && companyData) {
           const forgetPassHex = crypto
             .createHmac('sha256', 'forgetPasswordHex')
-            .update(userData[0].email)
+            .update(company)
             .digest('hex');
           const updatedData = await DB.update(
             'users',
@@ -383,6 +384,7 @@ const usersRouter = () => {
             },
             {
               email,
+              organizationId,
             },
           );
 
@@ -390,11 +392,12 @@ const usersRouter = () => {
             const url = frontendUrl(company, '/reset', {
               hh: forgetPassHex,
             });
+            // const url = `http://${company}.localhost:3000/reset?hh=${forgetPassHex}`;
 
             sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
             const msg = {
               from: config.get('mailing.from'),
-              templateId: config.get('mailing.sendgrid.templates.en. userResetPassword'),
+              templateId: config.get('mailing.sendgrid.templates.en.userResetPassword'),
               personalizations: [
                 {
                   to: [
@@ -744,41 +747,48 @@ const usersRouter = () => {
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      let start;
-      let end;
-      let id;
-      if (body.groupname) {
-        start = Date.parse(body.groupname[0].split('T', 1));
-        end = Date.parse(body.groupname[1].split('T', 1));
-      }
-      if (body.affiliateId) {
-        id = body.affiliateId;
-      } else {
-        id = body.tokenData.userid;
-      }
-      const unitTypeData = {
-        userId: id,
-        propertyId: body.propertyId,
-        unitTypeName: body.name,
-        startDay: start,
-        endDay: end,
-        perNight: body.perNight,
-        roomsToSell: body.roomsToSell,
-        minimumStay: body.minimumStay,
-        noOfUnits: body.noOfUnits,
-      };
+      if (body.name.replace(/\s/g, '').length > 0) {
+        let start;
+        let end;
+        let id;
+        if (body.groupname) {
+          start = Date.parse(body.groupname[0].split('T', 1));
+          end = Date.parse(body.groupname[1].split('T', 1));
+        }
+        if (body.affiliateId) {
+          id = body.affiliateId;
+        } else {
+          id = body.tokenData.userid;
+        }
+        const unitTypeData = {
+          userId: id,
+          propertyId: body.propertyId,
+          unitTypeName: body.name,
+          startDay: start,
+          endDay: end,
+          perNight: body.perNight,
+          roomsToSell: body.roomsToSell,
+          minimumStay: body.minimumStay,
+          noOfUnits: body.noOfUnits,
+        };
 
-      if (body.id) {
-        await DB.update('unitType', unitTypeData, { id: body.id });
-        res.send({
-          code: 200,
-          msg: 'Data updated Successfully!',
-        });
+        if (body.id) {
+          await DB.update('unitType', unitTypeData, { id: body.id });
+          res.send({
+            code: 200,
+            msg: 'Data updated Successfully!',
+          });
+        } else {
+          await DB.insert('unitType', unitTypeData);
+          res.send({
+            code: 200,
+            msg: 'Data saved Successfully!',
+          });
+        }
       } else {
-        await DB.insert('unitType', unitTypeData);
         res.send({
-          code: 200,
-          msg: 'Data saved Successfully!',
+          code: 422,
+          msg: 'Unittype name should not only contains whitespace',
         });
       }
     } catch (e) {
