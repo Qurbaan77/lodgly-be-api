@@ -5,6 +5,11 @@ module.exports = {
     trace: false,
   },
   frontend: {
-    endpoint: 'https://%s.lodgly.com',
+    app: {
+      endpoint: 'https://%s.lodgly.com',
+    },
+    owners: {
+      endpoint: 'https://lodglyowners.com',
+    },
   },
 };

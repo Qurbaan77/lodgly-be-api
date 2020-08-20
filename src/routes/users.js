@@ -25,6 +25,9 @@ const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 AWS.config.setPromisesDependency(bluebird);
 // const clientPath = domainName('app');
 // const serverPath = config.get('serverPath');
+console.log(process.env.AWS_ACCESS_KEY);
+console.log(process.env.AWS_ACCESS_SECRET_KEY);
+console.log(process.env.S3_STORAGE_BUCKET_NAME);
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -34,15 +37,17 @@ const usersRouter = () => {
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
   });
-  const uploadFile = async (buffer, name, type) => {
+  const uploadFile = async (buffer, name, type, organizationid) => {
     try {
+      console.log('organization id in upload file', organizationid);
       console.log(config.get('aws.accessKey'));
       console.log(config.get('aws.accessSecretKey'));
       console.log(config.get('aws.s3.storageBucketName'));
+      const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
         Body: buffer,
-        Bucket: config.get('aws.s3.storageBucketName'),
+        Bucket: `${bucket}/${organizationid}/photos`,
         ContentType: type.mime,
         Key: `${name}.${type.ext}`,
       };
@@ -55,12 +60,13 @@ const usersRouter = () => {
   };
 
   // function for uploading invoice pdf
-  const uploadPdf = async (buffer, name, type) => {
+  const uploadPdf = async (buffer, name, type, organizationid) => {
     console.log(config.get('aws.s3.storageBucketName'));
+    const bucket = config.get('aws.s3.storageBucketName');
     const params = {
       ACL: 'public-read',
       Body: buffer,
-      Bucket: config.get('aws.s3.storageBucketName'),
+      Bucket: `${bucket}/${organizationid}/Invoices`,
       // ContentType: 'application/pdf',
       Key: `${name}.${type.ext}`,
       ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
@@ -110,6 +116,8 @@ const usersRouter = () => {
             const confirmationUrl = frontendUrl(company, '/', {
               token: userData.verificationhex,
             });
+
+            // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
 
             sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
             const msg = {
@@ -305,14 +313,11 @@ const usersRouter = () => {
 
   // post request for forget password
   router.post('/forgetpassword', async (req, res) => {
-    console.log(req.body);
     try {
       const { newpassword, hex } = req.body;
       const { isValid } = checkIfEmpty(req.body);
       if (isValid) {
-        const userData = await userModel.getOneBy({
-          forgetPassHex: hex,
-        });
+        const userData = await DB.select('users', { forgetPassHex: hex });
         if (userData.length) {
           const newhashedPassword = await hashPassword(newpassword);
           if (newhashedPassword) {
@@ -323,7 +328,7 @@ const usersRouter = () => {
                 forgetPassHex: '',
               },
               {
-                email: userData[0].email,
+                forgetPassHex: hex,
               },
             );
             if (updateData) {
@@ -364,11 +369,13 @@ const usersRouter = () => {
       const { isValid } = checkIfEmpty(req.body);
       const { email, company } = req.body;
       if (isValid) {
+        const companyData = await DB.selectCol(['id'], 'organizations', { name: company });
+        const organizationId = companyData[0].id;
         const userData = await DB.select('users', { email });
-        if (userData.length) {
+        if (userData.length && companyData) {
           const forgetPassHex = crypto
             .createHmac('sha256', 'forgetPasswordHex')
-            .update(userData[0].email)
+            .update(company)
             .digest('hex');
           const updatedData = await DB.update(
             'users',
@@ -377,6 +384,7 @@ const usersRouter = () => {
             },
             {
               email,
+              organizationId,
             },
           );
 
@@ -384,11 +392,12 @@ const usersRouter = () => {
             const url = frontendUrl(company, '/reset', {
               hh: forgetPassHex,
             });
+            // const url = `http://${company}.localhost:3000/reset?hh=${forgetPassHex}`;
 
             sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
             const msg = {
               from: config.get('mailing.from'),
-              templateId: config.get('mailing.sendgrid.templates.en. userResetPassword'),
+              templateId: config.get('mailing.sendgrid.templates.en.userResetPassword'),
               personalizations: [
                 {
                   to: [
@@ -738,41 +747,48 @@ const usersRouter = () => {
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      let start;
-      let end;
-      let id;
-      if (body.groupname) {
-        start = Date.parse(body.groupname[0].split('T', 1));
-        end = Date.parse(body.groupname[1].split('T', 1));
-      }
-      if (body.affiliateId) {
-        id = body.affiliateId;
-      } else {
-        id = body.tokenData.userid;
-      }
-      const unitTypeData = {
-        userId: id,
-        propertyId: body.propertyId,
-        unitTypeName: body.name,
-        startDay: start,
-        endDay: end,
-        perNight: body.perNight,
-        roomsToSell: body.roomsToSell,
-        minimumStay: body.minimumStay,
-        noOfUnits: body.noOfUnits,
-      };
+      if (body.name.replace(/\s/g, '').length > 0) {
+        let start;
+        let end;
+        let id;
+        if (body.groupname) {
+          start = Date.parse(body.groupname[0].split('T', 1));
+          end = Date.parse(body.groupname[1].split('T', 1));
+        }
+        if (body.affiliateId) {
+          id = body.affiliateId;
+        } else {
+          id = body.tokenData.userid;
+        }
+        const unitTypeData = {
+          userId: id,
+          propertyId: body.propertyId,
+          unitTypeName: body.name,
+          startDay: start,
+          endDay: end,
+          perNight: body.perNight,
+          roomsToSell: body.roomsToSell,
+          minimumStay: body.minimumStay,
+          noOfUnits: body.noOfUnits,
+        };
 
-      if (body.id) {
-        await DB.update('unitType', unitTypeData, { id: body.id });
-        res.send({
-          code: 200,
-          msg: 'Data updated Successfully!',
-        });
+        if (body.id) {
+          await DB.update('unitType', unitTypeData, { id: body.id });
+          res.send({
+            code: 200,
+            msg: 'Data updated Successfully!',
+          });
+        } else {
+          await DB.insert('unitType', unitTypeData);
+          res.send({
+            code: 200,
+            msg: 'Data saved Successfully!',
+          });
+        }
       } else {
-        await DB.insert('unitType', unitTypeData);
         res.send({
-          code: 200,
-          msg: 'Data saved Successfully!',
+          code: 422,
+          msg: 'Unittype name should not only contains whitespace',
         });
       }
     } catch (e) {
@@ -1833,7 +1849,7 @@ const usersRouter = () => {
         const fileName = `bucketFolder/${req.body.clientName}`;
         const hash = crypto.createHash('md5').update(fileName).digest('hex');
         // upload to AWS S3 bucket
-        const data = await uploadPdf(buffer, hash, type);
+        const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
         console.log('s3 response', data);
         // data.Location is uploaded url
         // this will remove pdf file after it is uploaded
@@ -1870,7 +1886,7 @@ const usersRouter = () => {
           const fileName = `bucketFolder/${req.body.clientName}`;
           const hash = crypto.createHash('md5').update(fileName).digest('hex');
           // upload to AWS S3 bucket
-          const data = await uploadPdf(buffer, hash, type);
+          const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
           console.log('s3 response', data);
           // data.Location is uploaded url
           // this will remove pdf file after it is uploaded
@@ -2080,24 +2096,34 @@ const usersRouter = () => {
           role: body.role,
           bookingRead: body.bookingRead,
           bookingWrite: body.bookingWrite,
+          bookingDelete: body.bookingDelete,
           calendarRead: body.calendarRead,
           calendarWrite: body.calendarWrite,
+          calendarDelete: body.calendarDelete,
           propertiesRead: body.propertiesRead,
           propertiesWrite: body.propertiesWrite,
+          propertiesDelete: body.propertiesDelete,
           guestsRead: body.guestsRead,
           guestsWrite: body.guestsWrite,
+          guestsDelete: body.guestsDelete,
           serviceRead: body.serviceRead,
           serviceWrite: body.serviceWrite,
+          serviceDelete: body.serviceDelete,
           teamRead: body.teamRead,
           teamWrite: body.teamWrite,
+          teamDelete: body.teamDelete,
           invoicesRead: body.invoicesRead,
           invoicesWrite: body.invoicesWrite,
+          invoicesDelete: body.invoicesDelete,
           statsRead: body.statsRead,
           statsWrite: body.statsWrite,
+          statsDelete: body.statsDelete,
           ownerRead: body.ownerRead,
           ownerWrite: body.ownerWrite,
+          ownerDelete: body.ownerDelete,
           billingRead: body.billingRead,
           billingWrite: body.billingWrite,
+          billingDelete: body.billingDelete,
         };
         if (body.id) {
           await DB.update('team', teamData, { id: body.id });
@@ -2332,7 +2358,7 @@ const usersRouter = () => {
               dynamic_template_data: {
                 receipt: true,
                 password,
-                link: config.get('ownerFrontend.endpoint'),
+                link: config.get('frontend.owners.endpoint'),
               },
             },
           ],
@@ -2466,8 +2492,9 @@ const usersRouter = () => {
   });
 
   // API for upload picture
-  router.post('/photo/:id', async (req, res) => {
+  router.post('/photo', async (req, res) => {
     const form = new multiparty.Form();
+    console.log(req.query);
     form.parse(req, async (error, fields, files) => {
       if (error) {
         console.log(error);
@@ -2480,9 +2507,9 @@ const usersRouter = () => {
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
         const hash = crypto.createHash('md5').update(fileName).digest('hex');
-        const data = await uploadFile(buffer, hash, type);
+        const data = await uploadFile(buffer, hash, type, req.query.organizationid);
         console.log('photo url', data.Location);
-        const d0 = await DB.update('users', { image: data.Location }, { id: req.params.id });
+        const d0 = await DB.update('users', { image: data.Location }, { id: req.query.userid });
         console.log(d0);
         return res.json({
           image: data.Location,
@@ -2499,8 +2526,9 @@ const usersRouter = () => {
   });
 
   // API for upload property picture
-  router.post('/propertyPicture/:id', async (req, res) => {
+  router.post('/propertyPicture', async (req, res) => {
     const form = new multiparty.Form();
+    console.log(req.query);
     form.parse(req, async (error, fields, files) => {
       if (error) {
         console.log(error);
@@ -2511,8 +2539,9 @@ const usersRouter = () => {
         const type = await fileType.fromBuffer(buffer);
         const timestamp = Date.now().toString();
         const fileName = `bucketFolder/${timestamp}-lg`;
-        const data = await uploadFile(buffer, fileName, type);
-        await DB.update('property', { image: data.Location }, { id: req.params.id });
+        const hash = crypto.createHash('md5').update(fileName).digest('hex');
+        const data = await uploadFile(buffer, hash, type, req.query.organizationid);
+        await DB.update('property', { image: data.Location }, { id: req.query.propertyid });
         return res.json({
           image: data.Location,
         });
