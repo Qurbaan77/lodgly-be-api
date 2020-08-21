@@ -580,6 +580,33 @@ const ownerRouter = () => {
     });
   });
 
+  // serach company name and add on the subdomain
+  router.post('/searchComapany', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const companyExists = await DB.select('organizations', { name: body.companyName });
+      console.log(companyExists);
+      if (companyExists.length > 0) {
+        res.send({
+          code: 200,
+          msg: 'comapny found!',
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'comapny not found!',
+        });
+      }
+    } catch (e) {
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   return router;
 };
 

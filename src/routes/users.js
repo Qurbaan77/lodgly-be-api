@@ -2255,11 +2255,23 @@ const usersRouter = () => {
         id = body.tokenData.userid;
       }
       const subUser = await DB.select('team', { userId: id });
-      console.log('subuser', subUser);
-      res.send({
-        code: 200,
+      each(
         subUser,
-      });
+        async (items, next) => {
+          const itemsCopy = items;
+          const data = await DB.selectCol(['isvalid'], 'users', { email: itemsCopy.email });
+          const [{ isvalid }] = data;
+          itemsCopy.status = isvalid;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            subUser,
+          });
+        },
+      );
     } catch (e) {
       console.log(e);
       res.send({
