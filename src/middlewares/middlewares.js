@@ -1,3 +1,4 @@
+const config = require('config');
 const { verifyJwt, verifyJwtAdmin, verifyOwnerJwt } = require('../functions');
 
 const userAuthCheck = async (req, res, next) => {
@@ -82,9 +83,24 @@ const adminAuthCheckParam = async (req, res, next) => {
   }
 };
 
+// middleware to check coupon generation authorizatiomn
+const checkAccess = async (req, res, next) => {
+  const headerSecret = req.headers['x-auth-check'];
+  const couponSecret = config.get('COUPON_SECRET_KEY');
+  if (headerSecret === couponSecret) {
+    next();
+  } else {
+    res.send({
+      code: 401,
+      msg: 'Unauthorize request',
+    });
+  }
+};
+
 module.exports = {
   userAuthCheck,
   ownerAuthCheck,
   adminAuthCheck,
   adminAuthCheckParam,
+  checkAccess,
 };

@@ -49,7 +49,8 @@
     "randomstring": "^1.1.5",
     "serverless-http": "^2.5.0",
     "stripe": "^8.78.0",
-    "sync-each": "^1.0.1"
+    "sync-each": "^1.0.1",
+    "voucher-code-generator": "^1.1.1"
   },
   "devDependencies": {
     "eslint": "^7.5.0",
