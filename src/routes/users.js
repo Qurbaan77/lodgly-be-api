@@ -78,12 +78,26 @@ const usersRouter = () => {
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = req.body;
-    const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password);
+    const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password, body.coupon);
     try {
       if (isValid) {
         const company = body.company.replace(/ /g, '').toLowerCase();
         const companyExists = await DB.select('organizations', { name: company });
         if (!companyExists.length) {
+          let isOnTrial = true;
+          let isSubscribed = false;
+          if (body.coupon) {
+            const couponData = await DB.select('coupons', { coupon: body.coupon });
+            if (couponData.length && couponData[0].isUsed === 0) {
+              isOnTrial = false;
+              isSubscribed = true;
+            } else {
+              res.send({
+                code: 409,
+                msg: 'Invalid Coupon!',
+              });
+            }
+          }
           const hashedPassword = await hashPassword(body.password);
           if (hashedPassword) {
             const data = {
@@ -105,6 +119,8 @@ const usersRouter = () => {
               encrypted_password: body.encrypted_password,
               email: body.email,
               phone: body.phone,
+              isOnTrial,
+              isSubscribed,
               verificationhex: body.verificationhex,
             };
             await DB.insert('users', userData);
