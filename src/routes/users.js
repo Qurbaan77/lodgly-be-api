@@ -2709,7 +2709,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const companyData = {
-        name: body.name,
+        companyName: body.companyName,
         address: body.address,
         country: body.country,
         state: body.state,
@@ -2717,7 +2717,7 @@ const usersRouter = () => {
         zip: body.zip,
         vatid: body.vatId,
       };
-      await DB.update('organizations', companyData, { name: body.name });
+      await DB.update('organizations', companyData, { id: body.tokenData.organizationid });
       res.send({
         code: 200,
         msg: 'Data saved successfully!',
