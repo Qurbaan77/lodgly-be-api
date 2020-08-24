@@ -1,4 +1,4 @@
-const { seed } = require('./seeder')
+const { seed } = require('./seeder');
 
 describe('seeder service', () => {
   const tableName = 'tableName';
