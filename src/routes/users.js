@@ -2,6 +2,7 @@ const express = require('express');
 const config = require('config');
 const crypto = require('crypto');
 const randomstring = require('randomstring');
+const moment = require('moment');
 // const nodemailer = require('nodemailer');
 // const smtpTransport = require('nodemailer-smtp-transport');
 const each = require('sync-each');
@@ -78,6 +79,7 @@ const usersRouter = () => {
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = req.body;
+    console.log('signup body', body);
     const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password, body.coupon);
     try {
       if (isValid) {
@@ -86,95 +88,174 @@ const usersRouter = () => {
         if (!companyExists.length) {
           let isOnTrial = true;
           let isSubscribed = false;
-          if (body.coupon) {
+          if (body.coupon && body.coupon !== 'undefined') {
             const couponData = await DB.select('coupons', { coupon: body.coupon });
             if (couponData.length && couponData[0].isUsed === 0) {
               isOnTrial = false;
               isSubscribed = true;
+              const hashedPassword = await hashPassword(body.password);
+              if (hashedPassword) {
+                const data = {
+                  name: company,
+                  planType: 'basic',
+                };
+                const saveData = await DB.insert('organizations', data);
+
+                body.encrypted_password = hashedPassword;
+                const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
+                body.verificationhex = hash;
+
+                if (body.phone === '') {
+                  body.phone = null;
+                }
+                const userData = {
+                  organizationId: saveData,
+                  fullname: body.name,
+                  encrypted_password: body.encrypted_password,
+                  email: body.email,
+                  phone: body.phone,
+                  isOnTrial,
+                  isSubscribed,
+                  verificationhex: body.verificationhex,
+                };
+                await DB.insert('users', userData);
+
+                const featureData = {
+                  organizationId: saveData,
+                };
+                await DB.insert('feature', featureData);
+                const confirmationUrl = frontendUrl(company, '/', {
+                  token: userData.verificationhex,
+                });
+
+                // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
+
+                sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
+                const msg = {
+                  from: config.get('mailing.from'),
+                  templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+                  personalizations: [
+                    {
+                      to: [
+                        {
+                          email: userData.email,
+                        },
+                      ],
+                      dynamic_template_data: {
+                        receipt: true,
+                        confirmation_url: confirmationUrl,
+                        email: userData.email,
+                      },
+                    },
+                  ],
+                };
+
+                sgMail.send(msg, (error, result) => {
+                  if (error) {
+                    console.log(error);
+                    res.send({
+                      code: 400,
+                      msg: 'Some has error occured!',
+                    });
+                  } else {
+                    console.log(result);
+                    res.send({
+                      code: 200,
+                      msg: 'Data saved successfully, please verify your email address!',
+                    });
+                  }
+                });
+              } else {
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              }
             } else {
               res.send({
                 code: 409,
                 msg: 'Invalid Coupon!',
               });
             }
-          }
-          const hashedPassword = await hashPassword(body.password);
-          if (hashedPassword) {
-            const data = {
-              name: company,
-              planType: 'advance',
-            };
-            const saveData = await DB.insert('organizations', data);
+          } else {
+            const hashedPassword = await hashPassword(body.password);
+            if (hashedPassword) {
+              const data = {
+                name: company,
+                planType: 'advance',
+              };
+              const saveData = await DB.insert('organizations', data);
 
-            body.encrypted_password = hashedPassword;
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
-            body.verificationhex = hash;
+              body.encrypted_password = hashedPassword;
+              const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
+              body.verificationhex = hash;
 
-            if (body.phone === '') {
-              body.phone = null;
-            }
-            const userData = {
-              organizationId: saveData,
-              fullname: body.name,
-              encrypted_password: body.encrypted_password,
-              email: body.email,
-              phone: body.phone,
-              isOnTrial,
-              isSubscribed,
-              verificationhex: body.verificationhex,
-            };
-            await DB.insert('users', userData);
+              if (body.phone === '') {
+                body.phone = null;
+              }
+              const userData = {
+                organizationId: saveData,
+                fullname: body.name,
+                encrypted_password: body.encrypted_password,
+                email: body.email,
+                phone: body.phone,
+                isOnTrial,
+                isSubscribed,
+                verificationhex: body.verificationhex,
+              };
+              await DB.insert('users', userData);
 
-            const featureData = {
-              organizationId: saveData,
-            };
-            await DB.insert('feature', featureData);
-            const confirmationUrl = frontendUrl(company, '/', {
-              token: userData.verificationhex,
-            });
+              const featureData = {
+                organizationId: saveData,
+              };
+              await DB.insert('feature', featureData);
+              const confirmationUrl = frontendUrl(company, '/', {
+                token: userData.verificationhex,
+              });
 
-            // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
+              // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
 
-            sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
-            const msg = {
-              from: config.get('mailing.from'),
-              templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
-              personalizations: [
-                {
-                  to: [
-                    {
+              sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
+              const msg = {
+                from: config.get('mailing.from'),
+                templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+                personalizations: [
+                  {
+                    to: [
+                      {
+                        email: userData.email,
+                      },
+                    ],
+                    dynamic_template_data: {
+                      receipt: true,
+                      confirmation_url: confirmationUrl,
                       email: userData.email,
                     },
-                  ],
-                  dynamic_template_data: {
-                    receipt: true,
-                    confirmation_url: confirmationUrl,
-                    email: userData.email,
                   },
-                },
-              ],
-            };
+                ],
+              };
 
-            sgMail.send(msg, (error, result) => {
-              if (error) {
-                console.log(error);
-                res.send({
-                  code: 400,
-                  msg: 'Some has error occured!',
-                });
-              } else {
-                console.log(result);
-                res.send({
-                  code: 200,
-                  msg: 'Data saved successfully, please verify your email address!',
-                });
-              }
-            });
-          } else {
-            res.send({
-              code: 400,
-              msg: 'Some has error occured!',
-            });
+              sgMail.send(msg, (error, result) => {
+                if (error) {
+                  console.log(error);
+                  res.send({
+                    code: 400,
+                    msg: 'Some has error occured!',
+                  });
+                } else {
+                  console.log(result);
+                  res.send({
+                    code: 200,
+                    msg: 'Data saved successfully, please verify your email address!',
+                  });
+                }
+              });
+            } else {
+              res.send({
+                code: 400,
+                msg: 'Some has error occured!',
+              });
+            }
           }
         } else {
           res.send({
@@ -795,11 +876,14 @@ const usersRouter = () => {
             msg: 'Data updated Successfully!',
           });
         } else {
-          await DB.insert('unitType', unitTypeData);
-          res.send({
-            code: 200,
-            msg: 'Data saved Successfully!',
-          });
+          const saveData = await DB.insert('unitType', unitTypeData);
+          const unitData = {
+            userId: id,
+            propertyId: body.propertyId,
+            unittypeId: saveData,
+            unitName: body.name,
+          };
+          await DB.insert('unit', unitData);
         }
       } else {
         res.send({
@@ -3061,8 +3145,8 @@ const usersRouter = () => {
       const { ...body } = req.body;
       console.log('charge body', body);
       const {
-        // stripeToken,
-        amount,
+        stripeToken,
+        // amount,
         interval,
         noOfUnits,
         currency,
@@ -3074,81 +3158,59 @@ const usersRouter = () => {
       const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
       const nextMonth = nextdate / 1000;
       console.log(nextMonth, 'nextMonth');
+      // create the customer
       const customer = await stripe.customers.create({
         email,
-        // source: stripeToken,
-        source: 'tok_visa',
+        source: stripeToken,
         metadata: { currency },
       });
       console.log('customer', customer);
-      const product = await stripe.products.create({
-        name: `Lodgly ${planType} Subscription`,
-        type: 'service',
+      // create the subscription
+      const subscription = await stripe.subscriptions.create({
+        customer: customer.id,
+        items: [
+          {
+            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+            quantity: noOfUnits,
+          },
+        ],
+        expand: ['latest_invoice.payment_intent', 'plan.product'],
       });
-      console.log('product', product);
-      const plan = await stripe.plans.create({
-        nickname: `${interval} plan`,
-        amount: (Math.round(parseFloat(amount) * 100)),
-        interval,
-        product: product.id,
-        currency: `${currency}`,
-      });
-      console.log('plan', plan);
-      let subscriptionid;
-      if (plan.interval === 'month') {
-        const subscription = await stripe.subscriptions.create({
-          customer: customer.id,
-          items: [
-            {
-              plan: plan.id,
-            },
-          ],
-          billing_cycle_anchor: nextMonth,
+      console.log('This is subscription object ====>.>>>>', subscription);
+      if (subscription.status === 'active') {
+        const subscriptionObject = {
+          productId: subscription.plan.product.id,
+          customerId: customer.id,
+          subscriptionId: subscription.id,
+          subscription: true,
+          userId: body.tokenData.userid,
+          units: noOfUnits,
+          Amount: subscription.latest_invoice.amount_paid / 100,
+          interval: subscription.plan.interval,
+          planType,
+          currency,
+        };
+        console.log('subscription object', subscriptionObject);
+        await DB.insert('subscription', subscriptionObject);
+        await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
+        if (planType === 'basic') {
+          await DB.update(
+            'feature',
+            { websideBuilder: 0, channelManager: 0 },
+            { organizationId: body.tokenData.organizationid },
+          );
+          await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+        }
+        res.send({
+          code: 200,
+          msg: 'Transaction successfull',
         });
-        subscriptionid = subscription.id;
-        console.log('subscription', subscription);
       } else {
-        const subscription = await stripe.subscriptions.create({
-          customer: customer.id,
-          items: [
-            {
-              plan: plan.id,
-            },
-          ],
+        res.send({
+          code: 444,
+          msg: 'payment failed',
         });
-        subscriptionid = subscription.id;
-        console.log('subscription', subscription);
       }
-      const subscriptionObject = {
-        productId: product.id,
-        planId: plan.id,
-        customerId: customer.id,
-        subscriptionId: subscriptionid,
-        subscription: true,
-        userId: body.tokenData.userid,
-        units: noOfUnits,
-        Amount: amount,
-        interval: plan.interval,
-        planType,
-        currency,
-      };
-      console.log('subscription object', subscriptionObject);
-      await DB.insert('subscription', subscriptionObject);
-      await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
-      if (planType === 'basic') {
-        await DB.update(
-          'feature',
-          { websideBuilder: 0, channelManager: 0 },
-          { organizationId: body.tokenData.organizationid },
-        );
-        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
-      }
-      const id = await DB.insert('subscription', subscriptionObject);
-      console.log(id);
-      res.send({
-        code: 200,
-        msg: 'Transaction successfull',
-      });
     } catch (err) {
       console.log(err);
       res.send({
@@ -3163,11 +3225,11 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
-      const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
-      console.log('subscription', subscription);
-      const endDate = subscription.current_period_end * 1000;
-      const { status } = subscription;
       if (transactions && transactions.length) {
+        const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
+        console.log('subscription', subscription);
+        const endDate = subscription.current_period_end * 1000;
+        const { status } = subscription;
         res.send({
           code: 200,
           transactions,
@@ -3175,11 +3237,24 @@ const usersRouter = () => {
           status,
         });
       } else {
-        res.send({
-          code: 444,
-        });
+        const data = await DB.selectCol(['isSubscribed', 'created_at'], 'users', { id: body.tokenData.userid });
+        const [{ isSubscribed, created_at: createdAt }] = data;
+        if (parseInt(isSubscribed, 10)) {
+          const onFreePlan = true;
+          res.send({
+            code: 200,
+            onFreePlan,
+            createdAt,
+          });
+        } else {
+          res.send({
+            code: 444,
+            msg: 'some error occured',
+          });
+        }
       }
     } catch (error) {
+      console.log(error);
       res.send({
         code: 444,
         msg: 'some error occured',
@@ -3260,46 +3335,19 @@ const usersRouter = () => {
         amount,
         interval,
         noOfUnits,
-        currency,
+        // currency,
         planType,
       } = body;
-      const Data = await DB.select('subscription', { userId: body.tokenData.userid });
-      const product = await stripe.products.create({
-        name: `Lodgly ${planType} Subscription`,
-        type: 'service',
-      });
-      const updatePlan = await stripe.plans.create({
-        nickname: `Lodgly ${planType} Subscription`,
-        amount: Math.round(parseFloat(amount) * 100),
-        interval,
-        product: product.id,
-        currency,
-      });
-      console.log('plan', updatePlan);
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      const difference = amount - Data[0].Amount;
-      if (difference > 0) {
-        const charge = await stripe.charges.create({
-          amount: Math.round(parseFloat(difference) * 100),
-          currency,
-          customer: subscription.customer,
-          description: 'upgrading the plan',
-        });
-        console.log('charge', charge);
-      }
-      const updatedSubscription = await stripe.subscriptions.update(
-        subscriptionId,
-        {
-          cancel_at_period_end: false,
-          items: [
-            {
-              id: subscription.items.data[0].id,
-              plan: updatePlan.id,
-            },
-          ],
-          proration_behavior: 'none',
-        },
-      );
+      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+        cancel_at_period_end: false,
+        proration_behavior: 'create_prorations',
+        items: [{
+          id: subscription.items.data[0].id,
+          price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+          quantity: noOfUnits,
+        }],
+      });
       console.log('updated subscription', updatedSubscription);
       const payload = {
         subscriptionId: updatedSubscription.id,
@@ -3342,8 +3390,16 @@ const usersRouter = () => {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       console.log('active subscription', subscription);
       if (subscription) {
-        if (subscription.status !== 'active') {
-          await DB.update('users', { issubscriptionEnded: true }, { id: body.tokenData.userid });
+        if (subscription.status === 'canceled') {
+          const end = moment(subscription.current_period_end * 1000).format('YYYY-MM-DD');
+          const today = moment(new Date()).format('YYYY-MM-DD');
+          const compare = moment(end).isSameOrBefore(today);
+          console.log(compare);
+          if (compare) {
+            await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
+          }
+        } else if (subscription.status !== 'active') {
+          await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
         }
       }
       res.send({
