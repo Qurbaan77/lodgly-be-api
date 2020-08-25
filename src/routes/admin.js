@@ -1,12 +1,13 @@
 const express = require('express');
 const crypto = require('crypto');
+const voucherCodes = require('voucher-code-generator');
 const adminModel = require('../models/admin/repositories');
 const DB = require('../services/database');
 const { checkIfEmpty } = require('../functions');
 const { signJwt } = require('../functions');
 const { hashPassword } = require('../functions');
 const { verifyHash } = require('../functions');
-const { adminAuthCheck } = require('../middlewares/middlewares');
+const { adminAuthCheck, checkAccess } = require('../middlewares/middlewares');
 
 const adminRouter = () => {
   // router variable for api routing
@@ -192,6 +193,28 @@ const adminRouter = () => {
       res.send({
         code: 400,
         msg: 'some error occured!',
+      });
+    }
+  });
+
+  // API for coupon generation
+  router.get('/getCoupon', checkAccess, async (req, res) => {
+    try {
+      const generate = voucherCodes.generate({
+        pattern: '######-######',
+        charset: '1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      });
+      const coupon = generate[0];
+      await DB.insert('coupons', { coupon, isUsed: false });
+      res.send({
+        code: 200,
+        coupon,
+      });
+    } catch (error) {
+      console.log(error);
+      res.send({
+        code: 500,
+        msg: 'Server error',
       });
     }
   });
