@@ -2177,7 +2177,6 @@ const usersRouter = () => {
   // API for add team
   router.post('/addTeam', userAuthCheck, async (req, res) => {
     try {
-      console.log('api called');
       const { ...body } = req.body;
       let id;
       if (body.affiliateId) {
@@ -2185,109 +2184,112 @@ const usersRouter = () => {
       } else {
         id = body.tokenData.userid;
       }
-      const userExists = await DB.select('users', { email: body.email });
-      if (!userExists.length) {
-        const password = randomstring.generate(7);
-        console.log('password', password);
-        const hashedPassword = await hashPassword(password);
-        const teamData = {
-          userId: id,
-          email: body.email,
-          role: body.role,
-          bookingRead: body.bookingRead,
-          bookingWrite: body.bookingWrite,
-          bookingDelete: body.bookingDelete,
-          calendarRead: body.calendarRead,
-          calendarWrite: body.calendarWrite,
-          calendarDelete: body.calendarDelete,
-          propertiesRead: body.propertiesRead,
-          propertiesWrite: body.propertiesWrite,
-          propertiesDelete: body.propertiesDelete,
-          guestsRead: body.guestsRead,
-          guestsWrite: body.guestsWrite,
-          guestsDelete: body.guestsDelete,
-          serviceRead: body.serviceRead,
-          serviceWrite: body.serviceWrite,
-          serviceDelete: body.serviceDelete,
-          teamRead: body.teamRead,
-          teamWrite: body.teamWrite,
-          teamDelete: body.teamDelete,
-          invoicesRead: body.invoicesRead,
-          invoicesWrite: body.invoicesWrite,
-          invoicesDelete: body.invoicesDelete,
-          statsRead: body.statsRead,
-          statsWrite: body.statsWrite,
-          statsDelete: body.statsDelete,
-          ownerRead: body.ownerRead,
-          ownerWrite: body.ownerWrite,
-          ownerDelete: body.ownerDelete,
-          billingRead: body.billingRead,
-          billingWrite: body.billingWrite,
-          billingDelete: body.billingDelete,
-        };
-        if (body.id) {
-          await DB.update('team', teamData, { id: body.id });
-          res.send({
-            code: 200,
-            msg: 'Data update successfully!',
-          });
-        } else {
-          const companyData = await DB.select('organizations', { name: body.company });
-          await DB.insert('team', teamData);
-          const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
-          const userData = {
-            organizationId: companyData[0].id,
+      const companyData = await DB.select('organizations', { name: body.company });
+      if (companyData.length) {
+        const userExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
+        console.log('userExists', userExists);
+        if (!userExists.length) {
+          const password = randomstring.generate(7);
+          console.log('password', password);
+          const hashedPassword = await hashPassword(password);
+          const teamData = {
+            userId: id,
             email: body.email,
-            verificationhex: hash,
-            encrypted_password: hashedPassword,
+            role: body.role,
+            bookingRead: body.bookingRead,
+            bookingWrite: body.bookingWrite,
+            bookingDelete: body.bookingDelete,
+            calendarRead: body.calendarRead,
+            calendarWrite: body.calendarWrite,
+            calendarDelete: body.calendarDelete,
+            propertiesRead: body.propertiesRead,
+            propertiesWrite: body.propertiesWrite,
+            propertiesDelete: body.propertiesDelete,
+            guestsRead: body.guestsRead,
+            guestsWrite: body.guestsWrite,
+            guestsDelete: body.guestsDelete,
+            serviceRead: body.serviceRead,
+            serviceWrite: body.serviceWrite,
+            serviceDelete: body.serviceDelete,
+            teamRead: body.teamRead,
+            teamWrite: body.teamWrite,
+            teamDelete: body.teamDelete,
+            invoicesRead: body.invoicesRead,
+            invoicesWrite: body.invoicesWrite,
+            invoicesDelete: body.invoicesDelete,
+            statsRead: body.statsRead,
+            statsWrite: body.statsWrite,
+            statsDelete: body.statsDelete,
+            ownerRead: body.ownerRead,
+            ownerWrite: body.ownerWrite,
+            ownerDelete: body.ownerDelete,
+            billingRead: body.billingRead,
+            billingWrite: body.billingWrite,
+            billingDelete: body.billingDelete,
           };
-          await DB.insert('users', userData);
+          if (body.id) {
+            await DB.update('team', teamData, { id: body.id });
+            res.send({
+              code: 200,
+              msg: 'Data update successfully!',
+            });
+          } else {
+            await DB.insert('team', teamData);
+            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const userData = {
+              organizationId: companyData[0].id,
+              email: body.email,
+              verificationhex: hash,
+              encrypted_password: hashedPassword,
+            };
+            await DB.insert('users', userData);
 
-          const url = frontendUrl(body.company, '/', {
-            token: userData.verificationhex,
-          });
+            const url = frontendUrl(body.company, '/', {
+              token: userData.verificationhex,
+            });
 
-          const msg = {
-            from: config.get('mailing.from'),
-            templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
-            personalizations: [
-              {
-                to: [
-                  {
-                    email: body.email,
+            const msg = {
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
+              personalizations: [
+                {
+                  to: [
+                    {
+                      email: body.email,
+                    },
+                  ],
+                  dynamic_template_data: {
+                    receipt: true,
+                    role: body.role,
+                    password,
+                    link: url,
                   },
-                ],
-                dynamic_template_data: {
-                  receipt: true,
-                  role: body.role,
-                  password,
-                  link: url,
                 },
-              },
-            ],
-          };
+              ],
+            };
 
-          sgMail.send(msg, (error, result) => {
-            if (error) {
-              console.log(error);
-              res.send({
-                code: 400,
-                msg: 'Some has error occured!',
-              });
-            } else {
-              console.log(result);
-              res.send({
-                code: 200,
-                msg: 'Data saved successfully, please verify your email address!',
-              });
-            }
+            sgMail.send(msg, (error, result) => {
+              if (error) {
+                console.log(error);
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              } else {
+                console.log(result);
+                res.send({
+                  code: 200,
+                  msg: 'Data saved successfully, please verify your email address!',
+                });
+              }
+            });
+          }
+        } else {
+          res.send({
+            code: 400,
+            msg: 'Email already exists!',
           });
         }
-      } else {
-        res.send({
-          code: 400,
-          msg: 'Email already exists!',
-        });
       }
     } catch (e) {
       console.log(e);
@@ -3657,6 +3659,20 @@ const usersRouter = () => {
           });
         },
       );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add rates for unitType
+  router.post('/addRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
     } catch (e) {
       console.log(e);
       res.send({
