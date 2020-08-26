@@ -3151,6 +3151,7 @@ const usersRouter = () => {
         noOfUnits,
         currency,
         planType,
+        coupon,
       } = body;
       const data = await DB.selectCol(['email'], 'users', { id: req.body.tokenData.userid });
       const [{ email }] = data;
@@ -3165,17 +3166,40 @@ const usersRouter = () => {
         metadata: { currency },
       });
       console.log('customer', customer);
-      // create the subscription
-      const subscription = await stripe.subscriptions.create({
-        customer: customer.id,
-        items: [
-          {
-            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
-            quantity: noOfUnits,
-          },
-        ],
-        expand: ['latest_invoice.payment_intent', 'plan.product'],
-      });
+      let subscription;
+      // checking for monthly and yearly plan & apply coupon
+      if (interval === 'month') {
+        // creating the monthly subscription
+        subscription = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [
+            {
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
+            },
+          ],
+          expand: ['latest_invoice.payment_intent', 'plan.product'],
+        });
+      } else {
+        // retrieving the coupon id from coupon code
+        const couponCode = await stripe.coupons.retrieve(
+          coupon,
+        );
+        console.log('coupon ====>>>>>>', couponCode);
+        // creating the yearly subscription
+        subscription = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [
+            {
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
+            },
+          ],
+          coupon: couponCode.id,
+          expand: ['latest_invoice.payment_intent', 'plan.product'],
+        });
+      }
+
       console.log('This is subscription object ====>.>>>>', subscription);
       if (subscription.status === 'active') {
         const subscriptionObject = {
@@ -3213,10 +3237,17 @@ const usersRouter = () => {
       }
     } catch (err) {
       console.log(err);
-      res.send({
-        code: 444,
-        msg: 'some error occurred!',
-      });
+      if (err.statusCode === 400) {
+        res.send({
+          code: 400,
+          msg: 'Payment failed!',
+        });
+      } else {
+        res.send({
+          code: 444,
+          msg: 'some error occurred!',
+        });
+      }
     }
   });
 
@@ -3337,41 +3368,69 @@ const usersRouter = () => {
         noOfUnits,
         // currency,
         planType,
+        coupon,
       } = body;
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      const updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
-        cancel_at_period_end: false,
-        proration_behavior: 'create_prorations',
-        items: [{
-          id: subscription.items.data[0].id,
-          price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
-          quantity: noOfUnits,
-        }],
-      });
-      console.log('updated subscription', updatedSubscription);
-      const payload = {
-        subscriptionId: updatedSubscription.id,
-        planId: updatedSubscription.plan.id,
-        productId: updatedSubscription.plan.product,
-        units: noOfUnits,
-        interval,
-        planType,
-        amount,
-      };
-      const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
-      console.log(id);
-      if (planType === 'basic') {
-        await DB.update(
-          'feature',
-          { websideBuilder: 0, channelManager: 0 },
-          { organizationId: body.tokenData.organizationid },
+      let updatedSubscription;
+      if (interval === 'month') {
+        updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: false,
+          proration_behavior: 'create_prorations',
+          items: [{
+            id: subscription.items.data[0].id,
+            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+            quantity: noOfUnits,
+          }],
+        });
+      } else {
+        // retrieving the coupon id from coupon code
+        const couponCode = await stripe.coupons.retrieve(
+          coupon,
         );
-        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+        console.log('coupon ====>>>>>>', couponCode);
+        // updating the subvscription
+        updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: false,
+          proration_behavior: 'create_prorations',
+          items: [{
+            id: subscription.items.data[0].id,
+            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+            quantity: noOfUnits,
+          }],
+          coupon: couponCode.id,
+        });
       }
-      res.send({
-        code: 200,
-        msg: 'your plan is successfully changed',
-      });
+      console.log('updated subscription', updatedSubscription);
+      if (updatedSubscription.status === 'active') {
+        const payload = {
+          subscriptionId: updatedSubscription.id,
+          planId: updatedSubscription.plan.id,
+          productId: updatedSubscription.plan.product,
+          units: noOfUnits,
+          interval,
+          planType,
+          amount,
+        };
+        const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
+        console.log(id);
+        if (planType === 'basic') {
+          await DB.update(
+            'feature',
+            { websideBuilder: 0, channelManager: 0 },
+            { organizationId: body.tokenData.organizationid },
+          );
+          await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+        }
+        res.send({
+          code: 200,
+          msg: 'your plan is successfully changed',
+        });
+      } else {
+        res.send({
+          code: 444,
+          msg: 'payment failed',
+        });
+      }
     } catch (e) {
       console.log(e);
       res.send({
