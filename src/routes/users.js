@@ -735,8 +735,20 @@ const usersRouter = () => {
           msg: 'Data Update Successfully!',
         });
       } else {
-        await DB.insert('property', propertyData);
-
+        const saveProperty = await DB.insert('property', propertyData);
+        const unitTypeData = {
+          userId: id,
+          propertyId: saveProperty,
+          unitTypeName: body.propertyName,
+        };
+        const saveUnitType = await DB.insert('unitType', unitTypeData);
+        const unitData = {
+          userId: id,
+          propertyId: saveProperty,
+          unittypeId: saveUnitType,
+          unitName: body.propertyName,
+        };
+        await DB.insert('unit', unitData);
         res.send({
           code: 200,
           msg: 'Data Saved Successfully!',
