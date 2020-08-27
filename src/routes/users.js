@@ -117,6 +117,7 @@ const usersRouter = () => {
                   isOnTrial,
                   isSubscribed,
                   verificationhex: body.verificationhex,
+                  timeZone: body.timeZone,
                 };
                 await DB.insert('users', userData);
 

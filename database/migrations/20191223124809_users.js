@@ -21,6 +21,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.boolean('isvalid').defaultTo(false);
   table.string('forgetPassHex');
   table.string('encrypted_password');
+  table.string('timeZone');
   table.foreign('organizationId').references('organizations.id').onUpdate('CASCADE').onDelete('CASCADE');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
