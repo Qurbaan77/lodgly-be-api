@@ -3939,6 +3939,69 @@ const usersRouter = () => {
     }
   });
 
+  // api for copy rates of unitType
+  router.post('/copyRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const rateData = {
+        unitTypeId: body.newUnitType,
+        rateName: body.rateName,
+        currency: body.currency,
+        price_per_night: body.price_per_night,
+        minimum_stay: body.minimum_stay,
+        discount_price_per_week: body.discount_price_per_week,
+        discount_price_per_month: body.discount_price_per_month,
+        discount_price_custom_nights: body.discount_price_custom_nights,
+        price_on_monday: body.price_on_monday,
+        price_on_tuesday: body.price_on_tuesday,
+        price_on_wednesday: body.price_on_wednesday,
+        price_on_thursday: body.price_on_thursday,
+        price_on_friday: body.price_on_friday,
+        price_on_saturday: body.price_on_saturday,
+        price_on_sunday: body.price_on_sunday,
+        minimum_stay_on_monday: body.minimum_stay_on_monday,
+        minimum_stay_on_tuesday: body.minimum_stay_on_tuesday,
+        minimum_stay_on_wednesday: body.minimum_stay_on_wednesday,
+        minimum_stay_on_thursday: body.minimum_stay_on_thursday,
+        minimum_stay_on_friday: body.minimum_stay_on_friday,
+        minimum_stay_on_saturday: body.minimum_stay_on_saturday,
+        minimum_stay_on_sunday: body.minimum_stay_on_sunday,
+        extra_charge_on_guest: body.extra_charge_on_guest,
+        extra_guest: body.extra_guest,
+        short_stay: body.short_stay,
+        extra_chage_on_stay: body.extra_chage_on_stay,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+        tax_status: body.tax_status,
+        tax: body.tax,
+        notes: body.notes,
+      };
+      await DB.insert('rates', rateData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
   return router;
 };
 
