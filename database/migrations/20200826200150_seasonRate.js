@@ -1,10 +1,11 @@
-const TABLE_NAME = 'rates';
+const TABLE_NAME = 'seasonRates';
 
 exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
   table.integer('unitTypeId').notNull().unsigned();
-  table.string('rateName');
-  table.string('currency');
+  table.string('seasonRateName');
+  table.date('startDate');
+  table.date('endDate');
   table.integer('price_per_night').defaultTo(0);
   table.integer('minimum_stay').defaultTo(0);
   table.integer('discount_price_per_week').defaultTo(0);
@@ -42,9 +43,6 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.boolean('checkOut_on_friday');
   table.boolean('checkOut_on_saturday');
   table.boolean('checkOut_on_sunday');
-  table.string('tax_status');
-  table.integer('tax');
-  table.string('notes');
   table.foreign('unitTypeId').references('unitType.id').onUpdate('CASCADE').onDelete('CASCADE');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));

@@ -470,10 +470,7 @@ const usersRouter = () => {
         const organizationId = companyData[0].id;
         const userData = await DB.select('users', { email });
         if (userData.length && companyData) {
-          const forgetPassHex = crypto
-            .createHmac('sha256', 'forgetPasswordHex')
-            .update(company)
-            .digest('hex');
+          const forgetPassHex = crypto.createHmac('sha256', 'forgetPasswordHex').update(company).digest('hex');
           const updatedData = await DB.update(
             'users',
             {
@@ -596,7 +593,6 @@ const usersRouter = () => {
       res.send({
         code: 200,
         msg: 'Data add sucessfully',
-
       });
     } catch (e) {
       console.log('error', e);
@@ -844,6 +840,7 @@ const usersRouter = () => {
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       if (body.name.replace(/\s/g, '').length > 0) {
         let start;
         let end;
@@ -884,6 +881,10 @@ const usersRouter = () => {
             unitName: body.name,
           };
           await DB.insert('unit', unitData);
+          res.send({
+            code: 200,
+            msg: 'Data save Successfully!',
+          });
         }
       } else {
         res.send({
@@ -1936,30 +1937,32 @@ const usersRouter = () => {
   router.post('/downloadinvoice', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      pdf.create(invoiceTemplate(body),
-        { timeout: '100000' }).toFile(`
-        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`, async (err, success) => {
-        if (err) {
-          console.log(err);
-        }
-        console.log('filepath', success);
-        // success.filename is saved file path
-        const buffer = fs.readFileSync(success.filename);
-        const type = await fileType.fromBuffer(buffer);
-        const fileName = `bucketFolder/${req.body.clientName}`;
-        const hash = crypto.createHash('md5').update(fileName).digest('hex');
-        // upload to AWS S3 bucket
-        const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
-        console.log('s3 response', data);
-        // data.Location is uploaded url
-        // this will remove pdf file after it is uploaded
-        fs.unlinkSync(success.filename);
-        res.send({
-          code: 200,
-          msg: 'Successfully downloaded invoice',
-          url: data.Location,
-        });
-      });
+      pdf.create(invoiceTemplate(body), { timeout: '100000' }).toFile(
+        `
+        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`,
+        async (err, success) => {
+          if (err) {
+            console.log(err);
+          }
+          console.log('filepath', success);
+          // success.filename is saved file path
+          const buffer = fs.readFileSync(success.filename);
+          const type = await fileType.fromBuffer(buffer);
+          const fileName = `bucketFolder/${req.body.clientName}`;
+          const hash = crypto.createHash('md5').update(fileName).digest('hex');
+          // upload to AWS S3 bucket
+          const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
+          console.log('s3 response', data);
+          // data.Location is uploaded url
+          // this will remove pdf file after it is uploaded
+          fs.unlinkSync(success.filename);
+          res.send({
+            code: 200,
+            msg: 'Successfully downloaded invoice',
+            url: data.Location,
+          });
+        },
+      );
     } catch (err) {
       res.send({
         code: 444,
@@ -3184,9 +3187,7 @@ const usersRouter = () => {
         });
       } else {
         // retrieving the coupon id from coupon code
-        const couponCode = await stripe.coupons.retrieve(
-          coupon,
-        );
+        const couponCode = await stripe.coupons.retrieve(coupon);
         console.log('coupon ====>>>>>>', couponCode);
         // creating the yearly subscription
         subscription = await stripe.subscriptions.create({
@@ -3299,19 +3300,14 @@ const usersRouter = () => {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
       const [{ customerId }] = Data;
       const invoicesList = [];
-      await stripe.invoices.list({ customer: customerId }, (
-        err,
-        invoices,
-      ) => {
+      await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
         invoices.data.forEach((el) => {
           if (el.customer === customerId) {
             const { currency } = el;
             const amount = el.amount_paid / 100;
             // let amount = Math.floor(parseFloat(initial))
             // const { units } = Data[0];
-            const start = new Date(
-              el.lines.data[0].period.start * 1000,
-            ).toDateString();
+            const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
             const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
             const dt = {
               invoiceId: el.id,
@@ -3378,27 +3374,29 @@ const usersRouter = () => {
         updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
           proration_behavior: 'create_prorations',
-          items: [{
-            id: subscription.items.data[0].id,
-            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
-            quantity: noOfUnits,
-          }],
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
+            },
+          ],
         });
       } else {
         // retrieving the coupon id from coupon code
-        const couponCode = await stripe.coupons.retrieve(
-          coupon,
-        );
+        const couponCode = await stripe.coupons.retrieve(coupon);
         console.log('coupon ====>>>>>>', couponCode);
         // updating the subvscription
         updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
           proration_behavior: 'create_prorations',
-          items: [{
-            id: subscription.items.data[0].id,
-            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
-            quantity: noOfUnits,
-          }],
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
+            },
+          ],
           coupon: couponCode.id,
         });
       }
@@ -3479,8 +3477,11 @@ const usersRouter = () => {
   router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
     try {
       const { userid } = req.body.tokenData;
-      const userSubsDetails = await DB.selectCol(['isSubscribed',
-        'isOnTrial', 'issubscriptionEnded', 'created_at'], 'users', { id: userid });
+      const userSubsDetails = await DB.selectCol(
+        ['isSubscribed', 'isOnTrial', 'issubscriptionEnded', 'created_at'],
+        'users',
+        { id: userid },
+      );
       console.log(userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
       let s = Math.floor(diff / 1000);
@@ -3673,6 +3674,249 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log(body);
+      const rateData = {
+        unitTypeId: body.unitTypeId,
+        rateName: body.rateName,
+        currency: body.currency,
+        price_per_night: body.pricePerNight,
+        minimum_stay: body.minStay,
+        discount_price_per_week: body.weeklyPrice,
+        discount_price_per_month: body.monthlyPrice,
+        discount_price_custom_nights: body.customNightsPrice,
+        price_on_monday: body.priceOnMon,
+        price_on_tuesday: body.priceOnTues,
+        price_on_wednesday: body.priceOnWed,
+        price_on_thursday: body.priceOnThu,
+        price_on_friday: body.priceOnFri,
+        price_on_saturday: body.priceOnSat,
+        price_on_sunday: body.priceOnSun,
+        minimum_stay_on_monday: body.minStayOnMon,
+        minimum_stay_on_tuesday: body.minStayOnTues,
+        minimum_stay_on_wednesday: body.minStayOnWed,
+        minimum_stay_on_thursday: body.minStayOnThu,
+        minimum_stay_on_friday: body.minStayOnFri,
+        minimum_stay_on_saturday: body.minStayOnSat,
+        minimum_stay_on_sunday: body.minStayOnSun,
+        extra_charge_on_guest: body.extraCharge,
+        extra_guest: body.extraGuest,
+        short_stay: body.shortStayNight,
+        extra_chage_on_stay: body.shortStayPrice,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+        tax_status: body.tax,
+        tax: body.taxPer,
+        notes: body.notes,
+      };
+      await DB.insert('rates', rateData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add rates for unitType
+  router.post('/getRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const ratesData = await DB.select('rates', { unitTypeId: body.unittypeId });
+      const seasonRatesData = await DB.select('seasonRates', { unitTypeId: body.unittypeId });
+      console.log(ratesData);
+      console.log(seasonRatesData);
+      res.send({
+        code: 200,
+        ratesData,
+        seasonRatesData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API forlisting in copyRates
+  router.post('/getUnitTypeRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const unittypeData = await DB.select('unitType', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        unittypeData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add Season Rates
+  router.post('/addSeasonRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let startDateTime;
+      let endDateTime;
+      if (body.groupname) {
+        startDateTime = new Date(body.groupname[0]);
+        endDateTime = new Date(body.groupname[1]);
+      }
+
+      const seasonRateData = {
+        unitTypeId: body.unitTypeId,
+        seasonRateName: body.seasonRateName,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        price_per_night: body.pricePerNight,
+        minimum_stay: body.minStay,
+        discount_price_per_week: body.weeklyPrice,
+        discount_price_per_month: body.monthlyPrice,
+        discount_price_custom_nights: body.customNightsPrice,
+        price_on_monday: body.priceOnMon,
+        price_on_tuesday: body.priceOnTues,
+        price_on_wednesday: body.priceOnWed,
+        price_on_thursday: body.priceOnThu,
+        price_on_friday: body.priceOnFri,
+        price_on_saturday: body.priceOnSat,
+        price_on_sunday: body.priceOnSun,
+        minimum_stay_on_monday: body.minStayOnMon,
+        minimum_stay_on_tuesday: body.minStayOnTues,
+        minimum_stay_on_wednesday: body.minStayOnWed,
+        minimum_stay_on_thursday: body.minStayOnThu,
+        minimum_stay_on_friday: body.minStayOnFri,
+        minimum_stay_on_saturday: body.minStayOnSat,
+        minimum_stay_on_sunday: body.minStayOnSun,
+        extra_charge_on_guest: body.extraCharge,
+        extra_guest: body.extraGuest,
+        short_stay: body.shortStayNight,
+        extra_chage_on_stay: body.shortStayPrice,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+      };
+      if (body.id) {
+        await DB.update('seasonRates', seasonRateData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
+      } else {
+        await DB.insert('seasonRates', seasonRateData);
+        res.send({
+          code: 200,
+          msg: 'Data save successfully!',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for get Season Rates
+  router.post('/getSeasonRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('getSeasonRates', body);
+      const seasonRateData = await DB.select('seasonRates', { unitTypeId: body.unitTypeId });
+      res.send({
+        code: 200,
+        seasonRateData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for delete seasonRate
+  router.post('/deleteSeasonRate', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('seasonRates', { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'SeasonRate delete successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // get seasonRatesData for an individual
+  router.get('/getSeasonRate/:id', userAuthCheck, async (req, res) => {
+    try {
+      const seasonRateId = req.params.id;
+      const seasonRateData = await DB.select('seasonRates', { id: seasonRateId });
+      res.send({
+        code: 200,
+        seasonRateData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for list of guests
+  router.post('/getGuest', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        guestData,
+      });
     } catch (e) {
       console.log(e);
       res.send({
