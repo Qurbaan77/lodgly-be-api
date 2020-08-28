@@ -3,6 +3,7 @@ const TABLE_NAME = 'organizations';
 exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
   table.string('name');
+  table.string('companyName');
   table.string('planType');
   table.string('address');
   table.string('country');

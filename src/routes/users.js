@@ -117,6 +117,7 @@ const usersRouter = () => {
                   isOnTrial,
                   isSubscribed,
                   verificationhex: body.verificationhex,
+                  timeZone: body.timeZone,
                 };
                 await DB.insert('users', userData);
 
@@ -470,10 +471,7 @@ const usersRouter = () => {
         const organizationId = companyData[0].id;
         const userData = await DB.select('users', { email });
         if (userData.length && companyData) {
-          const forgetPassHex = crypto
-            .createHmac('sha256', 'forgetPasswordHex')
-            .update(company)
-            .digest('hex');
+          const forgetPassHex = crypto.createHmac('sha256', 'forgetPasswordHex').update(company).digest('hex');
           const updatedData = await DB.update(
             'users',
             {
@@ -596,7 +594,6 @@ const usersRouter = () => {
       res.send({
         code: 200,
         msg: 'Data add sucessfully',
-
       });
     } catch (e) {
       console.log('error', e);
@@ -739,8 +736,20 @@ const usersRouter = () => {
           msg: 'Data Update Successfully!',
         });
       } else {
-        await DB.insert('property', propertyData);
-
+        const saveProperty = await DB.insert('property', propertyData);
+        const unitTypeData = {
+          userId: id,
+          propertyId: saveProperty,
+          unitTypeName: body.propertyName,
+        };
+        const saveUnitType = await DB.insert('unitType', unitTypeData);
+        const unitData = {
+          userId: id,
+          propertyId: saveProperty,
+          unittypeId: saveUnitType,
+          unitName: body.propertyName,
+        };
+        await DB.insert('unit', unitData);
         res.send({
           code: 200,
           msg: 'Data Saved Successfully!',
@@ -844,6 +853,7 @@ const usersRouter = () => {
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       if (body.name.replace(/\s/g, '').length > 0) {
         let start;
         let end;
@@ -884,6 +894,10 @@ const usersRouter = () => {
             unitName: body.name,
           };
           await DB.insert('unit', unitData);
+          res.send({
+            code: 200,
+            msg: 'Data save Successfully!',
+          });
         }
       } else {
         res.send({
@@ -1936,30 +1950,32 @@ const usersRouter = () => {
   router.post('/downloadinvoice', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      pdf.create(invoiceTemplate(body),
-        { timeout: '100000' }).toFile(`
-        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`, async (err, success) => {
-        if (err) {
-          console.log(err);
-        }
-        console.log('filepath', success);
-        // success.filename is saved file path
-        const buffer = fs.readFileSync(success.filename);
-        const type = await fileType.fromBuffer(buffer);
-        const fileName = `bucketFolder/${req.body.clientName}`;
-        const hash = crypto.createHash('md5').update(fileName).digest('hex');
-        // upload to AWS S3 bucket
-        const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
-        console.log('s3 response', data);
-        // data.Location is uploaded url
-        // this will remove pdf file after it is uploaded
-        fs.unlinkSync(success.filename);
-        res.send({
-          code: 200,
-          msg: 'Successfully downloaded invoice',
-          url: data.Location,
-        });
-      });
+      pdf.create(invoiceTemplate(body), { timeout: '100000' }).toFile(
+        `
+        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`,
+        async (err, success) => {
+          if (err) {
+            console.log(err);
+          }
+          console.log('filepath', success);
+          // success.filename is saved file path
+          const buffer = fs.readFileSync(success.filename);
+          const type = await fileType.fromBuffer(buffer);
+          const fileName = `bucketFolder/${req.body.clientName}`;
+          const hash = crypto.createHash('md5').update(fileName).digest('hex');
+          // upload to AWS S3 bucket
+          const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
+          console.log('s3 response', data);
+          // data.Location is uploaded url
+          // this will remove pdf file after it is uploaded
+          fs.unlinkSync(success.filename);
+          res.send({
+            code: 200,
+            msg: 'Successfully downloaded invoice',
+            url: data.Location,
+          });
+        },
+      );
     } catch (err) {
       res.send({
         code: 444,
@@ -2177,7 +2193,6 @@ const usersRouter = () => {
   // API for add team
   router.post('/addTeam', userAuthCheck, async (req, res) => {
     try {
-      console.log('api called');
       const { ...body } = req.body;
       let id;
       if (body.affiliateId) {
@@ -2185,109 +2200,112 @@ const usersRouter = () => {
       } else {
         id = body.tokenData.userid;
       }
-      const userExists = await DB.select('users', { email: body.email });
-      if (!userExists.length) {
-        const password = randomstring.generate(7);
-        console.log('password', password);
-        const hashedPassword = await hashPassword(password);
-        const teamData = {
-          userId: id,
-          email: body.email,
-          role: body.role,
-          bookingRead: body.bookingRead,
-          bookingWrite: body.bookingWrite,
-          bookingDelete: body.bookingDelete,
-          calendarRead: body.calendarRead,
-          calendarWrite: body.calendarWrite,
-          calendarDelete: body.calendarDelete,
-          propertiesRead: body.propertiesRead,
-          propertiesWrite: body.propertiesWrite,
-          propertiesDelete: body.propertiesDelete,
-          guestsRead: body.guestsRead,
-          guestsWrite: body.guestsWrite,
-          guestsDelete: body.guestsDelete,
-          serviceRead: body.serviceRead,
-          serviceWrite: body.serviceWrite,
-          serviceDelete: body.serviceDelete,
-          teamRead: body.teamRead,
-          teamWrite: body.teamWrite,
-          teamDelete: body.teamDelete,
-          invoicesRead: body.invoicesRead,
-          invoicesWrite: body.invoicesWrite,
-          invoicesDelete: body.invoicesDelete,
-          statsRead: body.statsRead,
-          statsWrite: body.statsWrite,
-          statsDelete: body.statsDelete,
-          ownerRead: body.ownerRead,
-          ownerWrite: body.ownerWrite,
-          ownerDelete: body.ownerDelete,
-          billingRead: body.billingRead,
-          billingWrite: body.billingWrite,
-          billingDelete: body.billingDelete,
-        };
-        if (body.id) {
-          await DB.update('team', teamData, { id: body.id });
-          res.send({
-            code: 200,
-            msg: 'Data update successfully!',
-          });
-        } else {
-          const companyData = await DB.select('organizations', { name: body.company });
-          await DB.insert('team', teamData);
-          const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
-          const userData = {
-            organizationId: companyData[0].id,
+      const companyData = await DB.select('organizations', { name: body.company });
+      if (companyData.length) {
+        const userExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
+        console.log('userExists', userExists);
+        if (!userExists.length) {
+          const password = randomstring.generate(7);
+          console.log('password', password);
+          const hashedPassword = await hashPassword(password);
+          const teamData = {
+            userId: id,
             email: body.email,
-            verificationhex: hash,
-            encrypted_password: hashedPassword,
+            role: body.role,
+            bookingRead: body.bookingRead,
+            bookingWrite: body.bookingWrite,
+            bookingDelete: body.bookingDelete,
+            calendarRead: body.calendarRead,
+            calendarWrite: body.calendarWrite,
+            calendarDelete: body.calendarDelete,
+            propertiesRead: body.propertiesRead,
+            propertiesWrite: body.propertiesWrite,
+            propertiesDelete: body.propertiesDelete,
+            guestsRead: body.guestsRead,
+            guestsWrite: body.guestsWrite,
+            guestsDelete: body.guestsDelete,
+            serviceRead: body.serviceRead,
+            serviceWrite: body.serviceWrite,
+            serviceDelete: body.serviceDelete,
+            teamRead: body.teamRead,
+            teamWrite: body.teamWrite,
+            teamDelete: body.teamDelete,
+            invoicesRead: body.invoicesRead,
+            invoicesWrite: body.invoicesWrite,
+            invoicesDelete: body.invoicesDelete,
+            statsRead: body.statsRead,
+            statsWrite: body.statsWrite,
+            statsDelete: body.statsDelete,
+            ownerRead: body.ownerRead,
+            ownerWrite: body.ownerWrite,
+            ownerDelete: body.ownerDelete,
+            billingRead: body.billingRead,
+            billingWrite: body.billingWrite,
+            billingDelete: body.billingDelete,
           };
-          await DB.insert('users', userData);
+          if (body.id) {
+            await DB.update('team', teamData, { id: body.id });
+            res.send({
+              code: 200,
+              msg: 'Data update successfully!',
+            });
+          } else {
+            await DB.insert('team', teamData);
+            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const userData = {
+              organizationId: companyData[0].id,
+              email: body.email,
+              verificationhex: hash,
+              encrypted_password: hashedPassword,
+            };
+            await DB.insert('users', userData);
 
-          const url = frontendUrl(body.company, '/', {
-            token: userData.verificationhex,
-          });
+            const url = frontendUrl(body.company, '/', {
+              token: userData.verificationhex,
+            });
 
-          const msg = {
-            from: config.get('mailing.from'),
-            templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
-            personalizations: [
-              {
-                to: [
-                  {
-                    email: body.email,
+            const msg = {
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
+              personalizations: [
+                {
+                  to: [
+                    {
+                      email: body.email,
+                    },
+                  ],
+                  dynamic_template_data: {
+                    receipt: true,
+                    role: body.role,
+                    password,
+                    link: url,
                   },
-                ],
-                dynamic_template_data: {
-                  receipt: true,
-                  role: body.role,
-                  password,
-                  link: url,
                 },
-              },
-            ],
-          };
+              ],
+            };
 
-          sgMail.send(msg, (error, result) => {
-            if (error) {
-              console.log(error);
-              res.send({
-                code: 400,
-                msg: 'Some has error occured!',
-              });
-            } else {
-              console.log(result);
-              res.send({
-                code: 200,
-                msg: 'Data saved successfully, please verify your email address!',
-              });
-            }
+            sgMail.send(msg, (error, result) => {
+              if (error) {
+                console.log(error);
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              } else {
+                console.log(result);
+                res.send({
+                  code: 200,
+                  msg: 'Data saved successfully, please verify your email address!',
+                });
+              }
+            });
+          }
+        } else {
+          res.send({
+            code: 400,
+            msg: 'Email already exists!',
           });
         }
-      } else {
-        res.send({
-          code: 400,
-          msg: 'Email already exists!',
-        });
       }
     } catch (e) {
       console.log(e);
@@ -2835,7 +2853,7 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image'], 'users', {
+      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image', 'timeZone'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
@@ -3182,9 +3200,7 @@ const usersRouter = () => {
         });
       } else {
         // retrieving the coupon id from coupon code
-        const couponCode = await stripe.coupons.retrieve(
-          coupon,
-        );
+        const couponCode = await stripe.coupons.retrieve(coupon);
         console.log('coupon ====>>>>>>', couponCode);
         // creating the yearly subscription
         subscription = await stripe.subscriptions.create({
@@ -3297,19 +3313,14 @@ const usersRouter = () => {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
       const [{ customerId }] = Data;
       const invoicesList = [];
-      await stripe.invoices.list({ customer: customerId }, (
-        err,
-        invoices,
-      ) => {
+      await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
         invoices.data.forEach((el) => {
           if (el.customer === customerId) {
             const { currency } = el;
             const amount = el.amount_paid / 100;
             // let amount = Math.floor(parseFloat(initial))
             // const { units } = Data[0];
-            const start = new Date(
-              el.lines.data[0].period.start * 1000,
-            ).toDateString();
+            const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
             const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
             const dt = {
               invoiceId: el.id,
@@ -3376,27 +3387,29 @@ const usersRouter = () => {
         updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
           proration_behavior: 'create_prorations',
-          items: [{
-            id: subscription.items.data[0].id,
-            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
-            quantity: noOfUnits,
-          }],
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
+            },
+          ],
         });
       } else {
         // retrieving the coupon id from coupon code
-        const couponCode = await stripe.coupons.retrieve(
-          coupon,
-        );
+        const couponCode = await stripe.coupons.retrieve(coupon);
         console.log('coupon ====>>>>>>', couponCode);
         // updating the subvscription
         updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
           proration_behavior: 'create_prorations',
-          items: [{
-            id: subscription.items.data[0].id,
-            price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
-            quantity: noOfUnits,
-          }],
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
+            },
+          ],
           coupon: couponCode.id,
         });
       }
@@ -3477,8 +3490,11 @@ const usersRouter = () => {
   router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
     try {
       const { userid } = req.body.tokenData;
-      const userSubsDetails = await DB.selectCol(['isSubscribed',
-        'isOnTrial', 'issubscriptionEnded', 'created_at'], 'users', { id: userid });
+      const userSubsDetails = await DB.selectCol(
+        ['isSubscribed', 'isOnTrial', 'issubscriptionEnded', 'created_at'],
+        'users',
+        { id: userid },
+      );
       console.log(userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
       let s = Math.floor(diff / 1000);
@@ -3666,6 +3682,344 @@ const usersRouter = () => {
     }
   });
 
+  // API for add rates for unitType
+  router.post('/addRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const rateData = {
+        unitTypeId: body.unitTypeId,
+        rateName: body.rateName,
+        currency: body.currency,
+        price_per_night: body.pricePerNight,
+        minimum_stay: body.minStay,
+        discount_price_per_week: body.weeklyPrice,
+        discount_price_per_month: body.monthlyPrice,
+        discount_price_custom_nights: body.customNightsPrice,
+        price_on_monday: body.priceOnMon,
+        price_on_tuesday: body.priceOnTues,
+        price_on_wednesday: body.priceOnWed,
+        price_on_thursday: body.priceOnThu,
+        price_on_friday: body.priceOnFri,
+        price_on_saturday: body.priceOnSat,
+        price_on_sunday: body.priceOnSun,
+        minimum_stay_on_monday: body.minStayOnMon,
+        minimum_stay_on_tuesday: body.minStayOnTues,
+        minimum_stay_on_wednesday: body.minStayOnWed,
+        minimum_stay_on_thursday: body.minStayOnThu,
+        minimum_stay_on_friday: body.minStayOnFri,
+        minimum_stay_on_saturday: body.minStayOnSat,
+        minimum_stay_on_sunday: body.minStayOnSun,
+        extra_charge_on_guest: body.extraCharge,
+        extra_guest: body.extraGuest,
+        short_stay: body.shortStayNight,
+        extra_chage_on_stay: body.shortStayPrice,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+        tax_status: body.tax,
+        tax: body.taxPer,
+        notes: body.notes,
+      };
+      await DB.insert('rates', rateData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add rates for unitType
+  router.post('/getRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const ratesData = await DB.select('rates', { unitTypeId: body.unittypeId });
+      const seasonRatesData = await DB.select('seasonRates', { unitTypeId: body.unittypeId });
+      console.log(ratesData);
+      console.log(seasonRatesData);
+      res.send({
+        code: 200,
+        ratesData,
+        seasonRatesData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API forlisting in copyRates
+  router.post('/getUnitTypeRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const unittypeData = await DB.select('unitType', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        unittypeData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add Season Rates
+  router.post('/addSeasonRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let startDateTime;
+      let endDateTime;
+      if (body.groupname) {
+        startDateTime = new Date(body.groupname[0]);
+        endDateTime = new Date(body.groupname[1]);
+      }
+
+      const seasonRateData = {
+        unitTypeId: body.unitTypeId,
+        seasonRateName: body.seasonRateName,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        price_per_night: body.pricePerNight,
+        minimum_stay: body.minStay,
+        discount_price_per_week: body.weeklyPrice,
+        discount_price_per_month: body.monthlyPrice,
+        discount_price_custom_nights: body.customNightsPrice,
+        price_on_monday: body.priceOnMon,
+        price_on_tuesday: body.priceOnTues,
+        price_on_wednesday: body.priceOnWed,
+        price_on_thursday: body.priceOnThu,
+        price_on_friday: body.priceOnFri,
+        price_on_saturday: body.priceOnSat,
+        price_on_sunday: body.priceOnSun,
+        minimum_stay_on_monday: body.minStayOnMon,
+        minimum_stay_on_tuesday: body.minStayOnTues,
+        minimum_stay_on_wednesday: body.minStayOnWed,
+        minimum_stay_on_thursday: body.minStayOnThu,
+        minimum_stay_on_friday: body.minStayOnFri,
+        minimum_stay_on_saturday: body.minStayOnSat,
+        minimum_stay_on_sunday: body.minStayOnSun,
+        extra_charge_on_guest: body.extraCharge,
+        extra_guest: body.extraGuest,
+        short_stay: body.shortStayNight,
+        extra_chage_on_stay: body.shortStayPrice,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+      };
+      if (body.id) {
+        await DB.update('seasonRates', seasonRateData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
+      } else {
+        await DB.insert('seasonRates', seasonRateData);
+        res.send({
+          code: 200,
+          msg: 'Data save successfully!',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for get Season Rates
+  router.post('/getSeasonRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('getSeasonRates', body);
+      const seasonRateData = await DB.select('seasonRates', { unitTypeId: body.unitTypeId });
+      res.send({
+        code: 200,
+        seasonRateData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for delete seasonRate
+  router.post('/deleteSeasonRate', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('seasonRates', { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'SeasonRate delete successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // get seasonRatesData for an individual
+  router.get('/getSeasonRate/:id', userAuthCheck, async (req, res) => {
+    try {
+      const seasonRateId = req.params.id;
+      const seasonRateData = await DB.select('seasonRates', { id: seasonRateId });
+      res.send({
+        code: 200,
+        seasonRateData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for list of guests
+  router.post('/getGuest', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        guestData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for copy rates of unitType
+  router.post('/copyRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const rateData = {
+        unitTypeId: body.newUnitType,
+        rateName: body.rateName,
+        currency: body.currency,
+        price_per_night: body.price_per_night,
+        minimum_stay: body.minimum_stay,
+        discount_price_per_week: body.discount_price_per_week,
+        discount_price_per_month: body.discount_price_per_month,
+        discount_price_custom_nights: body.discount_price_custom_nights,
+        price_on_monday: body.price_on_monday,
+        price_on_tuesday: body.price_on_tuesday,
+        price_on_wednesday: body.price_on_wednesday,
+        price_on_thursday: body.price_on_thursday,
+        price_on_friday: body.price_on_friday,
+        price_on_saturday: body.price_on_saturday,
+        price_on_sunday: body.price_on_sunday,
+        minimum_stay_on_monday: body.minimum_stay_on_monday,
+        minimum_stay_on_tuesday: body.minimum_stay_on_tuesday,
+        minimum_stay_on_wednesday: body.minimum_stay_on_wednesday,
+        minimum_stay_on_thursday: body.minimum_stay_on_thursday,
+        minimum_stay_on_friday: body.minimum_stay_on_friday,
+        minimum_stay_on_saturday: body.minimum_stay_on_saturday,
+        minimum_stay_on_sunday: body.minimum_stay_on_sunday,
+        extra_charge_on_guest: body.extra_charge_on_guest,
+        extra_guest: body.extra_guest,
+        short_stay: body.short_stay,
+        extra_chage_on_stay: body.extra_chage_on_stay,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+        tax_status: body.tax_status,
+        tax: body.tax,
+        notes: body.notes,
+      };
+      await DB.insert('rates', rateData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for updateTimeZone of users
+  router.post('/updateTimeZone', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.update('users', { timeZone: body.timezone }, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        msg: 'Data update successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
   return router;
 };
 
