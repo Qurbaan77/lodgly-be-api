@@ -2853,7 +2853,7 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image'], 'users', {
+      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image', 'timeZone'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
@@ -3993,6 +3993,24 @@ const usersRouter = () => {
       res.send({
         code: 200,
         msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for updateTimeZone of users
+  router.post('/updateTimeZone', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.update('users', { timeZone: body.timezone }, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        msg: 'Data update successfully!',
       });
     } catch (e) {
       console.log(e);
