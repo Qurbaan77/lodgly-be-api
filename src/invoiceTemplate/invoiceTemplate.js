@@ -68,7 +68,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                 <span style="color: #f9b32b; font-size: 20px;">${`${propertyName}`}</span>
                             </td> 
                             <td align="right">
-                            ${`${phone}`}
+                            ${`${phone || ''}`}
                             </td>                     
                         </tr> 
 
@@ -220,19 +220,19 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemDescription}`}</span>
                             </td>                     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.quantity}`}</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemQuantity}`}</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.price}`} EUR</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemPrice}`} EUR</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.amount}`} EUR</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemAmount}`} EUR</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.discountPer}`}%</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscountPer}`}%</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.discount}`} EUR</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscount}`} EUR</span>
                             </td>     
                             <td style="padding:5px;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemTotal}`} EUR</span>
