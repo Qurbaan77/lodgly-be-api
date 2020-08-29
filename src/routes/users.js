@@ -2039,11 +2039,11 @@ const usersRouter = () => {
               const Data = {
                 invoiceId: Id,
                 itemDescription: el.itemDescription,
-                quantity: el.quantity,
-                price: el.price,
-                amount: el.amount,
-                discount: el.discount,
-                discountPer: el.discountPer,
+                quantity: el.itemQuantity,
+                price: el.itemPrice,
+                amount: el.itemAmount,
+                discount: el.itemDiscount,
+                discountPer: el.itemDiscountPer,
                 itemTotal: el.itemTotal,
               };
               await DB.insert('invoiceItems', Data);
