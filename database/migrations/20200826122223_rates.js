@@ -9,6 +9,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.integer('minimum_stay').defaultTo(0);
   table.integer('discount_price_per_week').defaultTo(0);
   table.integer('discount_price_per_month').defaultTo(0);
+  table.integer('customNights').defaultTo(0);
   table.integer('discount_price_custom_nights').defaultTo(0);
   table.integer('price_on_monday').defaultTo(0);
   table.integer('price_on_tuesday').defaultTo(0);

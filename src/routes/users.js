@@ -4020,6 +4020,69 @@ const usersRouter = () => {
       });
     }
   });
+
+  // api for adc companies of users
+  router.post('/addCompany', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const companyData = {
+        userId: body.tokenData.userid,
+        name: body.name,
+        vatId: body.vat,
+        email: body.email,
+        address: body.address,
+      };
+      await DB.insert('company', companyData);
+      res.send({
+        code: 200,
+        msg: 'Data save sucessfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for getting company list
+  router.post('/getCompanyList', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const companyData = await DB.select('company', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        companyData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for delete company
+  router.post('/deleteCompany', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('company', { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'Company delete successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
   return router;
 };
 
