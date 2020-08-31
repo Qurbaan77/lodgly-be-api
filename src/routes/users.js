@@ -1707,28 +1707,7 @@ const usersRouter = () => {
   router.post('/deleteGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('guest', { id: body.guestId });
-      if (body.bookingId) {
-        await DB.decrement(
-          'booking',
-          {
-            id: body.bookingId,
-          },
-          {
-            noGuest: 1,
-          },
-        );
-      } else {
-        await DB.decrement(
-          'reservation',
-          {
-            id: body.reservationId,
-          },
-          {
-            noGuest: 1,
-          },
-        );
-      }
+      await DB.remove('guest', { id: body.id });
       res.send({
         code: 200,
         msg: 'Data Deleted Successfully!',
@@ -2451,6 +2430,7 @@ const usersRouter = () => {
         typeOfDoc: body.document,
         docNo: body.documentnumber,
         notes: body.notes,
+        isaccess: body.access,
       };
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });

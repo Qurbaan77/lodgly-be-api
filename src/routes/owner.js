@@ -67,25 +67,37 @@ const ownerRouter = () => {
       });
 
       if (isOwnerExists.length) {
-        const isPasswordValid = await verifyHash(password, isOwnerExists[0].encrypted_password);
-        if (isPasswordValid) {
-          // valid password
-          const token = signJwt(isOwnerExists[0].id);
-          console.log('token on login', token);
-          res.cookie('token', token, {
-            maxAge: 999999999999,
-            signed: true,
-          });
+        if (isOwnerExists[0].isvalid === 0) {
           res.send({
-            code: 200,
-            msg: 'Login successfully',
-            token,
+            code: 403,
+            msg: 'This email is not verified',
+          });
+        } else if (isOwnerExists[0].isaccess === 0) {
+          res.send({
+            code: 403,
+            msg: 'You are not allow to access',
           });
         } else {
-          res.send({
-            code: 400,
-            msg: 'Password is incorrect!',
-          });
+          const isPasswordValid = await verifyHash(password, isOwnerExists[0].encrypted_password);
+          if (isPasswordValid) {
+          // valid password
+            const token = signJwt(isOwnerExists[0].id);
+            console.log('token on login', token);
+            res.cookie('token', token, {
+              maxAge: 999999999999,
+              signed: true,
+            });
+            res.send({
+              code: 200,
+              msg: 'Login successfully',
+              token,
+            });
+          } else {
+            res.send({
+              code: 400,
+              msg: 'Password is incorrect!',
+            });
+          }
         }
       } else {
         res.send({
