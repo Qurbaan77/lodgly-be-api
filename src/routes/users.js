@@ -20,7 +20,7 @@ const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
 const { frontendUrl } = require('../functions/frontend');
-const { userAuthCheck } = require('../middlewares/middlewares');
+const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
@@ -2834,6 +2834,26 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image', 'timeZone'], 'users', {
+        id: body.tokenData.userid,
+      });
+      res.send({
+        code: 200,
+        userData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API to get user info
+  router.post('/getuserDetails', getAuthCheck, async (req, res) => {
+    try {
+      console.log('body of user', req.body);
+      const { ...body } = req.body;
+      const userData = await DB.selectCol(['fullname', 'email'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
