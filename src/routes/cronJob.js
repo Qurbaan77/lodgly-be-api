@@ -36,6 +36,7 @@ const seed = async () => {
       invoice: 1,
       stats: 1,
       owner: 1,
+      guests: 1,
       websideBuilder: 0,
       channelManager: 0,
     };
@@ -48,6 +49,7 @@ const seed = async () => {
       invoice: 1,
       stats: 1,
       owner: 1,
+      guests: 1,
       websideBuilder: 1,
       channelManager: 1,
     };
