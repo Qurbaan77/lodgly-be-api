@@ -4094,6 +4094,23 @@ const usersRouter = () => {
     }
   });
 
+  // API for reomve profile picture
+  router.post('/removeProfile', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.update('users', { image: null }, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
   return router;
 };
 
