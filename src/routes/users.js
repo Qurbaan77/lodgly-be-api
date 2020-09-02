@@ -20,7 +20,7 @@ const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
 const { frontendUrl } = require('../functions/frontend');
-const { userAuthCheck } = require('../middlewares/middlewares');
+const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
@@ -2310,20 +2310,34 @@ const usersRouter = () => {
         role: body.role,
         bookingRead: body.bookingRead,
         bookingWrite: body.bookingWrite,
+        bookingDelete: body.bookingDelete,
         calendarRead: body.calendarRead,
         calendarWrite: body.calendarWrite,
+        calendarDelete: body.calendarDelete,
         propertiesRead: body.propertiesRead,
         propertiesWrite: body.propertiesWrite,
+        propertiesDelete: body.propertiesDelete,
         guestsRead: body.guestsRead,
         guestsWrite: body.guestsWrite,
+        guestsDelete: body.guestsDelete,
         serviceRead: body.serviceRead,
         serviceWrite: body.serviceWrite,
+        serviceDelete: body.serviceDelete,
         teamRead: body.teamRead,
         teamWrite: body.teamWrite,
+        teamDelete: body.teamDelete,
         invoicesRead: body.invoicesRead,
         invoicesWrite: body.invoicesWrite,
+        invoicesDelete: body.invoicesDelete,
         statsRead: body.statsRead,
         statsWrite: body.statsWrite,
+        statsDelete: body.statsDelete,
+        ownerRead: body.ownerRead,
+        ownerWrite: body.ownerWrite,
+        ownerDelete: body.ownerDelete,
+        billingRead: body.billingRead,
+        billingWrite: body.billingWrite,
+        billingDelete: body.billingDelete,
       };
       console.log(subUserData);
       await DB.update('team', subUserData, { id: body.id });
@@ -2831,6 +2845,26 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image', 'timeZone'], 'users', {
+        id: body.tokenData.userid,
+      });
+      res.send({
+        code: 200,
+        userData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API to get user info
+  router.post('/getuserDetails', getAuthCheck, async (req, res) => {
+    try {
+      console.log('body of user', req.body);
+      const { ...body } = req.body;
+      const userData = await DB.selectCol(['fullname', 'email'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({

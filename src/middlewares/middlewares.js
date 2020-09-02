@@ -24,6 +24,29 @@ const userAuthCheck = async (req, res, next) => {
   }
 };
 
+const getAuthCheck = async (req, res, next) => {
+  try {
+    const token = req.headers['x-custom-header'];
+    console.log(token);
+    const isTokenValid = await verifyJwt(token);
+    console.log(isTokenValid);
+    if (isTokenValid) {
+      req.body.tokenData = isTokenValid;
+      next();
+    } else {
+      res.send({
+        code: 400,
+        msg: 'Authentication is required',
+      });
+    }
+  } catch (e) {
+    res.send({
+      code: 444,
+      msg: 'Some error has occured!',
+    });
+  }
+};
+
 const ownerAuthCheck = async (req, res, next) => {
   try {
     const cookie = req.signedCookies;
@@ -103,4 +126,5 @@ module.exports = {
   adminAuthCheck,
   adminAuthCheckParam,
   checkAccess,
+  getAuthCheck,
 };
