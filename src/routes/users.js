@@ -664,8 +664,8 @@ const usersRouter = () => {
       const remainingDays = 14 - totalDays;
       console.log(remainingDays);
       const [{ isOnTrial }] = user;
-      if (remainingDays === 0) {
-        await DB.update('users', { isTrialEnded: true }, { id: body.tokenData.userid });
+      if (remainingDays <= 0) {
+        await DB.update('users', { isOnTrial: false }, { id: body.tokenData.userid });
       }
       res.send({
         code: 200,
@@ -2404,9 +2404,39 @@ const usersRouter = () => {
   // API for adding sub owner
   router.post('/addOwner', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body.properties);
+    console.log(body);
     try {
       let id;
+      let verificationhex;
+      let encryptedPassword;
+
+      if (body.access) {
+        const password = randomstring.generate(7);
+        const hashedPassword = await hashPassword(password);
+        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+        verificationhex = hash;
+        encryptedPassword = hashedPassword;
+        const msg = {
+          from: config.get('mailing.from'),
+          templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
+          personalizations: [
+            {
+              to: [
+                {
+                  email: body.email,
+                },
+              ],
+              dynamic_template_data: {
+                receipt: true,
+                password,
+                link: config.get('frontend.owners.endpoint'),
+              },
+            },
+          ],
+        };
+
+        sgMail.send(msg);
+      }
       if (!body.affiliateId) {
         id = body.tokenData.userid;
       } else {
@@ -2431,7 +2461,10 @@ const usersRouter = () => {
         docNo: body.documentnumber,
         notes: body.notes,
         isaccess: body.access,
+        verificationhex,
+        encrypted_password: encryptedPassword,
       };
+
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
         await DB.update('property', { ownerId: 0 }, { ownerId: body.id });
@@ -2444,50 +2477,14 @@ const usersRouter = () => {
           msg: 'Data update successfully!',
         });
       } else {
-        const password = randomstring.generate(7);
-        const hashedPassword = await hashPassword(password);
-        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
-        ownerData.verificationhex = hash;
-        ownerData.encrypted_password = hashedPassword;
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
           await DB.update('property', { ownerId: saveData }, { id: items });
           next();
         });
-
-        const msg = {
-          from: config.get('mailing.from'),
-          templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
-          personalizations: [
-            {
-              to: [
-                {
-                  email: ownerData.email,
-                },
-              ],
-              dynamic_template_data: {
-                receipt: true,
-                password,
-                link: config.get('frontend.owners.endpoint'),
-              },
-            },
-          ],
-        };
-
-        sgMail.send(msg, (error, result) => {
-          if (error) {
-            console.log(error);
-            res.send({
-              code: 400,
-              msg: 'Some has error occured!',
-            });
-          } else {
-            console.log(result);
-            res.send({
-              code: 200,
-              msg: 'Data saved successfully!',
-            });
-          }
+        res.send({
+          code: 200,
+          msg: 'Data saved successfully!',
         });
       }
     } catch (e) {
