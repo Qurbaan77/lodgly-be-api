@@ -11,6 +11,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.boolean('invoice');
   table.boolean('stats');
   table.boolean('owner');
+  table.boolean('guests');
   table.boolean('websideBuilder');
   table.boolean('channelManager');
 

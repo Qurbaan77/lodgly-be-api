@@ -52,10 +52,10 @@ module.exports = {
       apiKey: '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',
       templates: {
         en: {
-          accountConfirmation: 'd-4a2fa88c47ef4aceb6be5805eab09c46',
-          resetPassword: 'd-bb298999667342649f56ab13fe6dc055',
-          ownerConfirmation: 'd-8a26674aae6b463c825663face51c180',
-          subUserConfirmation: 'd-7683efe41a07402b969a4fb1f497905f',
+          accountConfirmation: 'd-35afe33ef09d43508f087deacf699002',
+          resetPassword: 'd-0eecb1a3826544fba19fb0e59d5f411b',
+          ownerConfirmation: 'd-8393a5a760194102b9782b1dfac8c469',
+          subUserConfirmation: 'd-0f36c198456c4bd3b48af5fb410b21a5',
           userResetPassword: 'd-e3c4a6289ca041f9bb65e5172417843b',
         },
       },

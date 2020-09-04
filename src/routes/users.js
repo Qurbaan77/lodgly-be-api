@@ -2,6 +2,7 @@ const express = require('express');
 const config = require('config');
 const crypto = require('crypto');
 const randomstring = require('randomstring');
+const moment = require('moment');
 // const nodemailer = require('nodemailer');
 // const smtpTransport = require('nodemailer-smtp-transport');
 const each = require('sync-each');
@@ -19,7 +20,7 @@ const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
 const { frontendUrl } = require('../functions/frontend');
-const { userAuthCheck } = require('../middlewares/middlewares');
+const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 
 AWS.config.setPromisesDependency(bluebird);
@@ -78,6 +79,7 @@ const usersRouter = () => {
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = req.body;
+    console.log('signup body', body);
     const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password, body.coupon);
     try {
       if (isValid) {
@@ -86,95 +88,175 @@ const usersRouter = () => {
         if (!companyExists.length) {
           let isOnTrial = true;
           let isSubscribed = false;
-          if (body.coupon) {
+          if (body.coupon && body.coupon !== 'undefined') {
             const couponData = await DB.select('coupons', { coupon: body.coupon });
             if (couponData.length && couponData[0].isUsed === 0) {
               isOnTrial = false;
               isSubscribed = true;
+              const hashedPassword = await hashPassword(body.password);
+              if (hashedPassword) {
+                const data = {
+                  name: company,
+                  planType: 'basic',
+                };
+                const saveData = await DB.insert('organizations', data);
+
+                body.encrypted_password = hashedPassword;
+                const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
+                body.verificationhex = hash;
+
+                if (body.phone === '') {
+                  body.phone = null;
+                }
+                const userData = {
+                  organizationId: saveData,
+                  fullname: body.name,
+                  encrypted_password: body.encrypted_password,
+                  email: body.email,
+                  phone: body.phone,
+                  isOnTrial,
+                  isSubscribed,
+                  verificationhex: body.verificationhex,
+                  timeZone: body.timeZone,
+                };
+                await DB.insert('users', userData);
+
+                const featureData = {
+                  organizationId: saveData,
+                };
+                await DB.insert('feature', featureData);
+                const confirmationUrl = frontendUrl(company, '/', {
+                  token: userData.verificationhex,
+                });
+
+                // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
+
+                sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
+                const msg = {
+                  from: config.get('mailing.from'),
+                  templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+                  personalizations: [
+                    {
+                      to: [
+                        {
+                          email: userData.email,
+                        },
+                      ],
+                      dynamic_template_data: {
+                        receipt: true,
+                        confirmation_url: confirmationUrl,
+                        email: userData.email,
+                      },
+                    },
+                  ],
+                };
+
+                sgMail.send(msg, (error, result) => {
+                  if (error) {
+                    console.log(error);
+                    res.send({
+                      code: 400,
+                      msg: 'Some has error occured!',
+                    });
+                  } else {
+                    console.log(result);
+                    res.send({
+                      code: 200,
+                      msg: 'Data saved successfully, please verify your email address!',
+                    });
+                  }
+                });
+              } else {
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              }
             } else {
               res.send({
                 code: 409,
                 msg: 'Invalid Coupon!',
               });
             }
-          }
-          const hashedPassword = await hashPassword(body.password);
-          if (hashedPassword) {
-            const data = {
-              name: company,
-              planType: 'advance',
-            };
-            const saveData = await DB.insert('organizations', data);
+          } else {
+            const hashedPassword = await hashPassword(body.password);
+            if (hashedPassword) {
+              const data = {
+                name: company,
+                planType: 'advance',
+              };
+              const saveData = await DB.insert('organizations', data);
 
-            body.encrypted_password = hashedPassword;
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
-            body.verificationhex = hash;
+              body.encrypted_password = hashedPassword;
+              const hash = crypto.createHmac('sha256', 'verificationHash').update(body.company).digest('hex');
+              body.verificationhex = hash;
 
-            if (body.phone === '') {
-              body.phone = null;
-            }
-            const userData = {
-              organizationId: saveData,
-              fullname: body.name,
-              encrypted_password: body.encrypted_password,
-              email: body.email,
-              phone: body.phone,
-              isOnTrial,
-              isSubscribed,
-              verificationhex: body.verificationhex,
-            };
-            await DB.insert('users', userData);
+              if (body.phone === '') {
+                body.phone = null;
+              }
+              const userData = {
+                organizationId: saveData,
+                fullname: body.name,
+                encrypted_password: body.encrypted_password,
+                email: body.email,
+                phone: body.phone,
+                isOnTrial,
+                isSubscribed,
+                verificationhex: body.verificationhex,
+              };
+              await DB.insert('users', userData);
 
-            const featureData = {
-              organizationId: saveData,
-            };
-            await DB.insert('feature', featureData);
-            const confirmationUrl = frontendUrl(company, '/', {
-              token: userData.verificationhex,
-            });
+              const featureData = {
+                organizationId: saveData,
+              };
+              await DB.insert('feature', featureData);
+              const confirmationUrl = frontendUrl(company, '/', {
+                token: userData.verificationhex,
+              });
 
-            // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
+              // const confirmationUrl = `http://${company}.localhost:3000/?token=${userData.verificationhex}`;
 
-            sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
-            const msg = {
-              from: config.get('mailing.from'),
-              templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
-              personalizations: [
-                {
-                  to: [
-                    {
+              sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
+              const msg = {
+                from: config.get('mailing.from'),
+                templateId: config.get('mailing.sendgrid.templates.en.accountConfirmation'),
+                personalizations: [
+                  {
+                    to: [
+                      {
+                        email: userData.email,
+                      },
+                    ],
+                    dynamic_template_data: {
+                      receipt: true,
+                      confirmation_url: confirmationUrl,
                       email: userData.email,
                     },
-                  ],
-                  dynamic_template_data: {
-                    receipt: true,
-                    confirmation_url: confirmationUrl,
-                    email: userData.email,
                   },
-                },
-              ],
-            };
+                ],
+              };
 
-            sgMail.send(msg, (error, result) => {
-              if (error) {
-                console.log(error);
-                res.send({
-                  code: 400,
-                  msg: 'Some has error occured!',
-                });
-              } else {
-                console.log(result);
-                res.send({
-                  code: 200,
-                  msg: 'Data saved successfully, please verify your email address!',
-                });
-              }
-            });
-          } else {
-            res.send({
-              code: 400,
-              msg: 'Some has error occured!',
-            });
+              sgMail.send(msg, (error, result) => {
+                if (error) {
+                  console.log(error);
+                  res.send({
+                    code: 400,
+                    msg: 'Some has error occured!',
+                  });
+                } else {
+                  console.log(result);
+                  res.send({
+                    code: 200,
+                    msg: 'Data saved successfully, please verify your email address!',
+                  });
+                }
+              });
+            } else {
+              res.send({
+                code: 400,
+                msg: 'Some has error occured!',
+              });
+            }
           }
         } else {
           res.send({
@@ -389,10 +471,7 @@ const usersRouter = () => {
         const organizationId = companyData[0].id;
         const userData = await DB.select('users', { email });
         if (userData.length && companyData) {
-          const forgetPassHex = crypto
-            .createHmac('sha256', 'forgetPasswordHex')
-            .update(company)
-            .digest('hex');
+          const forgetPassHex = crypto.createHmac('sha256', 'forgetPasswordHex').update(company).digest('hex');
           const updatedData = await DB.update(
             'users',
             {
@@ -515,7 +594,6 @@ const usersRouter = () => {
       res.send({
         code: 200,
         msg: 'Data add sucessfully',
-
       });
     } catch (e) {
       console.log('error', e);
@@ -586,8 +664,8 @@ const usersRouter = () => {
       const remainingDays = 14 - totalDays;
       console.log(remainingDays);
       const [{ isOnTrial }] = user;
-      if (remainingDays === 0) {
-        await DB.update('users', { isTrialEnded: true }, { id: body.tokenData.userid });
+      if (remainingDays <= 0) {
+        await DB.update('users', { isOnTrial: false }, { id: body.tokenData.userid });
       }
       res.send({
         code: 200,
@@ -658,8 +736,20 @@ const usersRouter = () => {
           msg: 'Data Update Successfully!',
         });
       } else {
-        await DB.insert('property', propertyData);
-
+        const saveProperty = await DB.insert('property', propertyData);
+        const unitTypeData = {
+          userId: id,
+          propertyId: saveProperty,
+          unitTypeName: body.propertyName,
+        };
+        const saveUnitType = await DB.insert('unitType', unitTypeData);
+        const unitData = {
+          userId: id,
+          propertyId: saveProperty,
+          unittypeId: saveUnitType,
+          unitName: body.propertyName,
+        };
+        await DB.insert('unit', unitData);
         res.send({
           code: 200,
           msg: 'Data Saved Successfully!',
@@ -763,6 +853,7 @@ const usersRouter = () => {
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       if (body.name.replace(/\s/g, '').length > 0) {
         let start;
         let end;
@@ -795,10 +886,17 @@ const usersRouter = () => {
             msg: 'Data updated Successfully!',
           });
         } else {
-          await DB.insert('unitType', unitTypeData);
+          const saveData = await DB.insert('unitType', unitTypeData);
+          const unitData = {
+            userId: id,
+            propertyId: body.propertyId,
+            unittypeId: saveData,
+            unitName: body.name,
+          };
+          await DB.insert('unit', unitData);
           res.send({
             code: 200,
-            msg: 'Data saved Successfully!',
+            msg: 'Data save Successfully!',
           });
         }
       } else {
@@ -1609,28 +1707,7 @@ const usersRouter = () => {
   router.post('/deleteGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('guest', { id: body.guestId });
-      if (body.bookingId) {
-        await DB.decrement(
-          'booking',
-          {
-            id: body.bookingId,
-          },
-          {
-            noGuest: 1,
-          },
-        );
-      } else {
-        await DB.decrement(
-          'reservation',
-          {
-            id: body.reservationId,
-          },
-          {
-            noGuest: 1,
-          },
-        );
-      }
+      await DB.remove('guest', { id: body.id });
       res.send({
         code: 200,
         msg: 'Data Deleted Successfully!',
@@ -1852,30 +1929,32 @@ const usersRouter = () => {
   router.post('/downloadinvoice', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      pdf.create(invoiceTemplate(body),
-        { timeout: '100000' }).toFile(`
-        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`, async (err, success) => {
-        if (err) {
-          console.log(err);
-        }
-        console.log('filepath', success);
-        // success.filename is saved file path
-        const buffer = fs.readFileSync(success.filename);
-        const type = await fileType.fromBuffer(buffer);
-        const fileName = `bucketFolder/${req.body.clientName}`;
-        const hash = crypto.createHash('md5').update(fileName).digest('hex');
-        // upload to AWS S3 bucket
-        const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
-        console.log('s3 response', data);
-        // data.Location is uploaded url
-        // this will remove pdf file after it is uploaded
-        fs.unlinkSync(success.filename);
-        res.send({
-          code: 200,
-          msg: 'Successfully downloaded invoice',
-          url: data.Location,
-        });
-      });
+      pdf.create(invoiceTemplate(body), { timeout: '100000' }).toFile(
+        `
+        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`,
+        async (err, success) => {
+          if (err) {
+            console.log(err);
+          }
+          console.log('filepath', success);
+          // success.filename is saved file path
+          const buffer = fs.readFileSync(success.filename);
+          const type = await fileType.fromBuffer(buffer);
+          const fileName = `bucketFolder/${req.body.clientName}`;
+          const hash = crypto.createHash('md5').update(fileName).digest('hex');
+          // upload to AWS S3 bucket
+          const data = await uploadPdf(buffer, hash, type, body.tokenData.organizationid);
+          console.log('s3 response', data);
+          // data.Location is uploaded url
+          // this will remove pdf file after it is uploaded
+          fs.unlinkSync(success.filename);
+          res.send({
+            code: 200,
+            msg: 'Successfully downloaded invoice',
+            url: data.Location,
+          });
+        },
+      );
     } catch (err) {
       res.send({
         code: 444,
@@ -1939,11 +2018,11 @@ const usersRouter = () => {
               const Data = {
                 invoiceId: Id,
                 itemDescription: el.itemDescription,
-                quantity: el.quantity,
-                price: el.price,
-                amount: el.amount,
-                discount: el.discount,
-                discountPer: el.discountPer,
+                quantity: el.itemQuantity,
+                price: el.itemPrice,
+                amount: el.itemAmount,
+                discount: el.itemDiscount,
+                discountPer: el.itemDiscountPer,
                 itemTotal: el.itemTotal,
               };
               await DB.insert('invoiceItems', Data);
@@ -2093,7 +2172,6 @@ const usersRouter = () => {
   // API for add team
   router.post('/addTeam', userAuthCheck, async (req, res) => {
     try {
-      console.log('api called');
       const { ...body } = req.body;
       let id;
       if (body.affiliateId) {
@@ -2101,109 +2179,112 @@ const usersRouter = () => {
       } else {
         id = body.tokenData.userid;
       }
-      const userExists = await DB.select('users', { email: body.email });
-      if (!userExists.length) {
-        const password = randomstring.generate(7);
-        console.log('password', password);
-        const hashedPassword = await hashPassword(password);
-        const teamData = {
-          userId: id,
-          email: body.email,
-          role: body.role,
-          bookingRead: body.bookingRead,
-          bookingWrite: body.bookingWrite,
-          bookingDelete: body.bookingDelete,
-          calendarRead: body.calendarRead,
-          calendarWrite: body.calendarWrite,
-          calendarDelete: body.calendarDelete,
-          propertiesRead: body.propertiesRead,
-          propertiesWrite: body.propertiesWrite,
-          propertiesDelete: body.propertiesDelete,
-          guestsRead: body.guestsRead,
-          guestsWrite: body.guestsWrite,
-          guestsDelete: body.guestsDelete,
-          serviceRead: body.serviceRead,
-          serviceWrite: body.serviceWrite,
-          serviceDelete: body.serviceDelete,
-          teamRead: body.teamRead,
-          teamWrite: body.teamWrite,
-          teamDelete: body.teamDelete,
-          invoicesRead: body.invoicesRead,
-          invoicesWrite: body.invoicesWrite,
-          invoicesDelete: body.invoicesDelete,
-          statsRead: body.statsRead,
-          statsWrite: body.statsWrite,
-          statsDelete: body.statsDelete,
-          ownerRead: body.ownerRead,
-          ownerWrite: body.ownerWrite,
-          ownerDelete: body.ownerDelete,
-          billingRead: body.billingRead,
-          billingWrite: body.billingWrite,
-          billingDelete: body.billingDelete,
-        };
-        if (body.id) {
-          await DB.update('team', teamData, { id: body.id });
-          res.send({
-            code: 200,
-            msg: 'Data update successfully!',
-          });
-        } else {
-          const companyData = await DB.select('organizations', { name: body.company });
-          await DB.insert('team', teamData);
-          const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
-          const userData = {
-            organizationId: companyData[0].id,
+      const companyData = await DB.select('organizations', { name: body.company });
+      if (companyData.length) {
+        const userExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
+        console.log('userExists', userExists);
+        if (!userExists.length) {
+          const password = randomstring.generate(7);
+          console.log('password', password);
+          const hashedPassword = await hashPassword(password);
+          const teamData = {
+            userId: id,
             email: body.email,
-            verificationhex: hash,
-            encrypted_password: hashedPassword,
+            role: body.role,
+            bookingRead: body.bookingRead,
+            bookingWrite: body.bookingWrite,
+            bookingDelete: body.bookingDelete,
+            calendarRead: body.calendarRead,
+            calendarWrite: body.calendarWrite,
+            calendarDelete: body.calendarDelete,
+            propertiesRead: body.propertiesRead,
+            propertiesWrite: body.propertiesWrite,
+            propertiesDelete: body.propertiesDelete,
+            guestsRead: body.guestsRead,
+            guestsWrite: body.guestsWrite,
+            guestsDelete: body.guestsDelete,
+            serviceRead: body.serviceRead,
+            serviceWrite: body.serviceWrite,
+            serviceDelete: body.serviceDelete,
+            teamRead: body.teamRead,
+            teamWrite: body.teamWrite,
+            teamDelete: body.teamDelete,
+            invoicesRead: body.invoicesRead,
+            invoicesWrite: body.invoicesWrite,
+            invoicesDelete: body.invoicesDelete,
+            statsRead: body.statsRead,
+            statsWrite: body.statsWrite,
+            statsDelete: body.statsDelete,
+            ownerRead: body.ownerRead,
+            ownerWrite: body.ownerWrite,
+            ownerDelete: body.ownerDelete,
+            billingRead: body.billingRead,
+            billingWrite: body.billingWrite,
+            billingDelete: body.billingDelete,
           };
-          await DB.insert('users', userData);
+          if (body.id) {
+            await DB.update('team', teamData, { id: body.id });
+            res.send({
+              code: 200,
+              msg: 'Data update successfully!',
+            });
+          } else {
+            await DB.insert('team', teamData);
+            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const userData = {
+              organizationId: companyData[0].id,
+              email: body.email,
+              verificationhex: hash,
+              encrypted_password: hashedPassword,
+            };
+            await DB.insert('users', userData);
 
-          const url = frontendUrl(body.company, '/', {
-            token: userData.verificationhex,
-          });
+            const url = frontendUrl(body.company, '/', {
+              token: userData.verificationhex,
+            });
 
-          const msg = {
-            from: config.get('mailing.from'),
-            templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
-            personalizations: [
-              {
-                to: [
-                  {
-                    email: body.email,
+            const msg = {
+              from: config.get('mailing.from'),
+              templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
+              personalizations: [
+                {
+                  to: [
+                    {
+                      email: body.email,
+                    },
+                  ],
+                  dynamic_template_data: {
+                    receipt: true,
+                    role: body.role,
+                    password,
+                    link: url,
                   },
-                ],
-                dynamic_template_data: {
-                  receipt: true,
-                  role: body.role,
-                  password,
-                  link: url,
                 },
-              },
-            ],
-          };
+              ],
+            };
 
-          sgMail.send(msg, (error, result) => {
-            if (error) {
-              console.log(error);
-              res.send({
-                code: 400,
-                msg: 'Some has error occured!',
-              });
-            } else {
-              console.log(result);
-              res.send({
-                code: 200,
-                msg: 'Data saved successfully, please verify your email address!',
-              });
-            }
+            sgMail.send(msg, (error, result) => {
+              if (error) {
+                console.log(error);
+                res.send({
+                  code: 400,
+                  msg: 'Some has error occured!',
+                });
+              } else {
+                console.log(result);
+                res.send({
+                  code: 200,
+                  msg: 'Data saved successfully, please verify your email address!',
+                });
+              }
+            });
+          }
+        } else {
+          res.send({
+            code: 400,
+            msg: 'Email already exists!',
           });
         }
-      } else {
-        res.send({
-          code: 400,
-          msg: 'Email already exists!',
-        });
       }
     } catch (e) {
       console.log(e);
@@ -2229,20 +2310,34 @@ const usersRouter = () => {
         role: body.role,
         bookingRead: body.bookingRead,
         bookingWrite: body.bookingWrite,
+        bookingDelete: body.bookingDelete,
         calendarRead: body.calendarRead,
         calendarWrite: body.calendarWrite,
+        calendarDelete: body.calendarDelete,
         propertiesRead: body.propertiesRead,
         propertiesWrite: body.propertiesWrite,
+        propertiesDelete: body.propertiesDelete,
         guestsRead: body.guestsRead,
         guestsWrite: body.guestsWrite,
+        guestsDelete: body.guestsDelete,
         serviceRead: body.serviceRead,
         serviceWrite: body.serviceWrite,
+        serviceDelete: body.serviceDelete,
         teamRead: body.teamRead,
         teamWrite: body.teamWrite,
+        teamDelete: body.teamDelete,
         invoicesRead: body.invoicesRead,
         invoicesWrite: body.invoicesWrite,
+        invoicesDelete: body.invoicesDelete,
         statsRead: body.statsRead,
         statsWrite: body.statsWrite,
+        statsDelete: body.statsDelete,
+        ownerRead: body.ownerRead,
+        ownerWrite: body.ownerWrite,
+        ownerDelete: body.ownerDelete,
+        billingRead: body.billingRead,
+        billingWrite: body.billingWrite,
+        billingDelete: body.billingDelete,
       };
       console.log(subUserData);
       await DB.update('team', subUserData, { id: body.id });
@@ -2323,9 +2418,39 @@ const usersRouter = () => {
   // API for adding sub owner
   router.post('/addOwner', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body.properties);
+    console.log(body);
     try {
       let id;
+      let verificationhex;
+      let encryptedPassword;
+
+      if (body.access) {
+        const password = randomstring.generate(7);
+        const hashedPassword = await hashPassword(password);
+        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+        verificationhex = hash;
+        encryptedPassword = hashedPassword;
+        const msg = {
+          from: config.get('mailing.from'),
+          templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
+          personalizations: [
+            {
+              to: [
+                {
+                  email: body.email,
+                },
+              ],
+              dynamic_template_data: {
+                receipt: true,
+                password,
+                link: config.get('frontend.owners.endpoint'),
+              },
+            },
+          ],
+        };
+
+        sgMail.send(msg);
+      }
       if (!body.affiliateId) {
         id = body.tokenData.userid;
       } else {
@@ -2349,7 +2474,11 @@ const usersRouter = () => {
         typeOfDoc: body.document,
         docNo: body.documentnumber,
         notes: body.notes,
+        isaccess: body.access,
+        verificationhex,
+        encrypted_password: encryptedPassword,
       };
+
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
         await DB.update('property', { ownerId: 0 }, { ownerId: body.id });
@@ -2362,50 +2491,14 @@ const usersRouter = () => {
           msg: 'Data update successfully!',
         });
       } else {
-        const password = randomstring.generate(7);
-        const hashedPassword = await hashPassword(password);
-        const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
-        ownerData.verificationhex = hash;
-        ownerData.encrypted_password = hashedPassword;
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
           await DB.update('property', { ownerId: saveData }, { id: items });
           next();
         });
-
-        const msg = {
-          from: config.get('mailing.from'),
-          templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
-          personalizations: [
-            {
-              to: [
-                {
-                  email: ownerData.email,
-                },
-              ],
-              dynamic_template_data: {
-                receipt: true,
-                password,
-                link: config.get('frontend.owners.endpoint'),
-              },
-            },
-          ],
-        };
-
-        sgMail.send(msg, (error, result) => {
-          if (error) {
-            console.log(error);
-            res.send({
-              code: 400,
-              msg: 'Some has error occured!',
-            });
-          } else {
-            console.log(result);
-            res.send({
-              code: 200,
-              msg: 'Data saved successfully!',
-            });
-          }
+        res.send({
+          code: 200,
+          msg: 'Data saved successfully!',
         });
       }
     } catch (e) {
@@ -2751,7 +2844,27 @@ const usersRouter = () => {
   router.post('/getuserData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image'], 'users', {
+      const userData = await DB.selectCol(['fullname', 'address', 'email', 'phone', 'image', 'timeZone'], 'users', {
+        id: body.tokenData.userid,
+      });
+      res.send({
+        code: 200,
+        userData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API to get user info
+  router.post('/getuserDetails', getAuthCheck, async (req, res) => {
+    try {
+      console.log('body of user', req.body);
+      const { ...body } = req.body;
+      const userData = await DB.selectCol(['fullname', 'email'], 'users', {
         id: body.tokenData.userid,
       });
       res.send({
@@ -3061,12 +3174,13 @@ const usersRouter = () => {
       const { ...body } = req.body;
       console.log('charge body', body);
       const {
-        // stripeToken,
-        amount,
+        stripeToken,
+        // amount,
         interval,
         noOfUnits,
         currency,
         planType,
+        coupon,
       } = body;
       const data = await DB.selectCol(['email'], 'users', { id: req.body.tokenData.userid });
       const [{ email }] = data;
@@ -3074,87 +3188,93 @@ const usersRouter = () => {
       const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
       const nextMonth = nextdate / 1000;
       console.log(nextMonth, 'nextMonth');
+      // create the customer
       const customer = await stripe.customers.create({
         email,
-        // source: stripeToken,
-        source: 'tok_visa',
+        source: stripeToken,
         metadata: { currency },
       });
       console.log('customer', customer);
-      const product = await stripe.products.create({
-        name: `Lodgly ${planType} Subscription`,
-        type: 'service',
-      });
-      console.log('product', product);
-      const plan = await stripe.plans.create({
-        nickname: `${interval} plan`,
-        amount: (Math.round(parseFloat(amount) * 100)),
-        interval,
-        product: product.id,
-        currency: `${currency}`,
-      });
-      console.log('plan', plan);
-      let subscriptionid;
-      if (plan.interval === 'month') {
-        const subscription = await stripe.subscriptions.create({
+      let subscription;
+      // checking for monthly and yearly plan & apply coupon
+      if (interval === 'month') {
+        // creating the monthly subscription
+        subscription = await stripe.subscriptions.create({
           customer: customer.id,
           items: [
             {
-              plan: plan.id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
             },
           ],
-          billing_cycle_anchor: nextMonth,
+          expand: ['latest_invoice.payment_intent', 'plan.product'],
         });
-        subscriptionid = subscription.id;
-        console.log('subscription', subscription);
       } else {
-        const subscription = await stripe.subscriptions.create({
+        // retrieving the coupon id from coupon code
+        const couponCode = await stripe.coupons.retrieve(coupon);
+        console.log('coupon ====>>>>>>', couponCode);
+        // creating the yearly subscription
+        subscription = await stripe.subscriptions.create({
           customer: customer.id,
           items: [
             {
-              plan: plan.id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
             },
           ],
+          coupon: couponCode.id,
+          expand: ['latest_invoice.payment_intent', 'plan.product'],
         });
-        subscriptionid = subscription.id;
-        console.log('subscription', subscription);
       }
-      const subscriptionObject = {
-        productId: product.id,
-        planId: plan.id,
-        customerId: customer.id,
-        subscriptionId: subscriptionid,
-        subscription: true,
-        userId: body.tokenData.userid,
-        units: noOfUnits,
-        Amount: amount,
-        interval: plan.interval,
-        planType,
-        currency,
-      };
-      console.log('subscription object', subscriptionObject);
-      await DB.insert('subscription', subscriptionObject);
-      await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
-      if (planType === 'basic') {
-        await DB.update(
-          'feature',
-          { websideBuilder: 0, channelManager: 0 },
-          { organizationId: body.tokenData.organizationid },
-        );
-        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+
+      console.log('This is subscription object ====>.>>>>', subscription);
+      if (subscription.status === 'active') {
+        const subscriptionObject = {
+          productId: subscription.plan.product.id,
+          customerId: customer.id,
+          subscriptionId: subscription.id,
+          subscription: true,
+          userId: body.tokenData.userid,
+          units: noOfUnits,
+          Amount: subscription.latest_invoice.amount_paid / 100,
+          interval: subscription.plan.interval,
+          planType,
+          currency,
+        };
+        console.log('subscription object', subscriptionObject);
+        await DB.insert('subscription', subscriptionObject);
+        await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
+        if (planType === 'basic') {
+          await DB.update(
+            'feature',
+            { websideBuilder: 0, channelManager: 0 },
+            { organizationId: body.tokenData.organizationid },
+          );
+          await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+        }
+        res.send({
+          code: 200,
+          msg: 'Transaction successfull',
+        });
+      } else {
+        res.send({
+          code: 444,
+          msg: 'payment failed',
+        });
       }
-      const id = await DB.insert('subscription', subscriptionObject);
-      console.log(id);
-      res.send({
-        code: 200,
-        msg: 'Transaction successfull',
-      });
     } catch (err) {
       console.log(err);
-      res.send({
-        code: 444,
-        msg: 'some error occurred!',
-      });
+      if (err.statusCode === 400) {
+        res.send({
+          code: 400,
+          msg: 'Payment failed!',
+        });
+      } else {
+        res.send({
+          code: 444,
+          msg: 'some error occurred!',
+        });
+      }
     }
   });
 
@@ -3163,11 +3283,11 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
-      const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
-      console.log('subscription', subscription);
-      const endDate = subscription.current_period_end * 1000;
-      const { status } = subscription;
       if (transactions && transactions.length) {
+        const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
+        console.log('subscription', subscription);
+        const endDate = subscription.current_period_end * 1000;
+        const { status } = subscription;
         res.send({
           code: 200,
           transactions,
@@ -3175,11 +3295,24 @@ const usersRouter = () => {
           status,
         });
       } else {
-        res.send({
-          code: 444,
-        });
+        const data = await DB.selectCol(['isSubscribed', 'created_at'], 'users', { id: body.tokenData.userid });
+        const [{ isSubscribed, created_at: createdAt }] = data;
+        if (parseInt(isSubscribed, 10)) {
+          const onFreePlan = true;
+          res.send({
+            code: 200,
+            onFreePlan,
+            createdAt,
+          });
+        } else {
+          res.send({
+            code: 444,
+            msg: 'some error occured',
+          });
+        }
       }
     } catch (error) {
+      console.log(error);
       res.send({
         code: 444,
         msg: 'some error occured',
@@ -3191,19 +3324,14 @@ const usersRouter = () => {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
       const [{ customerId }] = Data;
       const invoicesList = [];
-      await stripe.invoices.list({ customer: customerId }, (
-        err,
-        invoices,
-      ) => {
+      await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
         invoices.data.forEach((el) => {
           if (el.customer === customerId) {
             const { currency } = el;
             const amount = el.amount_paid / 100;
             // let amount = Math.floor(parseFloat(initial))
             // const { units } = Data[0];
-            const start = new Date(
-              el.lines.data[0].period.start * 1000,
-            ).toDateString();
+            const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
             const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
             const dt = {
               invoiceId: el.id,
@@ -3260,70 +3388,73 @@ const usersRouter = () => {
         amount,
         interval,
         noOfUnits,
-        currency,
+        // currency,
         planType,
+        coupon,
       } = body;
-      const Data = await DB.select('subscription', { userId: body.tokenData.userid });
-      const product = await stripe.products.create({
-        name: `Lodgly ${planType} Subscription`,
-        type: 'service',
-      });
-      const updatePlan = await stripe.plans.create({
-        nickname: `Lodgly ${planType} Subscription`,
-        amount: Math.round(parseFloat(amount) * 100),
-        interval,
-        product: product.id,
-        currency,
-      });
-      console.log('plan', updatePlan);
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      const difference = amount - Data[0].Amount;
-      if (difference > 0) {
-        const charge = await stripe.charges.create({
-          amount: Math.round(parseFloat(difference) * 100),
-          currency,
-          customer: subscription.customer,
-          description: 'upgrading the plan',
-        });
-        console.log('charge', charge);
-      }
-      const updatedSubscription = await stripe.subscriptions.update(
-        subscriptionId,
-        {
+      let updatedSubscription;
+      if (interval === 'month') {
+        updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
+          proration_behavior: 'create_prorations',
           items: [
             {
               id: subscription.items.data[0].id,
-              plan: updatePlan.id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
             },
           ],
-          proration_behavior: 'none',
-        },
-      );
-      console.log('updated subscription', updatedSubscription);
-      const payload = {
-        subscriptionId: updatedSubscription.id,
-        planId: updatedSubscription.plan.id,
-        productId: updatedSubscription.plan.product,
-        units: noOfUnits,
-        interval,
-        planType,
-        amount,
-      };
-      const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
-      console.log(id);
-      if (planType === 'basic') {
-        await DB.update(
-          'feature',
-          { websideBuilder: 0, channelManager: 0 },
-          { organizationId: body.tokenData.organizationid },
-        );
-        await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+        });
+      } else {
+        // retrieving the coupon id from coupon code
+        const couponCode = await stripe.coupons.retrieve(coupon);
+        console.log('coupon ====>>>>>>', couponCode);
+        // updating the subvscription
+        updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: false,
+          proration_behavior: 'create_prorations',
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              quantity: noOfUnits,
+            },
+          ],
+          coupon: couponCode.id,
+        });
       }
-      res.send({
-        code: 200,
-        msg: 'your plan is successfully changed',
-      });
+      console.log('updated subscription', updatedSubscription);
+      if (updatedSubscription.status === 'active') {
+        const payload = {
+          subscriptionId: updatedSubscription.id,
+          planId: updatedSubscription.plan.id,
+          productId: updatedSubscription.plan.product,
+          units: noOfUnits,
+          interval,
+          planType,
+          amount,
+        };
+        const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
+        console.log(id);
+        if (planType === 'basic') {
+          await DB.update(
+            'feature',
+            { websideBuilder: 0, channelManager: 0 },
+            { organizationId: body.tokenData.organizationid },
+          );
+          await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
+        }
+        res.send({
+          code: 200,
+          msg: 'your plan is successfully changed',
+        });
+      } else {
+        res.send({
+          code: 444,
+          msg: 'payment failed',
+        });
+      }
     } catch (e) {
       console.log(e);
       res.send({
@@ -3342,8 +3473,16 @@ const usersRouter = () => {
       const subscription = await stripe.subscriptions.retrieve(subscriptionId);
       console.log('active subscription', subscription);
       if (subscription) {
-        if (subscription.status !== 'active') {
-          await DB.update('users', { issubscriptionEnded: true }, { id: body.tokenData.userid });
+        if (subscription.status === 'canceled') {
+          const end = moment(subscription.current_period_end * 1000).format('YYYY-MM-DD');
+          const today = moment(new Date()).format('YYYY-MM-DD');
+          const compare = moment(end).isSameOrBefore(today);
+          console.log(compare);
+          if (compare) {
+            await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
+          }
+        } else if (subscription.status !== 'active') {
+          await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
         }
       }
       res.send({
@@ -3362,8 +3501,11 @@ const usersRouter = () => {
   router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
     try {
       const { userid } = req.body.tokenData;
-      const userSubsDetails = await DB.selectCol(['isSubscribed',
-        'isOnTrial', 'issubscriptionEnded', 'created_at'], 'users', { id: userid });
+      const userSubsDetails = await DB.selectCol(
+        ['isSubscribed', 'isOnTrial', 'issubscriptionEnded', 'created_at'],
+        'users',
+        { id: userid },
+      );
       console.log(userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
       let s = Math.floor(diff / 1000);
@@ -3542,6 +3684,424 @@ const usersRouter = () => {
           });
         },
       );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add rates for unitType
+  router.post('/addRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const rateData = {
+        unitTypeId: body.unitTypeId,
+        rateName: body.rateName,
+        currency: body.currency,
+        price_per_night: body.pricePerNight,
+        minimum_stay: body.minStay,
+        discount_price_per_week: body.weeklyPrice,
+        discount_price_per_month: body.monthlyPrice,
+        discount_price_custom_nights: body.customNightsPrice,
+        price_on_monday: body.priceOnMon,
+        price_on_tuesday: body.priceOnTues,
+        price_on_wednesday: body.priceOnWed,
+        price_on_thursday: body.priceOnThu,
+        price_on_friday: body.priceOnFri,
+        price_on_saturday: body.priceOnSat,
+        price_on_sunday: body.priceOnSun,
+        minimum_stay_on_monday: body.minStayOnMon,
+        minimum_stay_on_tuesday: body.minStayOnTues,
+        minimum_stay_on_wednesday: body.minStayOnWed,
+        minimum_stay_on_thursday: body.minStayOnThu,
+        minimum_stay_on_friday: body.minStayOnFri,
+        minimum_stay_on_saturday: body.minStayOnSat,
+        minimum_stay_on_sunday: body.minStayOnSun,
+        extra_charge_on_guest: body.extraCharge,
+        extra_guest: body.extraGuest,
+        short_stay: body.shortStayNight,
+        extra_chage_on_stay: body.shortStayPrice,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+        tax_status: body.tax,
+        tax: body.taxPer,
+        notes: body.notes,
+      };
+      await DB.insert('rates', rateData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add rates for unitType
+  router.post('/getRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const ratesData = await DB.select('rates', { unitTypeId: body.unittypeId });
+      const seasonRatesData = await DB.select('seasonRates', { unitTypeId: body.unittypeId });
+      console.log(ratesData);
+      console.log(seasonRatesData);
+      res.send({
+        code: 200,
+        ratesData,
+        seasonRatesData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API forlisting in copyRates
+  router.post('/getUnitTypeRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const unittypeData = await DB.select('unitType', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        unittypeData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for add Season Rates
+  router.post('/addSeasonRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let startDateTime;
+      let endDateTime;
+      if (body.groupname) {
+        startDateTime = new Date(body.groupname[0]);
+        endDateTime = new Date(body.groupname[1]);
+      }
+
+      const seasonRateData = {
+        unitTypeId: body.unitTypeId,
+        seasonRateName: body.seasonRateName,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        price_per_night: body.pricePerNight,
+        minimum_stay: body.minStay,
+        discount_price_per_week: body.weeklyPrice,
+        discount_price_per_month: body.monthlyPrice,
+        discount_price_custom_nights: body.customNightsPrice,
+        price_on_monday: body.priceOnMon,
+        price_on_tuesday: body.priceOnTues,
+        price_on_wednesday: body.priceOnWed,
+        price_on_thursday: body.priceOnThu,
+        price_on_friday: body.priceOnFri,
+        price_on_saturday: body.priceOnSat,
+        price_on_sunday: body.priceOnSun,
+        minimum_stay_on_monday: body.minStayOnMon,
+        minimum_stay_on_tuesday: body.minStayOnTues,
+        minimum_stay_on_wednesday: body.minStayOnWed,
+        minimum_stay_on_thursday: body.minStayOnThu,
+        minimum_stay_on_friday: body.minStayOnFri,
+        minimum_stay_on_saturday: body.minStayOnSat,
+        minimum_stay_on_sunday: body.minStayOnSun,
+        extra_charge_on_guest: body.extraCharge,
+        extra_guest: body.extraGuest,
+        short_stay: body.shortStayNight,
+        extra_chage_on_stay: body.shortStayPrice,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+      };
+      if (body.id) {
+        await DB.update('seasonRates', seasonRateData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data update successfully!',
+        });
+      } else {
+        await DB.insert('seasonRates', seasonRateData);
+        res.send({
+          code: 200,
+          msg: 'Data save successfully!',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for get Season Rates
+  router.post('/getSeasonRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('getSeasonRates', body);
+      const seasonRateData = await DB.select('seasonRates', { unitTypeId: body.unitTypeId });
+      res.send({
+        code: 200,
+        seasonRateData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for delete seasonRate
+  router.post('/deleteSeasonRate', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('seasonRates', { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'SeasonRate delete successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // get seasonRatesData for an individual
+  router.get('/getSeasonRate/:id', userAuthCheck, async (req, res) => {
+    try {
+      const seasonRateId = req.params.id;
+      const seasonRateData = await DB.select('seasonRates', { id: seasonRateId });
+      res.send({
+        code: 200,
+        seasonRateData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for list of guests
+  router.post('/getGuest', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        guestData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for copy rates of unitType
+  router.post('/copyRates', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const rateData = {
+        unitTypeId: body.newUnitType,
+        rateName: body.rateName,
+        currency: body.currency,
+        price_per_night: body.price_per_night,
+        minimum_stay: body.minimum_stay,
+        discount_price_per_week: body.discount_price_per_week,
+        discount_price_per_month: body.discount_price_per_month,
+        discount_price_custom_nights: body.discount_price_custom_nights,
+        price_on_monday: body.price_on_monday,
+        price_on_tuesday: body.price_on_tuesday,
+        price_on_wednesday: body.price_on_wednesday,
+        price_on_thursday: body.price_on_thursday,
+        price_on_friday: body.price_on_friday,
+        price_on_saturday: body.price_on_saturday,
+        price_on_sunday: body.price_on_sunday,
+        minimum_stay_on_monday: body.minimum_stay_on_monday,
+        minimum_stay_on_tuesday: body.minimum_stay_on_tuesday,
+        minimum_stay_on_wednesday: body.minimum_stay_on_wednesday,
+        minimum_stay_on_thursday: body.minimum_stay_on_thursday,
+        minimum_stay_on_friday: body.minimum_stay_on_friday,
+        minimum_stay_on_saturday: body.minimum_stay_on_saturday,
+        minimum_stay_on_sunday: body.minimum_stay_on_sunday,
+        extra_charge_on_guest: body.extra_charge_on_guest,
+        extra_guest: body.extra_guest,
+        short_stay: body.short_stay,
+        extra_chage_on_stay: body.extra_chage_on_stay,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+        tax_status: body.tax_status,
+        tax: body.tax,
+        notes: body.notes,
+      };
+      await DB.insert('rates', rateData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for updateTimeZone of users
+  router.post('/updateTimeZone', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.update('users', { timeZone: body.timezone }, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        msg: 'Data update successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for adc companies of users
+  router.post('/addCompany', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      const companyData = {
+        userId: body.tokenData.userid,
+        name: body.name,
+        vatId: body.vat,
+        email: body.email,
+        address: body.address,
+      };
+      await DB.insert('company', companyData);
+      res.send({
+        code: 200,
+        msg: 'Data save sucessfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // api for getting company list
+  router.post('/getCompanyList', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const companyData = await DB.select('company', { userId: body.tokenData.userid });
+      res.send({
+        code: 200,
+        companyData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for delete company
+  router.post('/deleteCompany', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('company', { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'Company delete successfully!',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for reomve profile picture
+  router.post('/removeProfile', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.update('users', { image: null }, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+      });
     } catch (e) {
       console.log(e);
       res.send({
