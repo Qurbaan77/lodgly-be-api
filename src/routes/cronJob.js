@@ -11,19 +11,19 @@ const cronJob = schedule.scheduleJob('00 00 12 0-6', async () => {
   }
 });
 
-const i = async () => {
-  try {
-    const response = await axios.get('https://api.exchangeratesapi.io/latest?symbols=GBP,PLN,CHF');
-    const data = await DB.select('exchangeRate', {});
-    if (data && data.length > 0) {
-      await DB.update('exchangeRate', response.data.rates, {});
-    } else {
-      await DB.insert('exchangeRate', response.data.rates, {});
-    }
-  } catch (error) {
-    console.log(error);
-  }
-};
+// const i = async () => {
+//   try {
+//     const response = await axios.get('https://api.exchangeratesapi.io/latest?symbols=GBP,PLN,CHF');
+//     const data = await DB.select('exchangeRate', {});
+//     if (data && data.length > 0) {
+//       await DB.update('exchangeRate', response.data.rates, {});
+//     } else {
+//       await DB.insert('exchangeRate', response.data.rates, {});
+//     }
+//   } catch (error) {
+//     console.log(error);
+//   }
+// };
 
 const seed = async () => {
   try {
@@ -66,4 +66,4 @@ const seed = async () => {
   }
 };
 
-module.exports = { cronJob, i, seed };
+module.exports = { cronJob, seed };
