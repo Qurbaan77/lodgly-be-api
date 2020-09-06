@@ -1314,6 +1314,7 @@ const usersRouter = () => {
   router.post('/addBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('addBooking', body);
       let id;
       const startDateTime = new Date(body.groupname[0]);
       const endDateTime = new Date(body.groupname[1]);
@@ -1359,6 +1360,10 @@ const usersRouter = () => {
       const Id = await DB.insert('booking', bookingData);
       console.log('ID', Id);
       body.guestData.map(async (el) => {
+        let Dob = null;
+        if (el.dob) {
+          Dob = el.dob.split('T', 1);
+        }
         const Data = {
           userId: id,
           bookingId: Id,
@@ -1366,6 +1371,13 @@ const usersRouter = () => {
           country: el.country,
           email: el.email,
           phone: el.phone,
+          dob: Dob,
+          gender: el.gender,
+          typeOfDoc: el.typeOfDoc,
+          docNo: el.docNo,
+          citizenShip: el.citizenShip,
+          place: el.place,
+          notes: el.notes,
         };
         await DB.insert('guest', Data);
         await DB.increment(
@@ -3937,6 +3949,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       console.log(body);
       const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+      console.log('guestData', guestData);
       res.send({
         code: 200,
         guestData,
@@ -4044,11 +4057,19 @@ const usersRouter = () => {
         email: body.email,
         address: body.address,
       };
-      await DB.insert('company', companyData);
-      res.send({
-        code: 200,
-        msg: 'Data save sucessfully!',
-      });
+      if (body.id) {
+        await DB.update('company', companyData, { id: body.id });
+        res.send({
+          code: 200,
+          msg: 'Data update sucessfully!',
+        });
+      } else {
+        await DB.insert('company', companyData);
+        res.send({
+          code: 200,
+          msg: 'Data save sucessfully!',
+        });
+      }
     } catch (e) {
       console.log(e);
       res.send({
