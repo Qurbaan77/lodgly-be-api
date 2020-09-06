@@ -5,7 +5,7 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const config = require('config');
 
-const { i, seed } = require('./routes/cronJob');
+const { seed } = require('./routes/cronJob');
 
 // routes
 const usersRouter = require('./routes/users')();
@@ -24,7 +24,6 @@ app.use(
     extended: false,
   }),
 );
-i();
 seed();
 
 app.use(cookieParser('cookiesecret'));
