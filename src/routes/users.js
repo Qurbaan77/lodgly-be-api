@@ -350,6 +350,7 @@ const usersRouter = () => {
         // finding user with email and company name
         const companyData = await DB.select('organizations', { name: body.company });
         const isUserExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
+
         console.log('isUserExists', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
@@ -2374,7 +2375,6 @@ const usersRouter = () => {
   router.post('/getSubUser', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('getsubuser', body);
       let id;
       if (body.affiliateId) {
         id = body.affiliateId;
@@ -2386,9 +2386,11 @@ const usersRouter = () => {
         subUser,
         async (items, next) => {
           const itemsCopy = items;
-          const data = await DB.selectCol(['isvalid'], 'users', { email: itemsCopy.email });
-          const [{ isvalid }] = data;
+          const data = await DB.selectCol(['isvalid', 'fullname'], 'users', { email: itemsCopy.email });
+
+          const [{ isvalid, fullname }] = data;
           itemsCopy.status = isvalid;
+          itemsCopy.fullname = fullname;
           next();
           return itemsCopy;
         },
@@ -2424,6 +2426,163 @@ const usersRouter = () => {
         msg: 'Sub User removed successfully!',
       });
     } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API for Resend Mail
+  router.post('/resend-email', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const password = randomstring.generate(7);
+      console.log('password', password);
+      const hashedPassword = await hashPassword(password);
+      const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+      const userData = {
+        verificationhex: hash,
+        encrypted_password: hashedPassword,
+      };
+      await DB.update('users', userData, { id: body.id });
+      const url = frontendUrl(body.company, '/', {
+        token: userData.verificationhex,
+      });
+      const msg = {
+        from: config.get('mailing.from'),
+        templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
+        personalizations: [
+          {
+            to: [
+              {
+                email: body.email,
+              },
+            ],
+            dynamic_template_data: {
+              receipt: true,
+              role: body.role,
+              password,
+              link: url,
+            },
+          },
+        ],
+      };
+
+      sgMail.send(msg, (error, result) => {
+        if (error) {
+          console.log(error);
+          res.send({
+            code: 400,
+            msg: 'Some has error occured!',
+          });
+        } else {
+          console.log(result);
+          res.send({
+            code: 200,
+            msg: 'Data saved successfully, please verify your email address!',
+          });
+        }
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API for update sub userv details
+  router.post('/updateSubUser', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const subUserData = {
+        userId: id,
+        email: body.email,
+        role: body.role,
+        bookingRead: body.bookingRead,
+        bookingWrite: body.bookingWrite,
+        bookingDelete: body.bookingDelete,
+        calendarRead: body.calendarRead,
+        calendarWrite: body.calendarWrite,
+        calendarDelete: body.calendarDelete,
+        propertiesRead: body.propertiesRead,
+        propertiesWrite: body.propertiesWrite,
+        propertiesDelete: body.propertiesDelete,
+        guestsRead: body.guestsRead,
+        guestsWrite: body.guestsWrite,
+        guestsDelete: body.guestsDelete,
+        serviceRead: body.serviceRead,
+        serviceWrite: body.serviceWrite,
+        serviceDelete: body.serviceDelete,
+        teamRead: body.teamRead,
+        teamWrite: body.teamWrite,
+        teamDelete: body.teamDelete,
+        invoicesRead: body.invoicesRead,
+        invoicesWrite: body.invoicesWrite,
+        invoicesDelete: body.invoicesDelete,
+        statsRead: body.statsRead,
+        statsWrite: body.statsWrite,
+        statsDelete: body.statsDelete,
+        ownerRead: body.ownerRead,
+        ownerWrite: body.ownerWrite,
+        ownerDelete: body.ownerDelete,
+        billingRead: body.billingRead,
+        billingWrite: body.billingWrite,
+        billingDelete: body.billingDelete,
+      };
+      console.log(subUserData);
+      await DB.update('team', subUserData, { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'Data update successfully!',
+      });
+    } catch (err) {
+      console.log(err);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get sub user details
+  router.post('/getSubUser', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const subUser = await DB.select('team', { userId: id });
+      each(
+        subUser,
+        async (items, next) => {
+          const itemsCopy = items;
+          const data = await DB.selectCol(['isvalid', 'fullname'], 'users', { email: itemsCopy.email });
+
+          const [{ isvalid, fullname }] = data;
+          itemsCopy.status = isvalid;
+          itemsCopy.fullname = fullname;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            subUser,
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
