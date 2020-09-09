@@ -2036,6 +2036,7 @@ const usersRouter = () => {
                 amount: el.itemAmount,
                 discount: el.itemDiscount,
                 discountPer: el.itemDiscountPer,
+                discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
               await DB.insert('invoiceItems', Data);
@@ -2054,6 +2055,7 @@ const usersRouter = () => {
                 amount: el.amount,
                 discount: el.discount,
                 discountPer: el.discountPer,
+                discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
               await DB.update('invoiceItems', Data);
