@@ -17,6 +17,7 @@ const { verifyHash } = require('../functions');
 const { ownerPanelUrl } = require('../functions/frontend');
 const { ownerAuthCheck } = require('../middlewares/middlewares');
 const reportTemplate = require('../templates/reportTemplate');
+const sentryCapture = require('../../config/sentryCapture');
 
 sgMail.setApiKey(config.get('mailing.sendgrid.apiKey'));
 
@@ -106,6 +107,7 @@ const ownerRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -198,6 +200,7 @@ const ownerRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -243,6 +246,7 @@ const ownerRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -290,6 +294,7 @@ const ownerRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -315,6 +320,7 @@ const ownerRouter = () => {
         msg: 'Data save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -333,6 +339,7 @@ const ownerRouter = () => {
         ownerData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -352,6 +359,7 @@ const ownerRouter = () => {
         msg: 'Password change successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -383,6 +391,7 @@ const ownerRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -418,6 +427,7 @@ const ownerRouter = () => {
         });
       });
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -491,6 +501,7 @@ const ownerRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -520,6 +531,7 @@ const ownerRouter = () => {
         arr,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -555,6 +567,7 @@ const ownerRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -583,6 +596,7 @@ const ownerRouter = () => {
           msg: 'Image upload successfully!',
         });
       } catch (e) {
+        sentryCapture(e);
         console.log(e);
         res.send({
           code: 404,
@@ -611,6 +625,7 @@ const ownerRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
