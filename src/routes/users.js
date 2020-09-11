@@ -22,13 +22,11 @@ const {
 const { frontendUrl } = require('../functions/frontend');
 const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
+const sentryCapture = require('../../config/sentryCapture');
 
 AWS.config.setPromisesDependency(bluebird);
 // const clientPath = domainName('app');
 // const serverPath = config.get('serverPath');
-console.log(process.env.AWS_ACCESS_KEY);
-console.log(process.env.AWS_ACCESS_SECRET_KEY);
-console.log(process.env.S3_STORAGE_BUCKET_NAME);
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -54,9 +52,10 @@ const usersRouter = () => {
       };
       const url = await s3.getSignedUrlPromise('putObject', params);
       return s3.upload(params, url).promise();
-    } catch (err) {
-      console.log(err);
-      return err;
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      return e;
     }
   };
 
@@ -271,6 +270,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 400,
@@ -298,6 +298,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -332,6 +333,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -397,6 +399,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -455,6 +458,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -544,6 +548,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -570,6 +575,7 @@ const usersRouter = () => {
         res.send({ code: 400, msg: 'Not Valid.' });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({ code: 444, msg: 'Some error has occured.' });
     }
@@ -597,6 +603,7 @@ const usersRouter = () => {
         msg: 'Data add sucessfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({ code: 444, msg: 'Some error has occured.' });
     }
@@ -641,6 +648,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -673,7 +681,8 @@ const usersRouter = () => {
         remainingDays,
         isOnTrial,
       });
-    } catch (err) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'some error occurred!',
@@ -689,7 +698,8 @@ const usersRouter = () => {
         code: 200,
         rates,
       });
-    } catch (error) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error occurred!',
@@ -726,6 +736,7 @@ const usersRouter = () => {
         unitTypeV2Id,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -825,6 +836,7 @@ const usersRouter = () => {
       }
       await DB.update('property', Data, { propertyNo: body.No });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -877,6 +889,7 @@ const usersRouter = () => {
       );
       console.log(propertiesData);
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -996,6 +1009,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1026,6 +1040,7 @@ const usersRouter = () => {
         msg: 'Data update Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -1045,6 +1060,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1080,6 +1096,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -1116,6 +1133,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1141,6 +1159,7 @@ const usersRouter = () => {
         msg: 'Data updated Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1161,6 +1180,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1189,6 +1209,7 @@ const usersRouter = () => {
         isOnTrial,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1222,11 +1243,12 @@ const usersRouter = () => {
           msg: 'units not found',
         });
       }
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
-        msg: error,
+        msg: e,
       });
     }
   });
@@ -1264,6 +1286,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1282,6 +1305,7 @@ const usersRouter = () => {
         groupDetail,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1305,6 +1329,7 @@ const usersRouter = () => {
         msg: 'updated successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1326,6 +1351,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error occured!',
@@ -1356,6 +1382,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1377,6 +1404,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1394,6 +1422,7 @@ const usersRouter = () => {
         taskDetail,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error occured!',
@@ -1502,6 +1531,7 @@ const usersRouter = () => {
         msg: 'Booking save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1549,6 +1579,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some Error has occured!',
@@ -1664,24 +1695,27 @@ const usersRouter = () => {
       if (body.deleteGuestId) {
         try {
           await DB.remove('guest', { id: body.deleteGuestId });
-        } catch (err) {
+        } catch (e) {
+          sentryCapture(e);
           res.send({
             code: 400,
-            msg: err,
+            msg: e,
           });
         }
       }
       if (body.deleteServiceId) {
         try {
           await DB.remove('guest', { id: body.deleteServiceId });
-        } catch (err) {
+        } catch (e) {
+          sentryCapture(e);
           res.send({
             code: 400,
-            msg: err,
+            msg: e,
           });
         }
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1698,6 +1732,7 @@ const usersRouter = () => {
         bookingDetail,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1771,6 +1806,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1801,6 +1837,7 @@ const usersRouter = () => {
         msg: 'Data Update Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1818,6 +1855,7 @@ const usersRouter = () => {
         msg: 'Data Deleted Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1925,6 +1963,7 @@ const usersRouter = () => {
         msg: 'Reservation save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1960,6 +1999,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some Error has occured!',
@@ -1985,6 +2025,7 @@ const usersRouter = () => {
         unitData: unit,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some Error has occured!',
@@ -2021,6 +2062,7 @@ const usersRouter = () => {
         msg: 'Data Update Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2039,6 +2081,7 @@ const usersRouter = () => {
         msg: 'Data remove successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2077,10 +2120,11 @@ const usersRouter = () => {
           });
         },
       );
-    } catch (err) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
-        msg: err.msg,
+        msg: e.msg,
       });
     }
   });
@@ -2145,6 +2189,7 @@ const usersRouter = () => {
                 amount: el.itemAmount,
                 discount: el.itemDiscount,
                 discountPer: el.itemDiscountPer,
+                discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
               await DB.insert('invoiceItems', Data);
@@ -2163,6 +2208,7 @@ const usersRouter = () => {
                 amount: el.amount,
                 discount: el.discount,
                 discountPer: el.discountPer,
+                discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
               await DB.update('invoiceItems', Data);
@@ -2174,8 +2220,9 @@ const usersRouter = () => {
             url: data.Location,
           });
         });
-    } catch (err) {
-      console.log(err);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occurred',
@@ -2219,10 +2266,11 @@ const usersRouter = () => {
           }
         },
       );
-    } catch (err) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
-        msg: err,
+        msg: e,
       });
     }
   });
@@ -2237,6 +2285,7 @@ const usersRouter = () => {
         msg: 'Data remove successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2260,6 +2309,7 @@ const usersRouter = () => {
         msg: 'Invoice Cancelled!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2284,6 +2334,7 @@ const usersRouter = () => {
         InvoiceData,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2409,6 +2460,7 @@ const usersRouter = () => {
         }
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2467,8 +2519,9 @@ const usersRouter = () => {
         code: 200,
         msg: 'Data update successfully!',
       });
-    } catch (err) {
-      console.log(err);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2507,6 +2560,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2531,6 +2585,7 @@ const usersRouter = () => {
         msg: 'Sub User removed successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2589,6 +2644,7 @@ const usersRouter = () => {
         }
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2647,8 +2703,9 @@ const usersRouter = () => {
         code: 200,
         msg: 'Data update successfully!',
       });
-    } catch (err) {
-      console.log(err);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2687,6 +2744,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2782,6 +2840,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2806,6 +2865,7 @@ const usersRouter = () => {
         data,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2825,6 +2885,7 @@ const usersRouter = () => {
         msg: 'Data remove successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2860,6 +2921,7 @@ const usersRouter = () => {
         msg: 'Data updated successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2885,6 +2947,7 @@ const usersRouter = () => {
         userInfo,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2916,6 +2979,7 @@ const usersRouter = () => {
           image: data.Location,
         });
       } catch (e) {
+        sentryCapture(e);
         console.log(e);
         res.send({
           code: 444,
@@ -2947,6 +3011,7 @@ const usersRouter = () => {
           image: data.Location,
         });
       } catch (e) {
+        sentryCapture(e);
         res.send({
           code: 444,
           msg: 'Some error has occured!',
@@ -2981,6 +3046,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -3000,6 +3066,7 @@ const usersRouter = () => {
         servicData,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -3019,6 +3086,7 @@ const usersRouter = () => {
         msg: 'Data Remove Sucessfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -3034,6 +3102,7 @@ const usersRouter = () => {
         status: true,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 406,
         msg: 'Some error has occured!',
@@ -3061,6 +3130,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3085,6 +3155,7 @@ const usersRouter = () => {
         msg: 'Data update successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3112,6 +3183,7 @@ const usersRouter = () => {
         msg: 'Data saved successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3132,6 +3204,7 @@ const usersRouter = () => {
         userData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3152,6 +3225,7 @@ const usersRouter = () => {
         userData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3171,6 +3245,7 @@ const usersRouter = () => {
         companyData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3233,6 +3308,7 @@ const usersRouter = () => {
         prevYearArr,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3320,6 +3396,7 @@ const usersRouter = () => {
         prevYearArr,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3407,6 +3484,7 @@ const usersRouter = () => {
         prevYearArr,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3438,6 +3516,7 @@ const usersRouter = () => {
         average,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3542,9 +3621,10 @@ const usersRouter = () => {
           msg: 'payment failed',
         });
       }
-    } catch (err) {
-      console.log(err);
-      if (err.statusCode === 400) {
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      if (e.statusCode === 400) {
         res.send({
           code: 400,
           msg: 'Payment failed!',
@@ -3591,8 +3671,9 @@ const usersRouter = () => {
           });
         }
       }
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occured',
@@ -3628,6 +3709,7 @@ const usersRouter = () => {
         res.send({ code: 200, invoicesList });
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({ code: 444, msg: 'Some error has occured.' });
     }
   });
@@ -3650,8 +3732,9 @@ const usersRouter = () => {
           msg: 'Your subscription is cancelled',
         });
       });
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occurred!',
@@ -3736,6 +3819,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3769,7 +3853,8 @@ const usersRouter = () => {
         code: 200,
         msg: 'subscription status updated',
       });
-    } catch (error) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'some error occured!',
@@ -3801,8 +3886,9 @@ const usersRouter = () => {
         code: 200,
         userSubsDetails,
       });
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occured',
@@ -3836,6 +3922,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3865,6 +3952,7 @@ const usersRouter = () => {
         msg: 'Status added successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3936,6 +4024,7 @@ const usersRouter = () => {
         msg: 'Group Reservation save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3965,6 +4054,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4029,6 +4119,7 @@ const usersRouter = () => {
         msg: 'Data save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4052,6 +4143,7 @@ const usersRouter = () => {
         seasonRatesData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4071,6 +4163,7 @@ const usersRouter = () => {
         unittypeData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4148,6 +4241,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4167,6 +4261,7 @@ const usersRouter = () => {
         seasonRateData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4185,6 +4280,7 @@ const usersRouter = () => {
         msg: 'SeasonRate delete successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4203,6 +4299,7 @@ const usersRouter = () => {
         seasonRateData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4223,6 +4320,7 @@ const usersRouter = () => {
         guestData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4287,6 +4385,7 @@ const usersRouter = () => {
         msg: 'Data save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4305,6 +4404,7 @@ const usersRouter = () => {
         msg: 'Data update successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4339,6 +4439,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4357,6 +4458,7 @@ const usersRouter = () => {
         companyData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4375,6 +4477,7 @@ const usersRouter = () => {
         msg: 'Company delete successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4392,6 +4495,7 @@ const usersRouter = () => {
         code: 200,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,

@@ -14,7 +14,15 @@ const adminRouter = require('./routes/admin')();
 const propertyRouter = require('./routes/properties')();
 
 const app = express();
-Sentry.init({ dsn: config.get('sentry_dsn') });
+Sentry.init({
+  dsn: config.get('sentry_dsn'),
+  beforeSend(event) {
+    if (process.env.NODE_ENV === 'development') {
+      return null;
+    }
+    return event;
+  },
+});
 // middlewares
 app.use(Sentry.Handlers.requestHandler());
 app.use(cors({ credentials: true, origin: true }));
