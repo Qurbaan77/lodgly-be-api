@@ -11,6 +11,7 @@ const { seed } = require('./routes/cronJob');
 const usersRouter = require('./routes/users')();
 const ownerRouter = require('./routes/owner')();
 const adminRouter = require('./routes/admin')();
+const propertyRouter = require('./routes/properties')();
 
 const app = express();
 Sentry.init({ dsn: config.get('sentry_dsn') });
@@ -33,6 +34,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/users', usersRouter);
 
 app.use('/owner', ownerRouter);
+
+app.use('/properties', propertyRouter);
 
 app.use('/admin', adminRouter);
 

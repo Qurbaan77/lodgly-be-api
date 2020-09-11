@@ -709,53 +709,22 @@ const usersRouter = () => {
       }
       const propertyData = {
         userId: id,
-        propertyNo: body.propertyNo,
         propertyName: body.propertyName,
-        propertyType: body.propertyType,
-        address: body.address,
-        country: body.country,
-        state: body.state,
-        city: body.city,
-        zip: body.zip,
-        website: body.website,
-
-        bedrooms: body.bedrooms,
-        fullBathroom: body.fullBathroom,
-        halfBathroom: body.halfBathroom,
-        sqfoot: body.sqfoot,
-        description: body.description,
       };
-
-      const propertyExist = await DB.select('property', { userId: id, propertyNo: body.propertyNo });
-      if (propertyExist.length) {
-        await DB.update('property', propertyData, {
-          userId: id,
-          propertyNo: body.propertyNo,
-        });
-        res.send({
-          code: 200,
-          msg: 'Data Update Successfully!',
-        });
-      } else {
-        const saveProperty = await DB.insert('property', propertyData);
-        const unitTypeData = {
-          userId: id,
-          propertyId: saveProperty,
-          unitTypeName: body.propertyName,
-        };
-        const saveUnitType = await DB.insert('unitType', unitTypeData);
-        const unitData = {
-          userId: id,
-          propertyId: saveProperty,
-          unittypeId: saveUnitType,
-          unitName: body.propertyName,
-        };
-        await DB.insert('unit', unitData);
-        res.send({
-          code: 200,
-          msg: 'Data Saved Successfully!',
-        });
-      }
+      const savedData = await DB.insert('propertyV2', propertyData);
+      const unitTypeData = {
+        userId: id,
+        propertyId: savedData,
+        unitTypeName: body.propertyName,
+      };
+      // creating unit type with same name
+      const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
+      console.log('unitTypeV2Id', unitTypeV2Id);
+      res.send({
+        code: 200,
+        savedData,
+        unitTypeV2Id,
+      });
     } catch (e) {
       console.log(e);
       res.send({
@@ -764,6 +733,74 @@ const usersRouter = () => {
       });
     }
   });
+
+  // post request to add property
+  // router.post('/addProperty', userAuthCheck, async (req, res) => {
+  //   try {
+  //     const { ...body } = req.body;
+  //     let id;
+  //     if (body.affiliateId) {
+  //       id = body.affiliateId;
+  //     } else {
+  //       id = body.tokenData.userid;
+  //     }
+  //     const propertyData = {
+  //       userId: id,
+  //       propertyNo: body.propertyNo,
+  //       propertyName: body.propertyName,
+  //       propertyType: body.propertyType,
+  //       address: body.address,
+  //       country: body.country,
+  //       state: body.state,
+  //       city: body.city,
+  //       zip: body.zip,
+  //       website: body.website,
+
+  //       bedrooms: body.bedrooms,
+  //       fullBathroom: body.fullBathroom,
+  //       halfBathroom: body.halfBathroom,
+  //       sqfoot: body.sqfoot,
+  //       description: body.description,
+  //     };
+
+  //     const propertyExist = await DB.select('property', { userId: id, propertyNo: body.propertyNo });
+  //     if (propertyExist.length) {
+  //       await DB.update('property', propertyData, {
+  //         userId: id,
+  //         propertyNo: body.propertyNo,
+  //       });
+  //       res.send({
+  //         code: 200,
+  //         msg: 'Data Update Successfully!',
+  //       });
+  //     } else {
+  //       const saveProperty = await DB.insert('property', propertyData);
+  //       const unitTypeData = {
+  //         userId: id,
+  //         propertyId: saveProperty,
+  //         unitTypeName: body.propertyName,
+  //       };
+  //       const saveUnitType = await DB.insert('unitType', unitTypeData);
+  //       const unitData = {
+  //         userId: id,
+  //         propertyId: saveProperty,
+  //         unittypeId: saveUnitType,
+  //         unitName: body.propertyName,
+  //       };
+  //       await DB.insert('unit', unitData);
+  //       res.send({
+  //         code: 200,
+  //         msg: 'Data Saved Successfully!',
+  //       });
+  //     }
+  //   } catch (e) {
+  //     console.log(e);
+  //     res.send({
+  //       code: 444,
+  //       msg: 'Some error has occured!.',
+  //     });
+  //   }
+  // });
 
   router.post('/listing', userAuthCheck, async (req, res) => {
     try {
@@ -796,51 +833,48 @@ const usersRouter = () => {
     }
   });
 
+  // API for getting property name
+  router.post('/getPropertyName', userAuthCheck, async (req, res) => {
+    const propertyName = await DB.selectCol(['propertyName'], 'propertyV2', { id: req.body.propertyId });
+    if (propertyName) {
+      res.send({
+        code: 200,
+        propertyName,
+      });
+    } else {
+      res.send({
+        code: 404,
+        msg: 'Property Does not exist',
+      });
+    }
+  });
+
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      let propertiesData;
-      if (!body.affiliateId) {
-        propertiesData = await DB.select('property', { userId: body.tokenData.userid });
-        each(
-          propertiesData,
-          async (items, next) => {
-            const itemsCopy = items;
-            const data = await DB.select('unitType', { propertyId: items.id });
-            const data2 = await DB.select('unit', { propertyId: items.id });
-            itemsCopy.noUnitType = data.length;
-            itemsCopy.noUnit = data2.length;
-            next();
-            return itemsCopy;
-          },
-          () => {
-            res.send({
-              code: 200,
-              propertiesData,
-            });
-          },
-        );
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
       } else {
-        propertiesData = await DB.select('property', { userId: body.affiliateId });
-        each(
-          propertiesData,
-          async (items, next) => {
-            const itemsCopy = items;
-            const data = await DB.select('unitType', { propertyId: items.id });
-            const data2 = await DB.select('unit', { propertyId: items.id });
-            itemsCopy.noUnitType = data.length;
-            itemsCopy.noUnit = data2.length;
-            next();
-            return itemsCopy;
-          },
-          () => {
-            res.send({
-              code: 200,
-              propertiesData,
-            });
-          },
-        );
+        id = body.tokenData.userid;
       }
+      const propertiesData = await DB.select('propertyV2', { userId: id });
+      each(
+        propertiesData,
+        async (items, next) => {
+          const itemsCopy = items;
+          const data = await DB.select('unitTypeV2', { propertyId: items.id });
+          itemsCopy.unitType = data;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            propertiesData,
+          });
+        },
+      );
       console.log(propertiesData);
     } catch (e) {
       console.log(e);
@@ -850,6 +884,61 @@ const usersRouter = () => {
       });
     }
   });
+
+  // router.post('/fetchProperty', userAuthCheck, async (req, res) => {
+  //   try {
+  //     const { ...body } = req.body;
+  //     let propertiesData;
+  //     if (!body.affiliateId) {
+  //       propertiesData = await DB.select('property', { userId: body.tokenData.userid });
+  //       each(
+  //         propertiesData,
+  //         async (items, next) => {
+  //           const itemsCopy = items;
+  //           const data = await DB.select('unitType', { propertyId: items.id });
+  //           const data2 = await DB.select('unit', { propertyId: items.id });
+  //           itemsCopy.noUnitType = data.length;
+  //           itemsCopy.noUnit = data2.length;
+  //           next();
+  //           return itemsCopy;
+  //         },
+  //         () => {
+  //           res.send({
+  //             code: 200,
+  //             propertiesData,
+  //           });
+  //         },
+  //       );
+  //     } else {
+  //       propertiesData = await DB.select('property', { userId: body.affiliateId });
+  //       each(
+  //         propertiesData,
+  //         async (items, next) => {
+  //           const itemsCopy = items;
+  //           const data = await DB.select('unitType', { propertyId: items.id });
+  //           const data2 = await DB.select('unit', { propertyId: items.id });
+  //           itemsCopy.noUnitType = data.length;
+  //           itemsCopy.noUnit = data2.length;
+  //           next();
+  //           return itemsCopy;
+  //         },
+  //         () => {
+  //           res.send({
+  //             code: 200,
+  //             propertiesData,
+  //           });
+  //         },
+  //       );
+  //     }
+  //     console.log(propertiesData);
+  //   } catch (e) {
+  //     console.log(e);
+  //     res.send({
+  //       code: 444,
+  //       msg: 'Some error has occured!',
+  //     });
+  //   }
+  // });
 
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
@@ -1733,6 +1822,22 @@ const usersRouter = () => {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API to get amenities
+  router.post('/getAmenities', userAuthCheck, async (req, res) => {
+    const amenities = await DB.select('amenities', {});
+    if (amenities && amenities.length > 0) {
+      res.send({
+        code: 200,
+        amenities,
+      });
+    } else {
+      res.send({
+        code: 500,
+        msg: 'server error',
       });
     }
   });
