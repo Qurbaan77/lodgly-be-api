@@ -10,7 +10,7 @@ const amenitesList = [
   'clothes dryer', 'essentials', 'iron & board', 'shower', 'towels', 'hot tub',
   'washbasin', 'washing machine', 'blender', 'child high chair', 'coffe machine',
   'cooking utensiles', 'dishwasher', 'grill', 'kitchenette', 'kitchen stove',
-  'allinclusive meal-plan', 'full board meal-plan', 'half board mea;-plan',
+  'allinclusive meal-plan', 'full board meal-plan', 'half board meal-plan',
   'microwave', 'oven', 'refrigerator', 'rice steamer', 'spices', 'toaster',
   'water cooler', 'water purifier', 'air conditioning', 'ceiling fans',
   'central heating', 'electric heating', 'fireplace', 'floor heating', 'heating available',
