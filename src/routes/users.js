@@ -3680,40 +3680,47 @@ const usersRouter = () => {
       });
     }
   });
+
   router.post('/getBillingInvoice', userAuthCheck, async (req, res) => {
     try {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
-      const [{ customerId }] = Data;
-      const invoicesList = [];
-      await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
-        invoices.data.forEach((el) => {
-          if (el.customer === customerId) {
-            const { currency } = el;
-            const amount = el.amount_paid / 100;
-            // let amount = Math.floor(parseFloat(initial))
-            // const { units } = Data[0];
-            const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
-            const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
-            const dt = {
-              invoiceId: el.id,
-              start,
-              end,
-              amount,
-              // units,
-              currency,
-              pdf: el.invoice_pdf,
-            };
-            invoicesList.push(dt);
-          }
+      if (Data && Data.length > 0) {
+        const [{ customerId }] = Data;
+        const invoicesList = [];
+        await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
+          invoices.data.forEach((el) => {
+            if (el.customer === customerId) {
+              const { currency } = el;
+              const amount = el.amount_paid / 100;
+              // let amount = Math.floor(parseFloat(initial))
+              // const { units } = Data[0];
+              const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
+              const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
+              const dt = {
+                invoiceId: el.id,
+                start,
+                end,
+                amount,
+                // units,
+                currency,
+                pdf: el.invoice_pdf,
+              };
+              invoicesList.push(dt);
+            }
+          });
+          res.send({ code: 200, invoicesList });
         });
-        res.send({ code: 200, invoicesList });
-      });
+      } else {
+        res.send({
+          code: 200,
+          msg: 'no invoices',
+        });
+      }
     } catch (e) {
       sentryCapture(e);
       res.send({ code: 444, msg: 'Some error has occured.' });
     }
   });
-
   // API for cancelling subscription
   router.post('/cancelSubscription', userAuthCheck, async (req, res) => {
     try {
@@ -3856,6 +3863,9 @@ const usersRouter = () => {
           msg: 'subscription status updated',
         });
       }
+      res.send({
+        code: 200,
+      });
     } catch (e) {
       sentryCapture(e);
       res.send({
