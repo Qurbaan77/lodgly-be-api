@@ -141,4 +141,4 @@ exports.seed = (knex) => seed(knex, 'amenities', [
   'swimming pool-outdoor & heated(shared)',
   'steam sauna(shared)',
   'swimming pool',
-]);
+].map((name) => ({ name })));
