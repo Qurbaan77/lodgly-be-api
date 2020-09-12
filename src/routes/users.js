@@ -3833,26 +3833,29 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const Data = await DB.selectCol(['subscriptionId'], 'subscription', { userId: body.tokenData.userid });
-      const [{ subscriptionId }] = Data;
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      console.log('active subscription', subscription);
-      if (subscription) {
-        if (subscription.status === 'canceled') {
-          const end = moment(subscription.current_period_end * 1000).format('YYYY-MM-DD');
-          const today = moment(new Date()).format('YYYY-MM-DD');
-          const compare = moment(end).isSameOrBefore(today);
-          console.log(compare);
-          if (compare) {
+      console.log('subscription status data===>>', Data);
+      if (Data && Data.length > 0) {
+        const [{ subscriptionId }] = Data;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        console.log('active subscription', subscription);
+        if (subscription) {
+          if (subscription.status === 'canceled') {
+            const end = moment(subscription.current_period_end * 1000).format('YYYY-MM-DD');
+            const today = moment(new Date()).format('YYYY-MM-DD');
+            const compare = moment(end).isSameOrBefore(today);
+            console.log(compare);
+            if (compare) {
+              await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
+            }
+          } else if (subscription.status !== 'active') {
             await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
           }
-        } else if (subscription.status !== 'active') {
-          await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
         }
+        res.send({
+          code: 200,
+          msg: 'subscription status updated',
+        });
       }
-      res.send({
-        code: 200,
-        msg: 'subscription status updated',
-      });
     } catch (e) {
       sentryCapture(e);
       res.send({
