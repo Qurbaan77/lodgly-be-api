@@ -46,7 +46,7 @@ const propertyRouter = () => {
   // post request to add property
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
+    console.log('addProperty', body);
     let id;
     if (body.affiliateId) {
       id = body.affiliateId;
@@ -116,6 +116,9 @@ const propertyRouter = () => {
       zip: body.zip,
       lattitude: body.latLng.lat,
       longitude: body.latLng.lng,
+      direction: body.direction,
+      distance: body.distance,
+      distanceIn: body.distanceIn,
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     res.send({
