@@ -8,8 +8,10 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('description');
   table.string('sizeType');
   table.decimal('sizeValue').defaultTo(0);
+  table.integer('bedRooms').defaultTo(0);
   table.integer('standardGuests').defaultTo(0);
   table.integer('units').defaultTo(0);
+  table.string('unitsData');
   table.string('propertyType');
   table.json('amenities');
   table.json('sleepingArrangement');

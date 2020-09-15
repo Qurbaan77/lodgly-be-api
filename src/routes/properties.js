@@ -73,6 +73,15 @@ const propertyRouter = () => {
     });
   });
 
+  // post request to delete property
+  router.post('/deleteProperty', userAuthCheck, async (req, res) => {
+    const { ...body } = req.body;
+    await DB.remove('propertyV2', { id: body.id });
+    res.send({
+      code: 200,
+    });
+  });
+
   // API for fetch property details
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
@@ -154,11 +163,14 @@ const propertyRouter = () => {
   // API for upate Property Information
   router.post('/updatePropertyInfo', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    console.log(body);
     const data = {
       sizeType: body.sqSelectedValue,
       sizeValue: body.sqNumber,
+      bedRooms: body.noOfBedRooms,
       standardGuests: body.noOfGuests,
       units: body.noOfUnits,
+      unitsData: body.unitsData,
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     res.send({
