@@ -46,7 +46,7 @@ const propertyRouter = () => {
   // post request to add property
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
+    console.log('addProperty', body);
     let id;
     if (body.affiliateId) {
       id = body.affiliateId;
@@ -487,6 +487,23 @@ const propertyRouter = () => {
       res.send({
         code: 404,
         msg: 'Property Does not exist',
+      });
+    }
+  });
+
+  // API for removing property photo
+  router.post('/removePropertyPhoto', userAuthCheck, async (req, res) => {
+    try {
+      console.log(req.body);
+      await DB.update('unitTypeV2', { image: null }, { id: req.body.unitTypeV2Id });
+      res.send({
+        code: 200,
+        msg: 'successfully removed property photo',
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'server error',
       });
     }
   });

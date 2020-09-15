@@ -3034,13 +3034,15 @@ const usersRouter = () => {
         quantity: body.servicequantity,
       };
       if (body.serviceId) {
-        await DB.update('service', servicData, { id: body.serviceId });
+        // await DB.update('service', servicData, { id: body.serviceId });
+        await DB.update('serviceV2', servicData, { id: body.serviceId });
         res.send({
+
           code: 200,
           msg: 'Data update successfully!',
         });
       } else {
-        await DB.insert('service', servicData);
+        await DB.insert('serviceV2', servicData);
         res.send({
           code: 200,
           msg: 'Data save successfully!',
@@ -3059,9 +3061,12 @@ const usersRouter = () => {
   router.post('/getService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const servicData = await DB.select('service', {
+      console.log('body.propertyId==>', body.propertyId);
+      const servicData = await DB.select('serviceV2', {
         propertyId: body.propertyId,
       });
+
+      console.log('servicData=>', servicData);
       res.send({
         code: 200,
         servicData,
@@ -3079,7 +3084,7 @@ const usersRouter = () => {
   router.post('/deleteService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('service', {
+      await DB.remove('serviceV2', {
         id: body.id,
       });
       res.send({
