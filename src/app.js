@@ -10,6 +10,7 @@ const usersRouter = require('./routes/users')();
 const ownerRouter = require('./routes/owner')();
 const adminRouter = require('./routes/admin')();
 const propertyRouter = require('./routes/properties')();
+const channelRouter = require('./routes/channelManagement')();
 
 const app = express();
 Sentry.init({
@@ -41,6 +42,8 @@ app.use('/users', usersRouter);
 app.use('/owner', ownerRouter);
 
 app.use('/properties', propertyRouter);
+
+app.use('/channel', channelRouter);
 
 app.use('/admin', adminRouter);
 

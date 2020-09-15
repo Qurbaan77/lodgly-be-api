@@ -476,6 +476,23 @@ const propertyRouter = () => {
     }
   });
 
+  // API for removing property photo
+  router.post('/removePropertyPhoto', userAuthCheck, async (req, res) => {
+    try {
+      console.log(req.body);
+      await DB.update('unitTypeV2', { image: null }, { id: req.body.unitTypeV2Id });
+      res.send({
+        code: 200,
+        msg: 'successfully removed property photo',
+      });
+    } catch (e) {
+      res.send({
+        code: 444,
+        msg: 'server error',
+      });
+    }
+  });
+
   return router;
 };
 
