@@ -46,7 +46,7 @@ const propertyRouter = () => {
   // post request to add property
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
+    console.log('addProperty', body);
     let id;
     if (body.affiliateId) {
       id = body.affiliateId;
