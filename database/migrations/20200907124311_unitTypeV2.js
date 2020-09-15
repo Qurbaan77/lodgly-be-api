@@ -22,6 +22,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.decimal('lattitude').defaultTo(0);
   table.decimal('longitude').defaultTo(0);
   table.string('direction');
+  table.string('distanceIn');
   table.json('distance');
   table.string('website');
   table.string('image');

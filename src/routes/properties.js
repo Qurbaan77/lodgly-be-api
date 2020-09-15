@@ -116,6 +116,9 @@ const propertyRouter = () => {
       zip: body.zip,
       lattitude: body.latLng.lat,
       longitude: body.latLng.lng,
+      direction: body.direction,
+      distance: body.distance,
+      distanceIn: body.distanceIn,
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     res.send({

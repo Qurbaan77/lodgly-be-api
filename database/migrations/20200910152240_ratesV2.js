@@ -3,7 +3,7 @@ const TABLE_NAME = 'ratesV2';
 exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id');
   table.integer('unitTypeId').notNull().unsigned();
-  table.string('rateName');
+  table.string('rateName').defaultTo('Defaut Rate');
   table.string('currency');
   table.integer('price_per_night').defaultTo(0);
   table.integer('minimum_stay').defaultTo(0);
