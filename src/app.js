@@ -10,6 +10,8 @@ const usersRouter = require('./routes/users')();
 const ownerRouter = require('./routes/owner')();
 const adminRouter = require('./routes/admin')();
 const propertyRouter = require('./routes/properties')();
+const bookingRouter = require('./routes/booking')();
+const reservationRouter = require('./routes/reservation')();
 const channelRouter = require('./routes/channelManagement')();
 
 const app = express();
@@ -42,6 +44,10 @@ app.use('/users', usersRouter);
 app.use('/owner', ownerRouter);
 
 app.use('/properties', propertyRouter);
+
+app.use('/booking', bookingRouter);
+
+app.use('/reservation', reservationRouter);
 
 app.use('/channel', channelRouter);
 
