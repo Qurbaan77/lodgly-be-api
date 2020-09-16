@@ -135,6 +135,39 @@ const reservationRouter = () => {
     }
   });
 
+  // API for Reservationb Calendar Data
+  router.post('/getReservationCalendarData', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (!body.affiliateId) {
+        id = body.tokenData.userid;
+      } else {
+        id = body.affiliateId;
+      }
+      const unitType = await DB.select('unitTypeV2', { userId: id });
+      console.log('unitType', unitType);
+      let units = [];
+      if (unitType.length > 0) {
+        if (unitType[0].unitsData !== null) {
+          units = unitType[0].unitsData;
+        }
+      }
+      res.send({
+        code: 200,
+        unittypeData: unitType,
+        unitData: units,
+      });
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
   return router;
 };
 

@@ -3065,8 +3065,6 @@ const usersRouter = () => {
       const servicData = await DB.select('serviceV2', {
         propertyId: body.propertyId,
       });
-
-      console.log('servicData=>', servicData);
       res.send({
         code: 200,
         servicData,
