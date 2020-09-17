@@ -194,6 +194,34 @@ const bookingRouter = () => {
     }
   });
 
+  // API for set status of booking
+  router.post('/setStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let colour;
+      if (body.status === 'booked') {
+        colour = 'red';
+      } else if (body.status === 'open') {
+        colour = 'green';
+      } else if (body.status === 'tentative') {
+        colour = 'orange';
+      } else if (body.status === 'decline') {
+        colour = 'grey';
+      }
+      await DB.update('bookingV2', { status: body.status, statusColour: colour }, { id: body.bookingId });
+      res.send({
+        code: 200,
+        msg: 'Status added successfully!',
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
   return router;
 };
 

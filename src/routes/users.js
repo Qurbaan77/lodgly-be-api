@@ -3948,36 +3948,6 @@ const usersRouter = () => {
     }
   });
 
-  // API for set status of booking
-  router.post('/setStatus', userAuthCheck, async (req, res) => {
-    try {
-      const { ...body } = req.body;
-      console.log(body);
-      let colour;
-      if (body.status === 'booked') {
-        colour = 'red';
-      } else if (body.status === 'open') {
-        colour = 'green';
-      } else if (body.status === 'tentative') {
-        colour = 'orange';
-      } else if (body.status === 'decline') {
-        colour = 'grey';
-      }
-      await DB.update('booking', { status: body.status, statusColour: colour }, { id: body.bookingId });
-      res.send({
-        code: 200,
-        msg: 'Status added successfully!',
-      });
-    } catch (e) {
-      sentryCapture(e);
-      console.log(e);
-      res.send({
-        code: 444,
-        msg: 'some error occured',
-      });
-    }
-  });
-
   // API for adding group reservation
   router.post('/groupReservation', userAuthCheck, async (req, res) => {
     try {
