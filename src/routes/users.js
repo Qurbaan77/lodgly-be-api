@@ -1477,40 +1477,6 @@ const usersRouter = () => {
       };
       console.log('booking data', bookingData);
       const Id = await DB.insert('booking', bookingData);
-<<<<<<< HEAD
-      console.log('ID', Id);
-      body.guestData.map(async (el) => {
-        let Dob = null;
-        if (el.dob) {
-          Dob = el.dob.split('T', 1);
-        }
-        const Data = {
-          userId: id,
-          bookingId: Id,
-          fullname: el.fullName,
-          country: el.country,
-          email: el.email,
-          phone: el.phone,
-          dob: Dob,
-          gender: el.gender,
-          typeOfDoc: el.typeOfDoc,
-          docNo: el.docNo,
-          citizenShip: el.citizenShip,
-          place: el.place,
-          notes: el.notes,
-        };
-        await DB.insert('guest', Data);
-        await DB.increment(
-          'booking',
-          {
-            id: Id,
-          },
-          {
-            noGuest: 1,
-          },
-        );
-      });
-=======
       if (body.guestData[0] !== null) {
         body.guestData.map(async (el) => {
           let Dob = null;
@@ -1544,7 +1510,6 @@ const usersRouter = () => {
           );
         });
       }
->>>>>>> staging
 
       if (body.serviceData[0].serviceAmount !== null) {
         body.serviceData.map(async (el) => {

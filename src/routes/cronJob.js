@@ -66,8 +66,4 @@ const cronJob = schedule.scheduleJob('00 00 12 0-6', async () => {
 //   }
 // };
 
-<<<<<<< HEAD
-module.exports = { cronJob, seed };
-=======
 module.exports = { cronJob };
->>>>>>> staging
