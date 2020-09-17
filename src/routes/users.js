@@ -3899,7 +3899,7 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      const remainingDays = 14 - totalDays;
+      const remainingDays = 7 - totalDays;
       userSubsDetails[0].days = remainingDays;
       res.send({
         code: 200,
