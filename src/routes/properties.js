@@ -8,6 +8,7 @@ const bluebird = require('bluebird');
 const multiparty = require('multiparty');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
+const sentryCapture = require('../../config/sentryCapture');
 
 AWS.config.setPromisesDependency(bluebird);
 
@@ -240,57 +241,75 @@ const propertyRouter = () => {
 
   // API fo add rates on UnitType
   router.post('/addRates', userAuthCheck, async (req, res) => {
-    const { ...body } = req.body;
-    const rateData = {
-      unitTypeId: body.unitTypeId,
-      rateName: body.rateName,
-      currency: body.currency,
-      price_per_night: body.pricePerNight,
-      minimum_stay: body.minStay,
-      discount_price_per_week: body.weeklyPrice,
-      discount_price_per_month: body.monthlyPrice,
-      discount_price_custom_nights: body.customNightsPrice,
-      price_on_monday: body.priceOnMon,
-      price_on_tuesday: body.priceOnTues,
-      price_on_wednesday: body.priceOnWed,
-      price_on_thursday: body.priceOnThu,
-      price_on_friday: body.priceOnFri,
-      price_on_saturday: body.priceOnSat,
-      price_on_sunday: body.priceOnSun,
-      minimum_stay_on_monday: body.minStayOnMon,
-      minimum_stay_on_tuesday: body.minStayOnTues,
-      minimum_stay_on_wednesday: body.minStayOnWed,
-      minimum_stay_on_thursday: body.minStayOnThu,
-      minimum_stay_on_friday: body.minStayOnFri,
-      minimum_stay_on_saturday: body.minStayOnSat,
-      minimum_stay_on_sunday: body.minStayOnSun,
-      extra_charge_on_guest: body.extraCharge,
-      extra_guest: body.extraGuest,
-      short_stay: body.shortStayNight,
-      extra_chage_on_stay: body.shortStayPrice,
-      checkIn_on_monday: body.checkIn_on_monday,
-      checkIn_on_tuesday: body.checkIn_on_tuesday,
-      checkIn_on_wednesday: body.checkIn_on_wednesday,
-      checkIn_on_thursday: body.checkIn_on_thursday,
-      checkIn_on_friday: body.checkIn_on_friday,
-      checkIn_on_saturday: body.checkIn_on_saturday,
-      checkIn_on_sunday: body.checkIn_on_sunday,
-      checkOut_on_monday: body.checkOut_on_monday,
-      checkOut_on_tuesday: body.checkOut_on_tuesday,
-      checkOut_on_wednesday: body.checkOut_on_wednesday,
-      checkOut_on_thursday: body.checkOut_on_thursday,
-      checkOut_on_friday: body.checkOut_on_friday,
-      checkOut_on_saturday: body.checkOut_on_saturday,
-      checkOut_on_sunday: body.checkOut_on_sunday,
-      tax_status: body.tax,
-      tax: body.taxPer,
-      notes: body.notes,
-    };
-    await DB.insert('ratesV2', rateData);
-    res.send({
-      code: 200,
-      msg: 'Data save successfully!',
-    });
+    // try {
+    // } catch (e) {
+    //   sentryCapture(e);
+    //   console.log(e);
+    //   res.send({
+    //     code: 444,
+    //     msg: 'some error occured',
+    //   });
+    // }
+    try {
+      const { ...body } = req.body;
+      const rateData = {
+        unitTypeId: body.unitTypeId,
+        rateName: body.rateName,
+        currency: body.currency,
+        price_per_night: body.pricePerNight,
+        minimum_stay: body.minStay,
+        discount_price_per_week: body.weeklyPrice,
+        discount_price_per_month: body.monthlyPrice,
+        discount_price_custom_nights: body.customNightsPrice,
+        price_on_monday: body.priceOnMon,
+        price_on_tuesday: body.priceOnTues,
+        price_on_wednesday: body.priceOnWed,
+        price_on_thursday: body.priceOnThu,
+        price_on_friday: body.priceOnFri,
+        price_on_saturday: body.priceOnSat,
+        price_on_sunday: body.priceOnSun,
+        minimum_stay_on_monday: body.minStayOnMon,
+        minimum_stay_on_tuesday: body.minStayOnTues,
+        minimum_stay_on_wednesday: body.minStayOnWed,
+        minimum_stay_on_thursday: body.minStayOnThu,
+        minimum_stay_on_friday: body.minStayOnFri,
+        minimum_stay_on_saturday: body.minStayOnSat,
+        minimum_stay_on_sunday: body.minStayOnSun,
+        extra_charge_on_guest: body.extraCharge,
+        extra_guest: body.extraGuest,
+        short_stay: body.shortStayNight,
+        extra_chage_on_stay: body.shortStayPrice,
+        checkIn_on_monday: body.checkIn_on_monday,
+        checkIn_on_tuesday: body.checkIn_on_tuesday,
+        checkIn_on_wednesday: body.checkIn_on_wednesday,
+        checkIn_on_thursday: body.checkIn_on_thursday,
+        checkIn_on_friday: body.checkIn_on_friday,
+        checkIn_on_saturday: body.checkIn_on_saturday,
+        checkIn_on_sunday: body.checkIn_on_sunday,
+        checkOut_on_monday: body.checkOut_on_monday,
+        checkOut_on_tuesday: body.checkOut_on_tuesday,
+        checkOut_on_wednesday: body.checkOut_on_wednesday,
+        checkOut_on_thursday: body.checkOut_on_thursday,
+        checkOut_on_friday: body.checkOut_on_friday,
+        checkOut_on_saturday: body.checkOut_on_saturday,
+        checkOut_on_sunday: body.checkOut_on_sunday,
+        tax_status: body.tax,
+        tax: body.taxPer,
+        notes: body.notes,
+      };
+      await DB.insert('ratesV2', rateData);
+      res.send({
+        code: 200,
+        msg: 'Data save successfully!',
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
   });
 
   // API for add rates for unitType
