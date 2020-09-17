@@ -22,13 +22,11 @@ const {
 const { frontendUrl } = require('../functions/frontend');
 const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
+const sentryCapture = require('../../config/sentryCapture');
 
 AWS.config.setPromisesDependency(bluebird);
 // const clientPath = domainName('app');
 // const serverPath = config.get('serverPath');
-console.log(process.env.AWS_ACCESS_KEY);
-console.log(process.env.AWS_ACCESS_SECRET_KEY);
-console.log(process.env.S3_STORAGE_BUCKET_NAME);
 const usersRouter = () => {
   // router variable for api routing
   const router = express.Router();
@@ -54,9 +52,10 @@ const usersRouter = () => {
       };
       const url = await s3.getSignedUrlPromise('putObject', params);
       return s3.upload(params, url).promise();
-    } catch (err) {
-      console.log(err);
-      return err;
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      return e;
     }
   };
 
@@ -271,6 +270,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 400,
@@ -298,6 +298,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -332,6 +333,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -350,6 +352,7 @@ const usersRouter = () => {
         // finding user with email and company name
         const companyData = await DB.select('organizations', { name: body.company });
         const isUserExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
+
         console.log('isUserExists', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
@@ -396,6 +399,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -454,6 +458,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -543,6 +548,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -569,6 +575,7 @@ const usersRouter = () => {
         res.send({ code: 400, msg: 'Not Valid.' });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({ code: 444, msg: 'Some error has occured.' });
     }
@@ -596,6 +603,7 @@ const usersRouter = () => {
         msg: 'Data add sucessfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({ code: 444, msg: 'Some error has occured.' });
     }
@@ -640,6 +648,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log('error', e);
       res.send({
         code: 444,
@@ -661,7 +670,7 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      const remainingDays = 14 - totalDays;
+      const remainingDays = 7 - totalDays;
       console.log(remainingDays);
       const [{ isOnTrial }] = user;
       if (remainingDays <= 0) {
@@ -672,7 +681,8 @@ const usersRouter = () => {
         remainingDays,
         isOnTrial,
       });
-    } catch (err) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'some error occurred!',
@@ -688,7 +698,8 @@ const usersRouter = () => {
         code: 200,
         rates,
       });
-    } catch (error) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error occurred!',
@@ -708,54 +719,24 @@ const usersRouter = () => {
       }
       const propertyData = {
         userId: id,
-        propertyNo: body.propertyNo,
         propertyName: body.propertyName,
-        propertyType: body.propertyType,
-        address: body.address,
-        country: body.country,
-        state: body.state,
-        city: body.city,
-        zip: body.zip,
-        website: body.website,
-
-        bedrooms: body.bedrooms,
-        fullBathroom: body.fullBathroom,
-        halfBathroom: body.halfBathroom,
-        sqfoot: body.sqfoot,
-        description: body.description,
       };
-
-      const propertyExist = await DB.select('property', { userId: id, propertyNo: body.propertyNo });
-      if (propertyExist.length) {
-        await DB.update('property', propertyData, {
-          userId: id,
-          propertyNo: body.propertyNo,
-        });
-        res.send({
-          code: 200,
-          msg: 'Data Update Successfully!',
-        });
-      } else {
-        const saveProperty = await DB.insert('property', propertyData);
-        const unitTypeData = {
-          userId: id,
-          propertyId: saveProperty,
-          unitTypeName: body.propertyName,
-        };
-        const saveUnitType = await DB.insert('unitType', unitTypeData);
-        const unitData = {
-          userId: id,
-          propertyId: saveProperty,
-          unittypeId: saveUnitType,
-          unitName: body.propertyName,
-        };
-        await DB.insert('unit', unitData);
-        res.send({
-          code: 200,
-          msg: 'Data Saved Successfully!',
-        });
-      }
+      const savedData = await DB.insert('propertyV2', propertyData);
+      const unitTypeData = {
+        userId: id,
+        propertyId: savedData,
+        unitTypeName: body.propertyName,
+      };
+      // creating unit type with same name
+      const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
+      console.log('unitTypeV2Id', unitTypeV2Id);
+      res.send({
+        code: 200,
+        savedData,
+        unitTypeV2Id,
+      });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -763,6 +744,74 @@ const usersRouter = () => {
       });
     }
   });
+
+  // post request to add property
+  // router.post('/addProperty', userAuthCheck, async (req, res) => {
+  //   try {
+  //     const { ...body } = req.body;
+  //     let id;
+  //     if (body.affiliateId) {
+  //       id = body.affiliateId;
+  //     } else {
+  //       id = body.tokenData.userid;
+  //     }
+  //     const propertyData = {
+  //       userId: id,
+  //       propertyNo: body.propertyNo,
+  //       propertyName: body.propertyName,
+  //       propertyType: body.propertyType,
+  //       address: body.address,
+  //       country: body.country,
+  //       state: body.state,
+  //       city: body.city,
+  //       zip: body.zip,
+  //       website: body.website,
+
+  //       bedrooms: body.bedrooms,
+  //       fullBathroom: body.fullBathroom,
+  //       halfBathroom: body.halfBathroom,
+  //       sqfoot: body.sqfoot,
+  //       description: body.description,
+  //     };
+
+  //     const propertyExist = await DB.select('property', { userId: id, propertyNo: body.propertyNo });
+  //     if (propertyExist.length) {
+  //       await DB.update('property', propertyData, {
+  //         userId: id,
+  //         propertyNo: body.propertyNo,
+  //       });
+  //       res.send({
+  //         code: 200,
+  //         msg: 'Data Update Successfully!',
+  //       });
+  //     } else {
+  //       const saveProperty = await DB.insert('property', propertyData);
+  //       const unitTypeData = {
+  //         userId: id,
+  //         propertyId: saveProperty,
+  //         unitTypeName: body.propertyName,
+  //       };
+  //       const saveUnitType = await DB.insert('unitType', unitTypeData);
+  //       const unitData = {
+  //         userId: id,
+  //         propertyId: saveProperty,
+  //         unittypeId: saveUnitType,
+  //         unitName: body.propertyName,
+  //       };
+  //       await DB.insert('unit', unitData);
+  //       res.send({
+  //         code: 200,
+  //         msg: 'Data Saved Successfully!',
+  //       });
+  //     }
+  //   } catch (e) {
+  //     console.log(e);
+  //     res.send({
+  //       code: 444,
+  //       msg: 'Some error has occured!.',
+  //     });
+  //   }
+  // });
 
   router.post('/listing', userAuthCheck, async (req, res) => {
     try {
@@ -787,6 +836,7 @@ const usersRouter = () => {
       }
       await DB.update('property', Data, { propertyNo: body.No });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -795,53 +845,51 @@ const usersRouter = () => {
     }
   });
 
+  // API for getting property name
+  router.post('/getPropertyName', userAuthCheck, async (req, res) => {
+    const propertyName = await DB.selectCol(['propertyName'], 'propertyV2', { id: req.body.propertyId });
+    if (propertyName) {
+      res.send({
+        code: 200,
+        propertyName,
+      });
+    } else {
+      res.send({
+        code: 404,
+        msg: 'Property Does not exist',
+      });
+    }
+  });
+
   router.post('/fetchProperty', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      let propertiesData;
-      if (!body.affiliateId) {
-        propertiesData = await DB.select('property', { userId: body.tokenData.userid });
-        each(
-          propertiesData,
-          async (items, next) => {
-            const itemsCopy = items;
-            const data = await DB.select('unitType', { propertyId: items.id });
-            const data2 = await DB.select('unit', { propertyId: items.id });
-            itemsCopy.noUnitType = data.length;
-            itemsCopy.noUnit = data2.length;
-            next();
-            return itemsCopy;
-          },
-          () => {
-            res.send({
-              code: 200,
-              propertiesData,
-            });
-          },
-        );
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
       } else {
-        propertiesData = await DB.select('property', { userId: body.affiliateId });
-        each(
-          propertiesData,
-          async (items, next) => {
-            const itemsCopy = items;
-            const data = await DB.select('unitType', { propertyId: items.id });
-            const data2 = await DB.select('unit', { propertyId: items.id });
-            itemsCopy.noUnitType = data.length;
-            itemsCopy.noUnit = data2.length;
-            next();
-            return itemsCopy;
-          },
-          () => {
-            res.send({
-              code: 200,
-              propertiesData,
-            });
-          },
-        );
+        id = body.tokenData.userid;
       }
+      const propertiesData = await DB.select('propertyV2', { userId: id });
+      each(
+        propertiesData,
+        async (items, next) => {
+          const itemsCopy = items;
+          const data = await DB.select('unitTypeV2', { propertyId: items.id });
+          itemsCopy.unitType = data;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            propertiesData,
+          });
+        },
+      );
       console.log(propertiesData);
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -849,6 +897,61 @@ const usersRouter = () => {
       });
     }
   });
+
+  // router.post('/fetchProperty', userAuthCheck, async (req, res) => {
+  //   try {
+  //     const { ...body } = req.body;
+  //     let propertiesData;
+  //     if (!body.affiliateId) {
+  //       propertiesData = await DB.select('property', { userId: body.tokenData.userid });
+  //       each(
+  //         propertiesData,
+  //         async (items, next) => {
+  //           const itemsCopy = items;
+  //           const data = await DB.select('unitType', { propertyId: items.id });
+  //           const data2 = await DB.select('unit', { propertyId: items.id });
+  //           itemsCopy.noUnitType = data.length;
+  //           itemsCopy.noUnit = data2.length;
+  //           next();
+  //           return itemsCopy;
+  //         },
+  //         () => {
+  //           res.send({
+  //             code: 200,
+  //             propertiesData,
+  //           });
+  //         },
+  //       );
+  //     } else {
+  //       propertiesData = await DB.select('property', { userId: body.affiliateId });
+  //       each(
+  //         propertiesData,
+  //         async (items, next) => {
+  //           const itemsCopy = items;
+  //           const data = await DB.select('unitType', { propertyId: items.id });
+  //           const data2 = await DB.select('unit', { propertyId: items.id });
+  //           itemsCopy.noUnitType = data.length;
+  //           itemsCopy.noUnit = data2.length;
+  //           next();
+  //           return itemsCopy;
+  //         },
+  //         () => {
+  //           res.send({
+  //             code: 200,
+  //             propertiesData,
+  //           });
+  //         },
+  //       );
+  //     }
+  //     console.log(propertiesData);
+  //   } catch (e) {
+  //     console.log(e);
+  //     res.send({
+  //       code: 444,
+  //       msg: 'Some error has occured!',
+  //     });
+  //   }
+  // });
 
   router.post('/addUnitType', userAuthCheck, async (req, res) => {
     try {
@@ -906,6 +1009,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -936,6 +1040,7 @@ const usersRouter = () => {
         msg: 'Data update Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -955,6 +1060,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -990,6 +1096,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -1026,6 +1133,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1051,6 +1159,7 @@ const usersRouter = () => {
         msg: 'Data updated Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1071,6 +1180,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1099,6 +1209,7 @@ const usersRouter = () => {
         isOnTrial,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1132,11 +1243,12 @@ const usersRouter = () => {
           msg: 'units not found',
         });
       }
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
-        msg: error,
+        msg: e,
       });
     }
   });
@@ -1174,6 +1286,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1192,6 +1305,7 @@ const usersRouter = () => {
         groupDetail,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1215,6 +1329,7 @@ const usersRouter = () => {
         msg: 'updated successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1236,6 +1351,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error occured!',
@@ -1266,6 +1382,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1287,6 +1404,7 @@ const usersRouter = () => {
         msg: 'Data Remove Successfully',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1304,6 +1422,7 @@ const usersRouter = () => {
         taskDetail,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error occured!',
@@ -1358,6 +1477,7 @@ const usersRouter = () => {
       };
       console.log('booking data', bookingData);
       const Id = await DB.insert('booking', bookingData);
+<<<<<<< HEAD
       console.log('ID', Id);
       body.guestData.map(async (el) => {
         let Dob = null;
@@ -1390,25 +1510,63 @@ const usersRouter = () => {
           },
         );
       });
+=======
+      if (body.guestData[0] !== null) {
+        body.guestData.map(async (el) => {
+          let Dob = null;
+          if (el.dob) {
+            Dob = el.dob.split('T', 1);
+          }
+          const Data = {
+            userId: id,
+            bookingId: Id,
+            fullname: el.fullName,
+            country: el.country,
+            email: el.email,
+            phone: el.phone,
+            dob: Dob,
+            gender: el.gender,
+            typeOfDoc: el.typeOfDoc,
+            docNo: el.docNo,
+            citizenShip: el.citizenShip,
+            place: el.place,
+            notes: el.notes,
+          };
+          await DB.insert('guest', Data);
+          await DB.increment(
+            'booking',
+            {
+              id: Id,
+            },
+            {
+              noGuest: 1,
+            },
+          );
+        });
+      }
+>>>>>>> staging
 
-      body.serviceData.map(async (el) => {
-        const Data = {
-          userId: id,
-          bookingId: Id,
-          serviceName: el.serviceName,
-          servicePrice: el.servicePrice,
-          quantity: el.serviceQuantity,
-          serviceTax: el.serviceTax,
-          serviceAmount: el.serviceAmount,
-        };
-        await DB.insert('bookingService', Data);
-      });
+      if (body.serviceData[0].serviceAmount !== null) {
+        body.serviceData.map(async (el) => {
+          const Data = {
+            userId: id,
+            bookingId: Id,
+            serviceName: el.serviceName,
+            servicePrice: el.servicePrice,
+            quantity: el.serviceQuantity,
+            serviceTax: el.serviceTax,
+            serviceAmount: el.serviceAmount,
+          };
+          await DB.insert('bookingService', Data);
+        });
+      }
 
       res.send({
         code: 200,
         msg: 'Booking save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1456,6 +1614,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some Error has occured!',
@@ -1571,24 +1730,27 @@ const usersRouter = () => {
       if (body.deleteGuestId) {
         try {
           await DB.remove('guest', { id: body.deleteGuestId });
-        } catch (err) {
+        } catch (e) {
+          sentryCapture(e);
           res.send({
             code: 400,
-            msg: err,
+            msg: e,
           });
         }
       }
       if (body.deleteServiceId) {
         try {
           await DB.remove('guest', { id: body.deleteServiceId });
-        } catch (err) {
+        } catch (e) {
+          sentryCapture(e);
           res.send({
             code: 400,
-            msg: err,
+            msg: e,
           });
         }
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1605,6 +1767,7 @@ const usersRouter = () => {
         bookingDetail,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1678,6 +1841,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1708,6 +1872,7 @@ const usersRouter = () => {
         msg: 'Data Update Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1725,10 +1890,27 @@ const usersRouter = () => {
         msg: 'Data Deleted Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API to get amenities
+  router.post('/getAmenities', userAuthCheck, async (req, res) => {
+    const amenities = await DB.select('amenities', {});
+    if (amenities && amenities.length > 0) {
+      res.send({
+        code: 200,
+        amenities,
+      });
+    } else {
+      res.send({
+        code: 500,
+        msg: 'server error',
       });
     }
   });
@@ -1775,27 +1957,28 @@ const usersRouter = () => {
       };
 
       const Id = await DB.insert('reservation', reservationData);
-      console.log('ID', Id);
-      body.guestData.map(async (el) => {
-        const Data = {
-          userId: id,
-          reservationId: Id,
-          fullname: el.fullName,
-          country: el.country,
-          email: el.email,
-          phone: el.phone,
-        };
-        await DB.insert('guest', Data);
-        await DB.increment(
-          'booking',
-          {
-            id: Id,
-          },
-          {
-            noGuest: 1,
-          },
-        );
-      });
+      if (body.guestData[0] !== null) {
+        body.guestData.map(async (el) => {
+          const Data = {
+            userId: id,
+            reservationId: Id,
+            fullname: el.fullName,
+            country: el.country,
+            email: el.email,
+            phone: el.phone,
+          };
+          await DB.insert('guest', Data);
+          await DB.increment(
+            'booking',
+            {
+              id: Id,
+            },
+            {
+              noGuest: 1,
+            },
+          );
+        });
+      }
 
       // body.serviceData.map(async (el) => {
       //   const Data = {
@@ -1815,6 +1998,7 @@ const usersRouter = () => {
         msg: 'Reservation save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1822,6 +2006,7 @@ const usersRouter = () => {
       });
     }
   });
+
   // API for get reservation
   router.post('/getReservation', userAuthCheck, async (req, res) => {
     try {
@@ -1850,6 +2035,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some Error has occured!',
@@ -1875,6 +2061,7 @@ const usersRouter = () => {
         unitData: unit,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some Error has occured!',
@@ -1911,6 +2098,7 @@ const usersRouter = () => {
         msg: 'Data Update Successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -1929,6 +2117,7 @@ const usersRouter = () => {
         msg: 'Data remove successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -1967,10 +2156,11 @@ const usersRouter = () => {
           });
         },
       );
-    } catch (err) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
-        msg: err.msg,
+        msg: e.msg,
       });
     }
   });
@@ -2035,6 +2225,7 @@ const usersRouter = () => {
                 amount: el.itemAmount,
                 discount: el.itemDiscount,
                 discountPer: el.itemDiscountPer,
+                discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
               await DB.insert('invoiceItems', Data);
@@ -2053,6 +2244,7 @@ const usersRouter = () => {
                 amount: el.amount,
                 discount: el.discount,
                 discountPer: el.discountPer,
+                discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
               await DB.update('invoiceItems', Data);
@@ -2064,8 +2256,9 @@ const usersRouter = () => {
             url: data.Location,
           });
         });
-    } catch (err) {
-      console.log(err);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occurred',
@@ -2109,10 +2302,11 @@ const usersRouter = () => {
           }
         },
       );
-    } catch (err) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
-        msg: err,
+        msg: e,
       });
     }
   });
@@ -2127,6 +2321,7 @@ const usersRouter = () => {
         msg: 'Data remove successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2150,6 +2345,7 @@ const usersRouter = () => {
         msg: 'Invoice Cancelled!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2174,6 +2370,7 @@ const usersRouter = () => {
         InvoiceData,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2299,6 +2496,7 @@ const usersRouter = () => {
         }
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2357,8 +2555,9 @@ const usersRouter = () => {
         code: 200,
         msg: 'Data update successfully!',
       });
-    } catch (err) {
-      console.log(err);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2370,7 +2569,6 @@ const usersRouter = () => {
   router.post('/getSubUser', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('getsubuser', body);
       let id;
       if (body.affiliateId) {
         id = body.affiliateId;
@@ -2382,9 +2580,11 @@ const usersRouter = () => {
         subUser,
         async (items, next) => {
           const itemsCopy = items;
-          const data = await DB.selectCol(['isvalid'], 'users', { email: itemsCopy.email });
-          const [{ isvalid }] = data;
+          const data = await DB.selectCol(['isvalid', 'fullname'], 'users', { email: itemsCopy.email });
+
+          const [{ isvalid, fullname }] = data;
           itemsCopy.status = isvalid;
+          itemsCopy.fullname = fullname;
           next();
           return itemsCopy;
         },
@@ -2396,6 +2596,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2420,6 +2621,167 @@ const usersRouter = () => {
         msg: 'Sub User removed successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API for Resend Mail
+  router.post('/resend-email', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const password = randomstring.generate(7);
+      console.log('password', password);
+      const hashedPassword = await hashPassword(password);
+      const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+      const userData = {
+        verificationhex: hash,
+        encrypted_password: hashedPassword,
+      };
+      await DB.update('users', userData, { id: body.id });
+      const url = frontendUrl(body.company, '/', {
+        token: userData.verificationhex,
+      });
+      const msg = {
+        from: config.get('mailing.from'),
+        templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
+        personalizations: [
+          {
+            to: [
+              {
+                email: body.email,
+              },
+            ],
+            dynamic_template_data: {
+              receipt: true,
+              role: body.role,
+              password,
+              link: url,
+            },
+          },
+        ],
+      };
+
+      sgMail.send(msg, (error, result) => {
+        if (error) {
+          console.log(error);
+          res.send({
+            code: 400,
+            msg: 'Some has error occured!',
+          });
+        } else {
+          console.log(result);
+          res.send({
+            code: 200,
+            msg: 'Data saved successfully, please verify your email address!',
+          });
+        }
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API for update sub userv details
+  router.post('/updateSubUser', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const subUserData = {
+        userId: id,
+        email: body.email,
+        role: body.role,
+        bookingRead: body.bookingRead,
+        bookingWrite: body.bookingWrite,
+        bookingDelete: body.bookingDelete,
+        calendarRead: body.calendarRead,
+        calendarWrite: body.calendarWrite,
+        calendarDelete: body.calendarDelete,
+        propertiesRead: body.propertiesRead,
+        propertiesWrite: body.propertiesWrite,
+        propertiesDelete: body.propertiesDelete,
+        guestsRead: body.guestsRead,
+        guestsWrite: body.guestsWrite,
+        guestsDelete: body.guestsDelete,
+        serviceRead: body.serviceRead,
+        serviceWrite: body.serviceWrite,
+        serviceDelete: body.serviceDelete,
+        teamRead: body.teamRead,
+        teamWrite: body.teamWrite,
+        teamDelete: body.teamDelete,
+        invoicesRead: body.invoicesRead,
+        invoicesWrite: body.invoicesWrite,
+        invoicesDelete: body.invoicesDelete,
+        statsRead: body.statsRead,
+        statsWrite: body.statsWrite,
+        statsDelete: body.statsDelete,
+        ownerRead: body.ownerRead,
+        ownerWrite: body.ownerWrite,
+        ownerDelete: body.ownerDelete,
+        billingRead: body.billingRead,
+        billingWrite: body.billingWrite,
+        billingDelete: body.billingDelete,
+      };
+      console.log(subUserData);
+      await DB.update('team', subUserData, { id: body.id });
+      res.send({
+        code: 200,
+        msg: 'Data update successfully!',
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get sub user details
+  router.post('/getSubUser', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const subUser = await DB.select('team', { userId: id });
+      each(
+        subUser,
+        async (items, next) => {
+          const itemsCopy = items;
+          const data = await DB.selectCol(['isvalid', 'fullname'], 'users', { email: itemsCopy.email });
+
+          const [{ isvalid, fullname }] = data;
+          itemsCopy.status = isvalid;
+          itemsCopy.fullname = fullname;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            subUser,
+          });
+        },
+      );
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2514,6 +2876,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2538,6 +2901,7 @@ const usersRouter = () => {
         data,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2557,6 +2921,7 @@ const usersRouter = () => {
         msg: 'Data remove successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2592,6 +2957,7 @@ const usersRouter = () => {
         msg: 'Data updated successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2617,6 +2983,7 @@ const usersRouter = () => {
         userInfo,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2648,6 +3015,7 @@ const usersRouter = () => {
           image: data.Location,
         });
       } catch (e) {
+        sentryCapture(e);
         console.log(e);
         res.send({
           code: 444,
@@ -2679,6 +3047,7 @@ const usersRouter = () => {
           image: data.Location,
         });
       } catch (e) {
+        sentryCapture(e);
         res.send({
           code: 444,
           msg: 'Some error has occured!',
@@ -2700,19 +3069,22 @@ const usersRouter = () => {
         quantity: body.servicequantity,
       };
       if (body.serviceId) {
-        await DB.update('service', servicData, { id: body.serviceId });
+        // await DB.update('service', servicData, { id: body.serviceId });
+        await DB.update('serviceV2', servicData, { id: body.serviceId });
         res.send({
+
           code: 200,
           msg: 'Data update successfully!',
         });
       } else {
-        await DB.insert('service', servicData);
+        await DB.insert('serviceV2', servicData);
         res.send({
           code: 200,
           msg: 'Data save successfully!',
         });
       }
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2724,7 +3096,8 @@ const usersRouter = () => {
   router.post('/getService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const servicData = await DB.select('service', {
+      console.log('body.propertyId==>', body.propertyId);
+      const servicData = await DB.select('serviceV2', {
         propertyId: body.propertyId,
       });
       res.send({
@@ -2732,6 +3105,7 @@ const usersRouter = () => {
         servicData,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2743,7 +3117,7 @@ const usersRouter = () => {
   router.post('/deleteService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('service', {
+      await DB.remove('serviceV2', {
         id: body.id,
       });
       res.send({
@@ -2751,6 +3125,7 @@ const usersRouter = () => {
         msg: 'Data Remove Sucessfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2766,6 +3141,7 @@ const usersRouter = () => {
         status: true,
       });
     } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 406,
         msg: 'Some error has occured!',
@@ -2793,6 +3169,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2817,6 +3194,7 @@ const usersRouter = () => {
         msg: 'Data update successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2844,6 +3222,7 @@ const usersRouter = () => {
         msg: 'Data saved successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2864,6 +3243,7 @@ const usersRouter = () => {
         userData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2884,6 +3264,7 @@ const usersRouter = () => {
         userData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2903,6 +3284,7 @@ const usersRouter = () => {
         companyData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -2965,6 +3347,7 @@ const usersRouter = () => {
         prevYearArr,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3052,6 +3435,7 @@ const usersRouter = () => {
         prevYearArr,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3139,6 +3523,7 @@ const usersRouter = () => {
         prevYearArr,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3170,6 +3555,7 @@ const usersRouter = () => {
         average,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3274,9 +3660,10 @@ const usersRouter = () => {
           msg: 'payment failed',
         });
       }
-    } catch (err) {
-      console.log(err);
-      if (err.statusCode === 400) {
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      if (e.statusCode === 400) {
         res.send({
           code: 400,
           msg: 'Payment failed!',
@@ -3323,47 +3710,56 @@ const usersRouter = () => {
           });
         }
       }
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occured',
       });
     }
   });
+
   router.post('/getBillingInvoice', userAuthCheck, async (req, res) => {
     try {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
-      const [{ customerId }] = Data;
-      const invoicesList = [];
-      await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
-        invoices.data.forEach((el) => {
-          if (el.customer === customerId) {
-            const { currency } = el;
-            const amount = el.amount_paid / 100;
-            // let amount = Math.floor(parseFloat(initial))
-            // const { units } = Data[0];
-            const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
-            const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
-            const dt = {
-              invoiceId: el.id,
-              start,
-              end,
-              amount,
-              // units,
-              currency,
-              pdf: el.invoice_pdf,
-            };
-            invoicesList.push(dt);
-          }
+      if (Data && Data.length > 0) {
+        const [{ customerId }] = Data;
+        const invoicesList = [];
+        await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
+          invoices.data.forEach((el) => {
+            if (el.customer === customerId) {
+              const { currency } = el;
+              const amount = el.amount_paid / 100;
+              // let amount = Math.floor(parseFloat(initial))
+              // const { units } = Data[0];
+              const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
+              const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
+              const dt = {
+                invoiceId: el.id,
+                start,
+                end,
+                amount,
+                // units,
+                currency,
+                pdf: el.invoice_pdf,
+              };
+              invoicesList.push(dt);
+            }
+          });
+          res.send({ code: 200, invoicesList });
         });
-        res.send({ code: 200, invoicesList });
-      });
+      } else {
+        res.send({
+          code: 200,
+          msg: 'no invoices',
+        });
+      }
     } catch (e) {
+      sentryCapture(e);
       res.send({ code: 444, msg: 'Some error has occured.' });
     }
   });
-
   // API for cancelling subscription
   router.post('/cancelSubscription', userAuthCheck, async (req, res) => {
     try {
@@ -3382,8 +3778,9 @@ const usersRouter = () => {
           msg: 'Your subscription is cancelled',
         });
       });
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occurred!',
@@ -3468,6 +3865,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3481,27 +3879,34 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const Data = await DB.selectCol(['subscriptionId'], 'subscription', { userId: body.tokenData.userid });
-      const [{ subscriptionId }] = Data;
-      const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-      console.log('active subscription', subscription);
-      if (subscription) {
-        if (subscription.status === 'canceled') {
-          const end = moment(subscription.current_period_end * 1000).format('YYYY-MM-DD');
-          const today = moment(new Date()).format('YYYY-MM-DD');
-          const compare = moment(end).isSameOrBefore(today);
-          console.log(compare);
-          if (compare) {
+      console.log('subscription status data===>>', Data);
+      if (Data && Data.length > 0) {
+        const [{ subscriptionId }] = Data;
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        console.log('active subscription', subscription);
+        if (subscription) {
+          if (subscription.status === 'canceled') {
+            const end = moment(subscription.current_period_end * 1000).format('YYYY-MM-DD');
+            const today = moment(new Date()).format('YYYY-MM-DD');
+            const compare = moment(end).isSameOrBefore(today);
+            console.log(compare);
+            if (compare) {
+              await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
+            }
+          } else if (subscription.status !== 'active') {
             await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
           }
-        } else if (subscription.status !== 'active') {
-          await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
         }
+        res.send({
+          code: 200,
+          msg: 'subscription status updated',
+        });
       }
       res.send({
         code: 200,
-        msg: 'subscription status updated',
       });
-    } catch (error) {
+    } catch (e) {
+      sentryCapture(e);
       res.send({
         code: 444,
         msg: 'some error occured!',
@@ -3533,8 +3938,9 @@ const usersRouter = () => {
         code: 200,
         userSubsDetails,
       });
-    } catch (error) {
-      console.log(error);
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
       res.send({
         code: 444,
         msg: 'some error occured',
@@ -3568,35 +3974,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
-      console.log(e);
-      res.send({
-        code: 444,
-        msg: 'some error occured',
-      });
-    }
-  });
-
-  // API for set status of booking
-  router.post('/setStatus', userAuthCheck, async (req, res) => {
-    try {
-      const { ...body } = req.body;
-      console.log(body);
-      let colour;
-      if (body.status === 'booked') {
-        colour = 'red';
-      } else if (body.status === 'open') {
-        colour = 'green';
-      } else if (body.status === 'tentative') {
-        colour = 'orange';
-      } else if (body.status === 'decline') {
-        colour = 'grey';
-      }
-      await DB.update('booking', { status: body.status, statusColour: colour }, { id: body.bookingId });
-      res.send({
-        code: 200,
-        msg: 'Status added successfully!',
-      });
-    } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3668,6 +4046,7 @@ const usersRouter = () => {
         msg: 'Group Reservation save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3697,6 +4076,7 @@ const usersRouter = () => {
         },
       );
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3761,6 +4141,7 @@ const usersRouter = () => {
         msg: 'Data save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3784,6 +4165,7 @@ const usersRouter = () => {
         seasonRatesData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3803,6 +4185,7 @@ const usersRouter = () => {
         unittypeData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3880,6 +4263,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3899,6 +4283,7 @@ const usersRouter = () => {
         seasonRateData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3917,6 +4302,7 @@ const usersRouter = () => {
         msg: 'SeasonRate delete successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3935,6 +4321,7 @@ const usersRouter = () => {
         seasonRateData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -3955,6 +4342,7 @@ const usersRouter = () => {
         guestData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4019,6 +4407,7 @@ const usersRouter = () => {
         msg: 'Data save successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4037,6 +4426,7 @@ const usersRouter = () => {
         msg: 'Data update successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4071,6 +4461,7 @@ const usersRouter = () => {
         });
       }
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4089,6 +4480,7 @@ const usersRouter = () => {
         companyData,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4107,6 +4499,7 @@ const usersRouter = () => {
         msg: 'Company delete successfully!',
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
@@ -4124,6 +4517,7 @@ const usersRouter = () => {
         code: 200,
       });
     } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,

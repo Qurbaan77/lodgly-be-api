@@ -78,4 +78,6 @@ module.exports = {
   serverPath: process.env.SERVER_PATH,
   sentry_dsn: process.env.SENTRY_DSN,
   COUPON_SECRET_KEY: 'secret-bb298999667342649f56ab13fe6dc055',
+  RU_USER: process.env.RU_USER,
+  RU_PASSWORD: process.env.RU_PASSWORD,
 };

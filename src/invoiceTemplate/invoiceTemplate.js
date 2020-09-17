@@ -229,8 +229,10 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemAmount}`} EUR</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscountPer}`}%</span>
-                            </td>     
+                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscountPer}`}
+                                ${`${el.itemDiscountType}`}</span>
+                            </td>  
+                             
                             <td style="padding:5px;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemDiscount}`} EUR</span>
                             </td>     

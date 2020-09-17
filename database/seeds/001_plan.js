@@ -12,11 +12,11 @@ exports.seed = (knex) => seed(knex, 'plan', [
     stats: 1,
     owner: 1,
     guests: 1,
-    websiteBuilder: 0,
+    websideBuilder: 0,
     channelManager: 1,
   },
   {
-    id: 1,
+    id: 2,
     planType: 'advance',
     booking: 1,
     calendar: 1,
@@ -26,7 +26,7 @@ exports.seed = (knex) => seed(knex, 'plan', [
     stats: 1,
     owner: 1,
     guests: 1,
-    websiteBuilder: 1,
+    websideBuilder: 1,
     channelManager: 1,
   },
 ]);

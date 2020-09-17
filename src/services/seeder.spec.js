@@ -4,17 +4,18 @@ describe('seeder service', () => {
   const tableName = 'tableName';
   const payload = [
     { id: 1, name: 'name' },
+    { name: 'some' },
   ];
 
   it('should run seeder and insert new items', async () => {
-    const results = [1];
+    const results = [1, 2];
     const first = jest.fn().mockResolvedValue(null);
     const where = jest.fn().mockReturnValue({ first });
     const insert = jest.fn().mockReturnValue(results);
 
     const knex = jest.fn().mockImplementation(() => ({ where, insert }));
 
-    expect(await seed(knex, tableName, payload)).toEqual([results]);
+    await expect(seed(knex, tableName, payload)).resolves.toEqual(results);
 
     expect(knex).toBeCalledWith(tableName);
     expect(where).toBeCalledWith('id', '=', 1);
@@ -23,7 +24,7 @@ describe('seeder service', () => {
   });
 
   it('should run seeder and do not insert', async () => {
-    const results = [1];
+    const results = [2];
 
     const first = jest.fn().mockResolvedValue({ id: 1 });
     const where = jest.fn().mockReturnValue({ first });
@@ -31,7 +32,7 @@ describe('seeder service', () => {
 
     const knex = jest.fn().mockImplementation(() => ({ where, insert }));
 
-    expect(await seed(knex, tableName, payload)).toEqual([results]);
+    await expect(seed(knex, tableName, payload)).resolves.toEqual(results);
 
     expect(knex).toBeCalledWith(tableName);
     expect(where).toBeCalledWith('id', '=', 1);

@@ -24,7 +24,11 @@
   "license": "ISC",
   "dependencies": {
     "@sendgrid/mail": "^7.2.5",
+<<<<<<< HEAD
     "@sentry/node": "^5.22.3",
+=======
+    "@sentry/node": "^5.23.0",
+>>>>>>> staging
     "aws-sdk": "^2.747.0",
     "axios": "^0.20.0",
     "bcryptjs": "^2.4.3",
@@ -50,7 +54,8 @@
     "serverless-http": "^2.5.0",
     "stripe": "^8.92.0",
     "sync-each": "^1.0.1",
-    "voucher-code-generator": "^1.1.1"
+    "voucher-code-generator": "^1.1.1",
+    "xml-js": "^1.6.11"
   },
   "devDependencies": {
     "eslint": "^7.8.1",
