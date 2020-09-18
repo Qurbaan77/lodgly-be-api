@@ -6,7 +6,7 @@ const userAuthCheck = async (req, res, next) => {
     const token = req.headers['x-custom-header'];
     // const cookie = req.signedCookies;
     if (token) {
-      // console.log('token', cookie.token);
+      console.log('token', token);
       const isCookieValid = await verifyJwt(token);
       if (isCookieValid) {
         req.body.tokenData = isCookieValid;
