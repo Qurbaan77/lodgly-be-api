@@ -241,17 +241,9 @@ const propertyRouter = () => {
 
   // API fo add rates on UnitType
   router.post('/addRates', userAuthCheck, async (req, res) => {
-    // try {
-    // } catch (e) {
-    //   sentryCapture(e);
-    //   console.log(e);
-    //   res.send({
-    //     code: 444,
-    //     msg: 'some error occured',
-    //   });
-    // }
     try {
       const { ...body } = req.body;
+      console.log(body);
       const rateData = {
         unitTypeId: body.unitTypeId,
         rateName: body.rateName,
@@ -297,7 +289,11 @@ const propertyRouter = () => {
         tax: body.taxPer,
         notes: body.notes,
       };
-      await DB.insert('ratesV2', rateData);
+      if (body.id > 0) {
+        await DB.update('ratesV2', rateData, { id: body.id });
+      } else {
+        await DB.insert('ratesV2', rateData);
+      }
       res.send({
         code: 200,
         msg: 'Data save successfully!',
