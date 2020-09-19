@@ -2820,9 +2820,9 @@ const usersRouter = () => {
 
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
-        await DB.update('property', { ownerId: 0 }, { ownerId: body.id });
+        await DB.update('propertyV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
-          await DB.update('property', { ownerId: body.id }, { id: items });
+          await DB.update('propertyV2', { ownerId: body.id }, { id: items });
           next();
         });
         res.send({
@@ -2832,7 +2832,7 @@ const usersRouter = () => {
       } else {
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
-          await DB.update('property', { ownerId: saveData }, { id: items });
+          await DB.update('propertyV2', { ownerId: saveData }, { id: items });
           next();
         });
         res.send({

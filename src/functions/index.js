@@ -122,6 +122,26 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+const enumerateDaysBetweenDates = (startDate, endDate) => {
+  const dates = [];
+  let copyDate = startDate;
+  while (copyDate.format('M/D/YYYY') !== endDate.format('M/D/YYYY')) {
+    dates.push(startDate.toDate());
+    copyDate = startDate.add(1, 'days');
+  }
+
+  return dates;
+};
+
+const getRandomColor = () => {
+  const letters = '0123456789ABCDEF';
+  let color = '#';
+  for (let i = 0; i < 6; i += 1) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
 module.exports = {
   checkIfEmpty,
   signJwt,
@@ -132,4 +152,6 @@ module.exports = {
   verifyJwtAdmin,
   signJwtAdmin,
   upload,
+  enumerateDaysBetweenDates,
+  getRandomColor,
 };
