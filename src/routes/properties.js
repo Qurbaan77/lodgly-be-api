@@ -527,6 +527,32 @@ const propertyRouter = () => {
     }
   });
 
+  // API for fetch unittype
+  router.post('/getUnittype', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('body', body);
+      const unittypeData = await DB.select('unitTypeV2', { propertyId: body.propertyId });
+      if (unittypeData) {
+        res.send({
+          code: 200,
+          unittypeData,
+        });
+      } else {
+        res.send({
+          code: 401,
+          msg: 'No Unittype Saved',
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   return router;
 };
 
