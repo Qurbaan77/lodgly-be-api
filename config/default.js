@@ -64,7 +64,7 @@ module.exports = {
   guards: {
     user: {
       secret: process.env.JWT_USER_SECRET,
-      accessTokenTtl: 86400,
+      accessTokenTtl: 360000,
       refreshTokenTtl: 1728000,
     },
   },

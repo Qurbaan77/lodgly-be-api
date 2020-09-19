@@ -620,32 +620,34 @@ const usersRouter = () => {
         id = body.tokenData.organizationid;
       }
       const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
-      const [{ planType }] = organizationPlan;
-      if (planType === 'basic') {
-        const data0 = await DB.select('plan', { planType });
-        const data1 = await DB.select('feature', { organizationId: id });
-        const webPerm = data1[0].websideBuilder;
-        const chanPerm = data1[0].channelManager;
-        if (webPerm || chanPerm) {
-          const featureData = data1;
-          res.send({
-            code: 200,
-            featureData,
-          });
+      if (organizationPlan && organizationPlan.length) {
+        const [{ planType }] = organizationPlan;
+        if (planType === 'basic') {
+          const data0 = await DB.select('plan', { planType });
+          const data1 = await DB.select('feature', { organizationId: id });
+          const webPerm = data1[0].websideBuilder;
+          const chanPerm = data1[0].channelManager;
+          if (webPerm || chanPerm) {
+            const featureData = data1;
+            res.send({
+              code: 200,
+              featureData,
+            });
+          } else {
+            const featureData = data0;
+            res.send({
+              code: 200,
+              featureData,
+            });
+          }
         } else {
-          const featureData = data0;
+          const data = await DB.select('plan', { planType });
+          const featureData = data;
           res.send({
             code: 200,
             featureData,
           });
         }
-      } else {
-        const data = await DB.select('plan', { planType });
-        const featureData = data;
-        res.send({
-          code: 200,
-          featureData,
-        });
       }
     } catch (e) {
       sentryCapture(e);
@@ -2179,7 +2181,7 @@ const usersRouter = () => {
             type: body.type,
           };
           if (!body.id) {
-            const Id = await DB.insert('invoice', invoiceData);
+            const Id = await DB.insert('invoiceV2', invoiceData);
             console.log('invoice id', Id);
             body.itemData.map(async (el) => {
               const Data = {
@@ -2193,13 +2195,13 @@ const usersRouter = () => {
                 discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
-              await DB.insert('invoiceItems', Data);
+              await DB.insert('invoiceItemsV2', Data);
             });
             if (body.deleteInvoiceItemId) {
-              await DB.remove('invoiceItems', { id: body.deleteInvoiceItemId });
+              await DB.remove('invoiceItemsV2', { id: body.deleteInvoiceItemId });
             }
           } else {
-            await DB.update('invoice', invoiceData, { id: body.id });
+            await DB.update('invoiceV2', invoiceData, { id: body.id });
             body.itemData.map(async (el) => {
               const Data = {
                 invoiceId: body.id,
@@ -2212,7 +2214,7 @@ const usersRouter = () => {
                 discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
-              await DB.update('invoiceItems', Data);
+              await DB.update('invoiceItemsV2', Data);
             });
           }
           res.send({
@@ -2241,12 +2243,12 @@ const usersRouter = () => {
       } else {
         id = body.affiliateId;
       }
-      const invoiceData = await DB.select('invoice', { userId: id });
+      const invoiceData = await DB.select('invoiceV2', { userId: id });
       const invoiceItems = [];
       each(
         invoiceData,
         async (items, next) => {
-          const data = await DB.select('invoiceItems', { invoiceId: items.id });
+          const data = await DB.select('invoiceItemsV2', { invoiceId: items.id });
           if (data.length) {
             invoiceItems.push(data);
           }
@@ -2280,7 +2282,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const invoiceId = body.deleteId;
-      await DB.remove('invoice', { id: invoiceId });
+      await DB.remove('invoiceV2', { id: invoiceId });
       res.send({
         code: 200,
         msg: 'Data remove successfully!',
@@ -2304,7 +2306,7 @@ const usersRouter = () => {
         type: body.type,
       };
       console.log('cancel invoice id', invoiceId);
-      await DB.update('invoice', invoiceData, { id: invoiceId });
+      await DB.update('invoiceV2', invoiceData, { id: invoiceId });
       res.send({
         code: 200,
         msg: 'Invoice Cancelled!',
@@ -3897,7 +3899,7 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      const remainingDays = 14 - totalDays;
+      const remainingDays = 7 - totalDays;
       userSubsDetails[0].days = remainingDays;
       res.send({
         code: 200,
