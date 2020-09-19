@@ -1,8 +1,10 @@
 const express = require('express');
 const each = require('sync-each');
+const moment = require('moment');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const sentryCapture = require('../../config/sentryCapture');
+const { enumerateDaysBetweenDates, getRandomColor } = require('../functions/index');
 
 const reservationRouter = () => {
   const router = express.Router();
@@ -145,19 +147,85 @@ const reservationRouter = () => {
       } else {
         id = body.affiliateId;
       }
-      const unitType = await DB.select('unitTypeV2', { userId: id });
-      console.log('unitType', unitType);
-      let units = [];
-      if (unitType.length > 0) {
-        if (unitType[0].unitsData !== null) {
-          units = unitType[0].unitsData;
-        }
-      }
-      res.send({
-        code: 200,
-        unittypeData: unitType,
-        unitData: units,
-      });
+      const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'], 'unitTypeV2', { userId: id });
+      each(
+        unitType,
+        async (items, next) => {
+          const units = [];
+          const rates = [];
+          const itemsCopy = items;
+          const seasonRates = await DB.selectCol(
+            ['id', 'unitTypeId', 'startDate', 'endDate', 'price_per_night', 'minimum_stay'],
+            'seasonRatesV2',
+            {
+              unitTypeId: items.id,
+            },
+          );
+
+          seasonRates.forEach((ele) => {
+            const daysBetween = enumerateDaysBetweenDates(moment(new Date(ele.startDate)), moment(new Date(ele.endDate)));
+            daysBetween.forEach((el) => {
+              const dateInmiliseconds = +new Date(el);
+              const ratesData = {
+                id: ele.id,
+                unitTypeId: ele.unitTypeId,
+                date: dateInmiliseconds,
+                pricePerNight: ele.price_per_night,
+                minStay: ele.minimum_stay,
+              };
+              rates.push(ratesData);
+            });
+          });
+          const customizeRates = {
+            data: rates,
+          };
+          itemsCopy.rates = customizeRates;
+          const reservation = await DB.selectCol(
+            ['id', 'startDate', 'endDate', 'totalAmount', 'bookedUnit', 'guest'],
+            'reservationV2',
+            {
+              unitTypeId: items.id,
+            },
+          );
+          JSON.parse(items.unitsData).forEach((ele, i) => {
+            const unitsData = {
+              id: i,
+              name: ele,
+              color: getRandomColor(),
+            };
+            const bookingData = [];
+            reservation
+              .filter((el) => el.bookedUnit === i)
+              .map((data) => {
+                const cutomizeData = {
+                  id: data.id,
+                  from: +new Date(data.startDate),
+                  to: +new Date(data.endDate),
+                  guestName: data.guest,
+                  price: data.totalAmount,
+                };
+                return bookingData.push(cutomizeData);
+              });
+            const customizeBooking = {
+              data: bookingData,
+            };
+            unitsData.booking = customizeBooking;
+            units.push(unitsData);
+          });
+          const cutomizeUnits = {
+            data: units,
+          };
+          itemsCopy.units = cutomizeUnits;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            data: unitType,
+          });
+        },
+      );
     } catch (e) {
       console.log(e);
       sentryCapture(e);
