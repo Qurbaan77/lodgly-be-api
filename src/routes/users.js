@@ -24,6 +24,8 @@ const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 const sentryCapture = require('../../config/sentryCapture');
 
 AWS.config.setPromisesDependency(bluebird);
+AWS.config.update({ region: 'eu-west-1' });
+
 // const clientPath = domainName('app');
 // const serverPath = config.get('serverPath');
 const usersRouter = () => {
@@ -66,7 +68,7 @@ const usersRouter = () => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
-      Bucket: `${bucket}/${organizationid}/Invoices`,
+      Bucket: `${bucket}/${organizationid}/invoices`,
       // ContentType: 'application/pdf',
       Key: `${name}.${type.ext}`,
       ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
@@ -100,7 +102,7 @@ const usersRouter = () => {
 
         const info = await transporter.sendMail({
           from: 'no-reply@lodgly.com',
-          to: 'piotr.krajewski@lodgly.com',
+          to: 'mits87@gmail.com',
           subject: 'New Signup Request',
           text: message.join('\n'),
           html: message.join('<br/>'),
