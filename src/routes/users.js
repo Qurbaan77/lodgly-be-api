@@ -100,15 +100,15 @@ const usersRouter = () => {
           }),
         });
 
-        const info = await transporter.sendMail({
+        transporter.sendMail({
           from: 'no-reply@lodgly.com',
           to: 'mits87@gmail.com',
           subject: 'New Signup Request',
           text: message.join('\n'),
           html: message.join('<br/>'),
+        }, (err, { envelope, messageId }) => {
+          console.log('SES: ', { envelope, messageId, err });
         });
-
-        console.log(`Message sent: ${info.messageId}`);
       } else {
         res.send({
           code: 400,
