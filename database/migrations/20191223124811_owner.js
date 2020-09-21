@@ -19,6 +19,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('image');
   table.string('verificationhex');
   table.boolean('isvalid').defaultTo(false);
+  table.boolean('isaccess').defaultTo(false);
   table.string('forgetPassHex');
   table.string('encrypted_password');
 

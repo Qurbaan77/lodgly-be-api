@@ -241,17 +241,9 @@ const propertyRouter = () => {
 
   // API fo add rates on UnitType
   router.post('/addRates', userAuthCheck, async (req, res) => {
-    // try {
-    // } catch (e) {
-    //   sentryCapture(e);
-    //   console.log(e);
-    //   res.send({
-    //     code: 444,
-    //     msg: 'some error occured',
-    //   });
-    // }
     try {
       const { ...body } = req.body;
+      console.log(body);
       const rateData = {
         unitTypeId: body.unitTypeId,
         rateName: body.rateName,
@@ -297,7 +289,11 @@ const propertyRouter = () => {
         tax: body.taxPer,
         notes: body.notes,
       };
-      await DB.insert('ratesV2', rateData);
+      if (body.id > 0) {
+        await DB.update('ratesV2', rateData, { id: body.id });
+      } else {
+        await DB.insert('ratesV2', rateData);
+      }
       res.send({
         code: 200,
         msg: 'Data save successfully!',
@@ -523,6 +519,32 @@ const propertyRouter = () => {
       res.send({
         code: 444,
         msg: 'server error',
+      });
+    }
+  });
+
+  // API for fetch unittype
+  router.post('/getUnittype', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('body', body);
+      const unittypeData = await DB.select('unitTypeV2', { propertyId: body.propertyId });
+      if (unittypeData) {
+        res.send({
+          code: 200,
+          unittypeData,
+        });
+      } else {
+        res.send({
+          code: 401,
+          msg: 'No Unittype Saved',
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
       });
     }
   });
