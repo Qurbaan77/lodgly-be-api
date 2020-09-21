@@ -108,6 +108,10 @@ const usersRouter = () => {
           html: message.join('<br/>'),
         }, (err, { envelope, messageId }) => {
           console.log('SES: ', { envelope, messageId, err });
+          res.send({
+            code: 200,
+            msg: 'Request sent succesfully! We will contant with you soon!',
+          });
         });
       } else {
         res.send({
