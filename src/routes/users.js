@@ -103,7 +103,7 @@ const usersRouter = () => {
         transporter.sendMail({
           from: 'no-reply@lodgly.com',
           to: 'mits87@gmail.com',
-          subject: 'New Signup Request',
+          subject: `[${config.get('environment')}] New Lodgly Signup Request`,
           text: message.join('\n'),
           html: message.join('<br/>'),
         }, (err, { envelope, messageId }) => {
