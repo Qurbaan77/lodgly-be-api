@@ -3,8 +3,7 @@ const config = require('config');
 const crypto = require('crypto');
 const randomstring = require('randomstring');
 const moment = require('moment');
-// const nodemailer = require('nodemailer');
-// const smtpTransport = require('nodemailer-smtp-transport');
+const nodemailer = require('nodemailer');
 const each = require('sync-each');
 const sgMail = require('@sendgrid/mail');
 const fs = require('fs');
@@ -36,6 +35,7 @@ const usersRouter = () => {
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
   });
+
   const uploadFile = async (buffer, name, type, organizationid) => {
     try {
       console.log('organization id in upload file', organizationid);
@@ -74,6 +74,54 @@ const usersRouter = () => {
     const url = await s3.getSignedUrlPromise('putObject', params);
     return s3.upload(params, url).promise();
   };
+
+  // post request to signup user
+  router.post('/request-access', async ({
+    body: {
+      email, phone, name, propertiesCount,
+    },
+  }, res) => {
+    try {
+      if (email && phone && name && propertiesCount) {
+        const message = [
+          `Name: ${name}`,
+          `E-mail: ${email}`,
+          `Phone: ${phone}`,
+          `Properties No.: ${propertiesCount}`,
+        ];
+
+        const transporter = nodemailer.createTransport({
+          SES: new AWS.SES({
+            apiVersion: '2010-12-01',
+            accessKeyId: config.get('aws.accessKey'),
+            secretAccessKey: config.get('aws.accessSecretKey'),
+          }),
+        });
+
+        const info = await transporter.sendMail({
+          from: 'no-reply@lodgly.com',
+          to: 'piotr.krajewski@lodgly.com',
+          subject: 'New Signup Request',
+          text: message.join('\n'),
+          html: message.join('<br/>'),
+        });
+
+        console.log(`Message sent: ${info.messageId}`);
+      } else {
+        res.send({
+          code: 400,
+          msg: 'Invalid data',
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
+      console.log('error', e);
+      res.send({
+        code: 400,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
 
   // post request to signup user
   router.post('/signup', async (req, res) => {
