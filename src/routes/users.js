@@ -110,6 +110,7 @@ const usersRouter = () => {
                 const userData = {
                   organizationId: saveData,
                   fullname: body.name,
+                  companyName: body.company,
                   encrypted_password: body.encrypted_password,
                   email: body.email,
                   phone: body.phone,
