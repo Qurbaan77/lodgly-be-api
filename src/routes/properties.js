@@ -93,6 +93,7 @@ const propertyRouter = () => {
       id = body.tokenData.userid;
     }
     const propertiesData = await DB.select('unitTypeV2', { userId: id });
+    console.log('propertiesData', propertiesData);
     res.send({
       code: 200,
       propertiesData,
