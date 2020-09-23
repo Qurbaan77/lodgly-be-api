@@ -3534,9 +3534,9 @@ const usersRouter = () => {
       } = body;
       const data = await DB.selectCol(['email'], 'users', { id: req.body.tokenData.userid });
       const [{ email }] = data;
-      const now = new Date();
-      const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
-      const nextMonth = nextdate / 1000;
+      // const now = new Date();
+      // const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+      // const nextMonth = nextdate / 1000;
       // create the customer
       const customer = await stripe.customers.create({
         email,
@@ -3710,7 +3710,7 @@ const usersRouter = () => {
   router.post('/cancelSubscription', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      stripe.subscriptions.del(body.subscriptionId, (err, confirmation) => {
+      stripe.subscriptions.del(body.subscriptionId, (err) => {
         if (err) {
           console.log(err);
           res.send({
@@ -3787,7 +3787,7 @@ const usersRouter = () => {
           planType,
           amount,
         };
-        const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
+        await DB.update('subscription', payload, { userId: body.tokenData.userid });
         if (planType === 'basic') {
           await DB.update(
             'feature',

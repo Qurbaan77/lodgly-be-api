@@ -515,7 +515,7 @@ const propertyRouter = () => {
       const savedData = await DB.update(
         'unitTypeV2',
         { languages: JSON.stringify(newLanguage) },
-        { propertyId: body.propertyId }
+        { propertyId: body.propertyId },
       );
       if (savedData) {
         res.status(200).send({
@@ -539,16 +539,12 @@ const propertyRouter = () => {
       let filteredArray = [];
       const languageData = await DB.selectCol(['languages'], 'unitTypeV2', { propertyId: body.propertyId });
       newLanguage = languageData[0].languages;
-      filteredArray = newLanguage.filter((el) => {
-        for (const key in el) {
-          return key !== filterLang;
-        }
-      });
+      filteredArray = newLanguage.filter((el) => Object.keys(el)[0] !== filterLang);
       filteredArray = Array.from(new Set(filteredArray.map(JSON.stringify))).map(JSON.parse);
       const savedData = await DB.update(
         'unitTypeV2',
         { languages: JSON.stringify(filteredArray) },
-        { propertyId: body.propertyId }
+        { propertyId: body.propertyId },
       );
       if (savedData) {
         res.status(200).send({
@@ -627,17 +623,8 @@ const propertyRouter = () => {
       const responseData = await DB.selectCol(['unitTypeName', 'description'], 'unitTypeV2', {
         propertyId,
       });
-      filteredName = responseData[0].unitTypeName.filter((el) => {
-        for (const key in el) {
-          return el[key] === lang;
-        }
-      });
-
-      filteredDescription = responseData[0].description.filter((el) => {
-        for (const key in el) {
-          return el[key] === lang;
-        }
-      });
+      filteredName = responseData[0].unitTypeName.filter((el) => Object.keys(el)[0] !== lang);
+      filteredDescription = responseData[0].description.filter((el) => Object.keys(el)[0] !== lang);
 
       if (filteredDescription && filteredName) {
         res.status(200).send({
