@@ -23,10 +23,6 @@ const propertyRouter = () => {
   // function for upload image on S3bucket
   const uploadFile = async (buffer, name, type, organizationid) => {
     try {
-      console.log('organization id in upload file', organizationid);
-      console.log(config.get('aws.accessKey'));
-      console.log(config.get('aws.accessSecretKey'));
-      console.log(config.get('aws.s3.storageBucketName'));
       const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
@@ -46,7 +42,6 @@ const propertyRouter = () => {
   // post request to add property
   router.post('/addProperty', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log('addProperty', body);
     let id;
     if (body.affiliateId) {
       id = body.affiliateId;
@@ -58,14 +53,18 @@ const propertyRouter = () => {
       propertyName: body.name,
     };
     const savedData = await DB.insert('propertyV2', propertyData);
+    const jsonName = JSON.stringify([{ lang: 'en', name: body.name }]);
+    const langJson = JSON.stringify([{ en: 'English' }]);
+    const descriptionJson = JSON.stringify([]);
     const unitTypeData = {
       userId: id,
       propertyId: savedData,
-      unitTypeName: body.name,
+      unitTypeName: jsonName,
+      languages: langJson,
+      description: descriptionJson,
     };
     // creating unit type with same name
     const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
-    console.log('unitTypeV2Id', unitTypeV2Id);
     res.send({
       code: 200,
       savedData,
@@ -139,16 +138,32 @@ const propertyRouter = () => {
   // API for update Unit Type Overview
   router.post('/updateUnitTypeoverview', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
+    const language = body.languageSelected ? body.languageSelected : 'en';
+    const descriptionToSave = { lang: language, description: body.propertyDescription };
+    const nameToSave = { lang: language, name: body.propertyName };
+    let newPropertyDesciption = [];
+    let newPropertyName = [];
     await DB.update('propertyV2', { propertyName: body.propertyName }, { id: body.propertyId });
-    const payload = {
-      description: body.propertyDescription,
+
+    const responseData = await DB.selectCol(['description', 'unitTypeName'], 'unitTypeV2', {
+      propertyId: body.propertyId,
+    });
+
+    newPropertyDesciption = responseData[0].description.filter((el) => el.lang !== language);
+    newPropertyName = responseData[0].unitTypeName.filter((el) => el.lang !== language);
+    newPropertyDesciption.push(descriptionToSave);
+    newPropertyName.push(nameToSave);
+    const savePayload = {
+      description: JSON.stringify(newPropertyDesciption),
+      unitTypeName: JSON.stringify(newPropertyName),
       propertyType: body.propertyType,
     };
-    await DB.update('unitTypeV2', payload, { propertyId: body.propertyId });
-    res.send({
-      code: 200,
-    });
+    const updateResponse = await DB.update('unitTypeV2', savePayload, { propertyId: body.propertyId });
+    if (updateResponse) {
+      res.send({
+        code: 200,
+      });
+    }
   });
 
   // API for upate Property Information
@@ -169,7 +184,6 @@ const propertyRouter = () => {
   // API for update SleepingArrangement
   router.post('/updateSleepingArrangement', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
     const data = {
       sleepingArrangement: body.sleepingArrangement,
     };
@@ -182,7 +196,6 @@ const propertyRouter = () => {
   // API for fetch SleepingArrangement
   router.post('/updateEditRooms', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
     const data = {
       rooms: body.rooms,
     };
@@ -207,7 +220,6 @@ const propertyRouter = () => {
   // API for update property image
   router.post('/propertyPicture', async (req, res) => {
     const form = new multiparty.Form();
-    console.log(req.query);
     form.parse(req, async (error, fields, files) => {
       if (error) {
         console.log(error);
@@ -284,11 +296,8 @@ const propertyRouter = () => {
   // API for add rates for unitType
   router.post('/getRates', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
     const ratesData = await DB.select('ratesV2', { unitTypeId: body.unittypeId });
     const seasonRatesData = await DB.select('seasonRatesV2', { unitTypeId: body.unittypeId });
-    console.log(ratesData);
-    console.log(seasonRatesData);
     res.send({
       code: 200,
       ratesData,
@@ -299,7 +308,6 @@ const propertyRouter = () => {
   // API for add seasonRates
   router.post('/addSeasonRates', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
     let startDateTime;
     let endDateTime;
     if (body.groupname) {
@@ -368,7 +376,6 @@ const propertyRouter = () => {
   // API for get Season Rates
   router.post('/getSeasonRates', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log('getSeasonRates', body);
     const seasonRateData = await DB.select('seasonRatesV2', { unitTypeId: body.unitTypeId });
     res.send({
       code: 200,
@@ -399,7 +406,6 @@ const propertyRouter = () => {
   // api for copy rates of unitType
   router.post('/copyRates', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
     const rateData = {
       unitTypeId: body.newUnitType,
       rateName: body.rateName,
@@ -464,12 +470,15 @@ const propertyRouter = () => {
 
   // API for getting individual property details
   router.post('/getProperty', userAuthCheck, async (req, res) => {
-    console.log(req.body);
-    const propertyData = await DB.selectCol(['unitTypeName', 'image'], 'unitTypeV2', { id: req.body.propertyId });
+    const propertyData = await DB.selectCol(['unitTypeName', 'image'], 'unitTypeV2', {
+      propertyId: req.body.propertyId,
+    });
+    const name = propertyData[0].unitTypeName.filter((el) => el.lang === 'en');
     if (propertyData) {
       res.send({
         code: 200,
-        propertyData,
+        image: propertyData[0].image,
+        name,
       });
     } else {
       res.send({
@@ -482,7 +491,6 @@ const propertyRouter = () => {
   // API for removing property photo
   router.post('/removePropertyPhoto', userAuthCheck, async (req, res) => {
     try {
-      console.log(req.body);
       await DB.update('unitTypeV2', { image: null }, { id: req.body.unitTypeV2Id });
       res.send({
         code: 200,
@@ -493,6 +501,152 @@ const propertyRouter = () => {
         code: 444,
         msg: 'server error',
       });
+    }
+  });
+
+  router.post('/addLanguage', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let newLanguage = [];
+      const languageData = await DB.selectCol(['languages'], 'unitTypeV2', { propertyId: body.propertyId });
+      newLanguage = languageData[0].languages;
+      newLanguage.push(body.language);
+      newLanguage = Array.from(new Set(newLanguage.map(JSON.stringify))).map(JSON.parse);
+      const savedData = await DB.update(
+        'unitTypeV2',
+        { languages: JSON.stringify(newLanguage) },
+        { propertyId: body.propertyId }
+      );
+      if (savedData) {
+        res.status(200).send({
+          msg: 'Languages Saved',
+        });
+      } else {
+        res.status(201).send({
+          msg: 'Error Saving Languages',
+        });
+      }
+    } catch (error) {
+      console.log('Error:::', error.message);
+    }
+  });
+
+  router.post('/removeLanguage', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const { filterLang } = req.body;
+      let newLanguage = [];
+      let filteredArray = [];
+      const languageData = await DB.selectCol(['languages'], 'unitTypeV2', { propertyId: body.propertyId });
+      newLanguage = languageData[0].languages;
+      filteredArray = newLanguage.filter((el) => {
+        for (const key in el) {
+          return key !== filterLang;
+        }
+      });
+      filteredArray = Array.from(new Set(filteredArray.map(JSON.stringify))).map(JSON.parse);
+      const savedData = await DB.update(
+        'unitTypeV2',
+        { languages: JSON.stringify(filteredArray) },
+        { propertyId: body.propertyId }
+      );
+      if (savedData) {
+        res.status(200).send({
+          msg: 'Languages Removed',
+        });
+      } else {
+        res.status(201).send({
+          msg: 'Error Removing Languages',
+        });
+      }
+    } catch (error) {
+      console.log('Error', error.message);
+    }
+  });
+
+  router.get('/languages/:propertyId', async (req, res) => {
+    try {
+      const languageData = await DB.selectCol(['languages'], 'unitTypeV2', { propertyId: req.params.propertyId });
+      if (languageData) {
+        res.status(200).send({
+          language: languageData[0].languages,
+          msg: 'List of Languages',
+        });
+      } else {
+        res.status(201).send({
+          msg: 'Error',
+        });
+      }
+    } catch (error) {
+      console.log('Error', error.message);
+      res.status(400).send({
+        msg: 'Internal Server Error',
+      });
+    }
+  });
+
+  router.post('/saveTranslation', async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let newPropertyName = [];
+      let newPropertyDesciption = [];
+      const responseData = await DB.selectCol(['unitTypeName', 'description'], 'unitTypeV2', {
+        propertyId: body.propertyId,
+      });
+
+      newPropertyName = responseData[0].unitTypeName.filter((el) => el.lang !== body.nameObject.lang);
+      newPropertyDesciption = responseData[0].description.filter((el) => el.lang !== body.descriptionObject.lang);
+      newPropertyName.push(body.nameObject);
+      newPropertyDesciption.push(body.descriptionObject);
+      const savePayload = {
+        unitTypeName: JSON.stringify(newPropertyName),
+        description: JSON.stringify(newPropertyDesciption),
+      };
+      const saveResponse = await DB.update('unitTypeV2', savePayload, { propertyId: body.propertyId });
+      if (saveResponse) {
+        res.status(200).send({
+          msg: 'Translation Saved',
+          pName: body.nameObject,
+          pDescription: body.descriptionObject,
+        });
+      } else {
+        res.status(202).send({
+          msg: 'Error Saving Translation',
+        });
+      }
+    } catch (error) {
+      console.log('Error', error.message);
+    }
+  });
+
+  router.get('/fetchTranslated/:lang/:propertyId', async (req, res) => {
+    try {
+      const { lang, propertyId } = req.params;
+      let filteredName = [];
+      let filteredDescription = [];
+      const responseData = await DB.selectCol(['unitTypeName', 'description'], 'unitTypeV2', {
+        propertyId,
+      });
+      filteredName = responseData[0].unitTypeName.filter((el) => {
+        for (const key in el) {
+          return el[key] === lang;
+        }
+      });
+
+      filteredDescription = responseData[0].description.filter((el) => {
+        for (const key in el) {
+          return el[key] === lang;
+        }
+      });
+
+      if (filteredDescription && filteredName) {
+        res.status(200).send({
+          filteredName,
+          filteredDescription,
+        });
+      }
+    } catch (error) {
+      console.log('Error', error);
     }
   });
 

@@ -27,9 +27,7 @@ const userAuthCheck = async (req, res, next) => {
 const getAuthCheck = async (req, res, next) => {
   try {
     const token = req.headers['x-custom-header'];
-    console.log(token);
     const isTokenValid = await verifyJwt(token);
-    console.log(isTokenValid);
     if (isTokenValid) {
       req.body.tokenData = isTokenValid;
       next();
