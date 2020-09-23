@@ -8,8 +8,10 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.json('description');
   table.string('sizeType');
   table.decimal('sizeValue').defaultTo(0);
+  table.integer('bedRooms').defaultTo(0);
   table.integer('standardGuests').defaultTo(0);
   table.integer('units').defaultTo(0);
+  table.string('unitsData');
   table.string('propertyType');
   table.json('amenities');
   table.json('sleepingArrangement');
@@ -22,7 +24,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.decimal('lattitude').defaultTo(0);
   table.decimal('longitude').defaultTo(0);
   table.string('direction');
-  table.string('distanceIn');
+  table.string('distanceIn').defaultTo('km');
   table.json('distance');
   table.json('languages');
   table.string('website');

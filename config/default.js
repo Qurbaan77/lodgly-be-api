@@ -64,7 +64,7 @@ module.exports = {
   guards: {
     user: {
       secret: process.env.JWT_USER_SECRET,
-      accessTokenTtl: 86400,
+      accessTokenTtl: 360000,
       refreshTokenTtl: 1728000,
     },
   },
@@ -80,4 +80,6 @@ module.exports = {
   COUPON_SECRET_KEY: 'secret-bb298999667342649f56ab13fe6dc055',
   RU_USER: process.env.RU_USER,
   RU_PASSWORD: process.env.RU_PASSWORD,
+  CHANNEX_USER: process.env.CHANNEX_USER,
+  CHANNEX_PASSWORD: process.env.CHANNEX_PASSWORD,
 };

@@ -3,8 +3,7 @@ const config = require('config');
 const crypto = require('crypto');
 const randomstring = require('randomstring');
 const moment = require('moment');
-// const nodemailer = require('nodemailer');
-// const smtpTransport = require('nodemailer-smtp-transport');
+const nodemailer = require('nodemailer');
 const each = require('sync-each');
 const sgMail = require('@sendgrid/mail');
 const fs = require('fs');
@@ -25,6 +24,8 @@ const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 const sentryCapture = require('../../config/sentryCapture');
 
 AWS.config.setPromisesDependency(bluebird);
+AWS.config.update({ region: 'eu-west-1' });
+
 // const clientPath = domainName('app');
 // const serverPath = config.get('serverPath');
 const usersRouter = () => {
@@ -36,6 +37,7 @@ const usersRouter = () => {
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
   });
+
   const uploadFile = async (buffer, name, type, organizationid) => {
     try {
       const bucket = config.get('aws.s3.storageBucketName');
@@ -61,7 +63,7 @@ const usersRouter = () => {
     const params = {
       ACL: 'public-read',
       Body: buffer,
-      Bucket: `${bucket}/${organizationid}/Invoices`,
+      Bucket: `${bucket}/${organizationid}/invoices`,
       // ContentType: 'application/pdf',
       Key: `${name}.${type.ext}`,
       ContentDisposition: 'attachment; filename=file.pdf', // don't ever remove this line
@@ -69,6 +71,58 @@ const usersRouter = () => {
     const url = await s3.getSignedUrlPromise('putObject', params);
     return s3.upload(params, url).promise();
   };
+
+  // post request to signup user
+  router.post('/request-access', async ({
+    body: {
+      email, phone, name, propertiesCount,
+    },
+  }, res) => {
+    try {
+      if (email && phone && name && propertiesCount) {
+        const message = [
+          `Name: ${name}`,
+          `E-mail: ${email}`,
+          `Phone: ${phone}`,
+          `Properties No.: ${propertiesCount}`,
+        ];
+
+        const transporter = nodemailer.createTransport({
+          SES: new AWS.SES({
+            apiVersion: '2010-12-01',
+            accessKeyId: config.get('aws.accessKey'),
+            secretAccessKey: config.get('aws.accessSecretKey'),
+          }),
+        });
+
+        transporter.sendMail({
+          from: 'no-reply@lodgly.com',
+          to: 'mits87@gmail.com',
+          subject: `[${config.get('environment')}] New Lodgly Signup Request`,
+          text: message.join('\n'),
+          html: message.join('<br/>'),
+        }, (err, { envelope, messageId }) => {
+          console.log('SES: ', { envelope, messageId, err });
+          res.send({
+            code: 200,
+            msg: 'Request sent succesfully! We will contant with you soon!',
+          });
+        });
+      } else {
+        res.send({
+          code: 400,
+          msg: 'Invalid data',
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
+      console.log('error', e);
+      res.send({
+        code: 400,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
 
   // post request to signup user
   router.post('/signup', async (req, res) => {
@@ -104,6 +158,7 @@ const usersRouter = () => {
                 const userData = {
                   organizationId: saveData,
                   fullname: body.name,
+                  companyName: body.company,
                   encrypted_password: body.encrypted_password,
                   email: body.email,
                   phone: body.phone,
@@ -614,32 +669,34 @@ const usersRouter = () => {
         id = body.tokenData.organizationid;
       }
       const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
-      const [{ planType }] = organizationPlan;
-      if (planType === 'basic') {
-        const data0 = await DB.select('plan', { planType });
-        const data1 = await DB.select('feature', { organizationId: id });
-        const webPerm = data1[0].websideBuilder;
-        const chanPerm = data1[0].channelManager;
-        if (webPerm || chanPerm) {
-          const featureData = data1;
-          res.send({
-            code: 200,
-            featureData,
-          });
+      if (organizationPlan && organizationPlan.length) {
+        const [{ planType }] = organizationPlan;
+        if (planType === 'basic') {
+          const data0 = await DB.select('plan', { planType });
+          const data1 = await DB.select('feature', { organizationId: id });
+          const webPerm = data1[0].websideBuilder;
+          const chanPerm = data1[0].channelManager;
+          if (webPerm || chanPerm) {
+            const featureData = data1;
+            res.send({
+              code: 200,
+              featureData,
+            });
+          } else {
+            const featureData = data0;
+            res.send({
+              code: 200,
+              featureData,
+            });
+          }
         } else {
-          const featureData = data0;
+          const data = await DB.select('plan', { planType });
+          const featureData = data;
           res.send({
             code: 200,
             featureData,
           });
         }
-      } else {
-        const data = await DB.select('plan', { planType });
-        const featureData = data;
-        res.send({
-          code: 200,
-          featureData,
-        });
       }
     } catch (e) {
       sentryCapture(e);
@@ -1965,6 +2022,7 @@ const usersRouter = () => {
       });
     }
   });
+
   // API for get reservation
   router.post('/getReservation', userAuthCheck, async (req, res) => {
     try {
@@ -2172,7 +2230,7 @@ const usersRouter = () => {
             type: body.type,
           };
           if (!body.id) {
-            const Id = await DB.insert('invoice', invoiceData);
+            const Id = await DB.insert('invoiceV2', invoiceData);
             console.log('invoice id', Id);
             body.itemData.map(async (el) => {
               const Data = {
@@ -2186,13 +2244,13 @@ const usersRouter = () => {
                 discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
-              await DB.insert('invoiceItems', Data);
+              await DB.insert('invoiceItemsV2', Data);
             });
             if (body.deleteInvoiceItemId) {
-              await DB.remove('invoiceItems', { id: body.deleteInvoiceItemId });
+              await DB.remove('invoiceItemsV2', { id: body.deleteInvoiceItemId });
             }
           } else {
-            await DB.update('invoice', invoiceData, { id: body.id });
+            await DB.update('invoiceV2', invoiceData, { id: body.id });
             body.itemData.map(async (el) => {
               const Data = {
                 invoiceId: body.id,
@@ -2205,7 +2263,7 @@ const usersRouter = () => {
                 discountType: el.itemDiscountType,
                 itemTotal: el.itemTotal,
               };
-              await DB.update('invoiceItems', Data);
+              await DB.update('invoiceItemsV2', Data);
             });
           }
           res.send({
@@ -2234,12 +2292,12 @@ const usersRouter = () => {
       } else {
         id = body.affiliateId;
       }
-      const invoiceData = await DB.select('invoice', { userId: id });
+      const invoiceData = await DB.select('invoiceV2', { userId: id });
       const invoiceItems = [];
       each(
         invoiceData,
         async (items, next) => {
-          const data = await DB.select('invoiceItems', { invoiceId: items.id });
+          const data = await DB.select('invoiceItemsV2', { invoiceId: items.id });
           if (data.length) {
             invoiceItems.push(data);
           }
@@ -2273,7 +2331,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const invoiceId = body.deleteId;
-      await DB.remove('invoice', { id: invoiceId });
+      await DB.remove('invoiceV2', { id: invoiceId });
       res.send({
         code: 200,
         msg: 'Data remove successfully!',
@@ -2297,7 +2355,7 @@ const usersRouter = () => {
         type: body.type,
       };
       console.log('cancel invoice id', invoiceId);
-      await DB.update('invoice', invoiceData, { id: invoiceId });
+      await DB.update('invoiceV2', invoiceData, { id: invoiceId });
       res.send({
         code: 200,
         msg: 'Invoice Cancelled!',
@@ -2813,9 +2871,9 @@ const usersRouter = () => {
 
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
-        await DB.update('property', { ownerId: 0 }, { ownerId: body.id });
+        await DB.update('propertyV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
-          await DB.update('property', { ownerId: body.id }, { id: items });
+          await DB.update('propertyV2', { ownerId: body.id }, { id: items });
           next();
         });
         res.send({
@@ -2825,7 +2883,7 @@ const usersRouter = () => {
       } else {
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
-          await DB.update('property', { ownerId: saveData }, { id: items });
+          await DB.update('propertyV2', { ownerId: saveData }, { id: items });
           next();
         });
         res.send({
@@ -3870,7 +3928,7 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      const remainingDays = 14 - totalDays;
+      const remainingDays = 7 - totalDays;
       userSubsDetails[0].days = remainingDays;
       res.send({
         code: 200,
@@ -3911,35 +3969,6 @@ const usersRouter = () => {
           });
         },
       );
-    } catch (e) {
-      sentryCapture(e);
-      console.log(e);
-      res.send({
-        code: 444,
-        msg: 'some error occured',
-      });
-    }
-  });
-
-  // API for set status of booking
-  router.post('/setStatus', userAuthCheck, async (req, res) => {
-    try {
-      const { ...body } = req.body;
-      let colour;
-      if (body.status === 'booked') {
-        colour = 'red';
-      } else if (body.status === 'open') {
-        colour = 'green';
-      } else if (body.status === 'tentative') {
-        colour = 'orange';
-      } else if (body.status === 'decline') {
-        colour = 'grey';
-      }
-      await DB.update('booking', { status: body.status, statusColour: colour }, { id: body.bookingId });
-      res.send({
-        code: 200,
-        msg: 'Status added successfully!',
-      });
     } catch (e) {
       sentryCapture(e);
       console.log(e);

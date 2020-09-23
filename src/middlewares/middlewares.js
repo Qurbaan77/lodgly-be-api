@@ -3,9 +3,10 @@ const { verifyJwt, verifyJwtAdmin, verifyOwnerJwt } = require('../functions');
 
 const userAuthCheck = async (req, res, next) => {
   try {
-    const cookie = req.signedCookies;
-    if (cookie) {
-      const isCookieValid = await verifyJwt(cookie.token);
+    const token = req.headers['x-custom-header'];
+    // const cookie = req.signedCookies;
+    if (token) {
+      const isCookieValid = await verifyJwt(token);
       if (isCookieValid) {
         req.body.tokenData = isCookieValid;
         next();
