@@ -179,7 +179,6 @@ const propertyRouter = () => {
   // API for upate Property Information
   router.post('/updatePropertyInfo', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
     const data = {
       sizeType: body.sqSelectedValue,
       sizeValue: body.sqNumber,
@@ -255,7 +254,6 @@ const propertyRouter = () => {
   router.post('/addRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const rateData = {
         unitTypeId: body.unitTypeId,
         rateName: body.rateName,
@@ -650,8 +648,8 @@ const propertyRouter = () => {
       const responseData = await DB.selectCol(['unitTypeName', 'description'], 'unitTypeV2', {
         propertyId,
       });
-      filteredName = responseData[0].unitTypeName.filter((el) => Object.keys(el)[0] !== lang);
-      filteredDescription = responseData[0].description.filter((el) => Object.keys(el)[0] !== lang);
+      filteredName = responseData[0].unitTypeName.filter((el) => el.lang === lang);
+      filteredDescription = responseData[0].description.filter((el) => el.lang === lang);
 
       if (filteredDescription && filteredName) {
         res.status(200).send({
@@ -667,7 +665,6 @@ const propertyRouter = () => {
   router.post('/getUnittype', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('body', body);
       const unittypeData = await DB.select('unitTypeV2', { propertyId: body.propertyId });
       if (unittypeData) {
         res.send({
