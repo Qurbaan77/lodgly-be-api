@@ -5,6 +5,7 @@ const axios = require('axios');
 const auth = require('../channexIntegration/authorization');
 const getConfig = require('../channexIntegration/config');
 const DB = require('../services/database');
+const updateRate = require('../channelManagement');
 // const { userAuthCheck } = require('../middlewares/middlewares');
 
 const channelRouter = () => {
@@ -13,7 +14,7 @@ const channelRouter = () => {
   const password = Config.get('CHANNEX_PASSWORD');
   let token;
 
-  // pushing property to channex starts here
+  /* pushing property data to channex starts here */
 
   // this function will create group on channex
   const createGroup = async (name) => {
@@ -32,8 +33,8 @@ const channelRouter = () => {
       property: {
         title: propertyData.unitTypeName,
         currency: 'EUR',
-        email: 'hashim@yopmail.com',
-        phone: '123456789',
+        email: propertyData.email,
+        phone: propertyData.phone,
         zip_code: propertyData.zip,
         country: propertyData.country,
         state: propertyData.state,
@@ -84,21 +85,21 @@ const channelRouter = () => {
         title: ratesData.rateName,
         property_id: propertyId,
         room_type_id: unitTypeId,
-        parent_rate_plan_id: null,
+        // parent_rate_plan_id: null,
         children_fee: 0.00,
         infant_fee: 0.00,
         options: [
           {
             occupancy: ratesData.standardGuests,
             is_primary: true,
-            rate: `${ratesData.price_per_night * 1.00}`,
+            rate: ratesData.price_per_night * 100, // price should be multiplied by 100 or multiply by 1.00
           },
         ],
         currency: ratesData.currency,
         sell_mode: 'per_room',
         rate_mode: 'manual',
-        closed_to_arrival: ratesData.checkIn_Restriction,
-        closed_to_departure: ratesData.checkOut_Restriction,
+        closed_to_arrival: [false, false, false, false, false, false, false],
+        closed_to_departure: [false, false, false, false, false, false, false],
         stop_sell: [false, false, false, false, false, false, false],
         min_stay_arrival: ratesData.minimum_stay,
         max_stay: [0, 0, 0, 0, 0, 0, 0],
@@ -131,10 +132,14 @@ const channelRouter = () => {
         email, phone, companyName,
       }] = userData;
       const data = await DB.select('unitTypeV2', { id: req.body.unitTypeV2Id });
+      console.log('unit Type data', data[0].unitTypeName[0].name);
+      console.log('unit Type data', data[0].description[0].description);
       const [{
-        unitTypeName, description, country, state, city, zip,
+        country, state, city, zip,
         lattitude, longitude, image, address, standardGuests, units,
       }] = data;
+      const { unitTypeName } = data[0].name[0];
+      const { description } = data[0].description[0];
       const { sleepingArrangement } = data[0];
       const babyCrib = JSON.parse(sleepingArrangement.babyCrib);
       const childBed = JSON.parse(sleepingArrangement.childBed);
@@ -181,13 +186,15 @@ const channelRouter = () => {
         currency,
         price_per_night,
         standardGuests,
-        checkIn_Restriction: [checkIn_on_monday,
-          checkIn_on_tuesday, checkIn_on_wednesday, checkIn_on_thursday,
-          checkIn_on_friday, checkIn_on_saturday, checkIn_on_sunday],
+        checkIn_Restriction: [checkIn_on_monday === 1,
+          checkIn_on_tuesday === 1, checkIn_on_wednesday === 1, checkIn_on_thursday === 1,
+          checkIn_on_friday === 1, checkIn_on_saturday === 1, checkIn_on_sunday === 1],
         checkOut_Restriction: [
-          checkOut_on_monday,
-          checkOut_on_tuesday,
-          checkOut_on_wednesday, checkOut_on_thursday, checkOut_on_friday, checkOut_on_saturday, checkOut_on_sunday],
+          checkOut_on_monday === 1,
+          checkOut_on_tuesday === 1,
+          checkOut_on_wednesday === 1,
+          checkOut_on_thursday === 1,
+          checkOut_on_friday === 1, checkOut_on_saturday === 1, checkOut_on_sunday === 1],
         minimum_stay: [minimum_stay_on_monday,
           minimum_stay_on_tuesday,
           minimum_stay_on_wednesday,
@@ -201,8 +208,12 @@ const channelRouter = () => {
       console.log(unitTypeId);
       const ratePlanId = await createRatePlan(propertyId, unitTypeId, ratesData);
       console.log(ratePlanId);
-      // TODO country code should be a code not name
-      res.status(200).json({ groupId, propertyId, ratePlanId });
+      const seasonRatesData = await DB.select('seasonRatesV2', { unitTypeId: req.body.unitTypeV2Id });
+      if (seasonRatesData && seasonRatesData.length > 0) {
+        const [{ startDate, endDate, price_per_night: rate }] = seasonRatesData;
+        await updateRate(propertyId, unitTypeId, startDate, endDate, rate * 100);
+      }
+      res.status(200).json({ ratePlanId });
     } catch (e) {
       console.log(e);
     }
