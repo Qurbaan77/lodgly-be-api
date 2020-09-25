@@ -4,8 +4,8 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id', 500);
   table.integer('userId').notNull().unsigned();
   table.integer('propertyId').notNull().unsigned();
-  table.string('unitTypeName');
-  table.string('description');
+  table.json('unitTypeName');
+  table.json('description');
   table.string('sizeType');
   table.decimal('sizeValue').defaultTo(0);
   table.integer('bedRooms').defaultTo(0);
@@ -26,6 +26,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('direction');
   table.string('distanceIn').defaultTo('km');
   table.json('distance');
+  table.json('languages');
   table.string('website');
   table.string('image');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
