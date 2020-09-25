@@ -103,9 +103,9 @@ const bookingRouter = () => {
           await DB.insert('bookingServiceV2', Data);
         });
       }
-      const data = await DB.selectCol(['isChannelManagerActivated'], 'unitTypeV2', { id: body.property });
-      const [{ isChannelManagerActivated }] = data;
-      console.log('channel manager activated', isChannelManagerActivated);
+      // const data = await DB.selectCol(['isChannelManagerActivated'], 'unitTypeV2', { id: body.property });
+      // const [{ isChannelManagerActivated }] = data;
+      // console.log('channel manager activated', isChannelManagerActivated);
       /**
        * if user's channel manager is activated push this booking to channex
        */
