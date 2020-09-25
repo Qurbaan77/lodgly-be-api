@@ -146,9 +146,15 @@ const propertyRouter = () => {
   router.post('/fetchUnittypeData', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     const unitTypeV2Data = await DB.select('unitTypeV2', { id: body.unitTypeV2Id });
+    const newDataArray = [];
+    unitTypeV2Data.forEach((unitTypeV2) => {
+      const copyValues = unitTypeV2;
+      copyValues.arrayOfUnits = JSON.parse(unitTypeV2.unitsData);
+      newDataArray.push(copyValues);
+    });
     res.send({
       code: 200,
-      unitTypeV2Data,
+      unitTypeV2Data: newDataArray,
     });
   });
 
