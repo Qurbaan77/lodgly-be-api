@@ -91,7 +91,14 @@ const propertyRouter = () => {
     } else {
       id = body.tokenData.userid;
     }
-    const propertiesData = await DB.select('unitTypeV2', { userId: id });
+    const data = await DB.select('unitTypeV2', { userId: id });
+    const propertiesData = [];
+    data.forEach((property) => {
+      const noOfUnits = property.unitsData ? JSON.parse(property.unitsData).length : 0;
+      const copyProperty = property;
+      copyProperty.noOfUnits = noOfUnits;
+      propertiesData.push(copyProperty);
+    });
     res.send({
       code: 200,
       propertiesData,
