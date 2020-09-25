@@ -785,7 +785,6 @@ const usersRouter = () => {
       };
       // creating unit type with same name
       const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
-      console.log('unitTypeV2Id', unitTypeV2Id);
       res.send({
         code: 200,
         savedData,
