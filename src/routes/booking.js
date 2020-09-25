@@ -3,6 +3,7 @@ const each = require('sync-each');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const sentryCapture = require('../../config/sentryCapture');
+// const { pushBooking } = require('../channelManagement');
 
 const bookingRouter = () => {
   const router = express.Router();
@@ -102,7 +103,29 @@ const bookingRouter = () => {
           await DB.insert('bookingServiceV2', Data);
         });
       }
-
+      // const data = await DB.selectCol(['isChannelManagerActivated'], 'unitTypeV2', { id: body.property });
+      // const [{ isChannelManagerActivated }] = data;
+      // console.log('channel manager activated', isChannelManagerActivated);
+      /**
+       * if user's channel manager is activated push this booking to channex
+       */
+      // if (isChannelManagerActivated) {
+      //   const planId = await DB.selectCol(['channexRatePlanId'], 'channelManager', { unitTypeId: body.property });
+      //   const [{ ratePlanId }] = planId;
+      //   // const ratePlanId = 'dgfdyasrdtsfghedys';
+      //   const newBookingData = {
+      //     id: Id,
+      //     startDate: startDateTime,
+      //     endDate: endDateTime,
+      //     guest: body.guest,
+      //     adult: body.adult,
+      //     children: body.children1,
+      //     infant: body.children2,
+      //     ratePlanId,
+      //     days: body.priceOnEachDay,
+      //   };
+      //   await pushBooking(ratePlanId, newBookingData);
+      // }
       res.send({
         code: 200,
         msg: 'Booking save successfully!',

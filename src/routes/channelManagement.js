@@ -5,7 +5,7 @@ const axios = require('axios');
 const auth = require('../channexIntegration/authorization');
 const getConfig = require('../channexIntegration/config');
 const DB = require('../services/database');
-const updateRate = require('../channelManagement');
+const { updateRate } = require('../channelManagement');
 // const { userAuthCheck } = require('../middlewares/middlewares');
 
 const channelRouter = () => {
@@ -213,9 +213,25 @@ const channelRouter = () => {
         const [{ startDate, endDate, price_per_night: rate }] = seasonRatesData;
         await updateRate(propertyId, unitTypeId, startDate, endDate, rate * 100);
       }
-      res.status(200).json({ ratePlanId });
+      const payload = {
+        unitTypeId: req.body.unitTypeV2Id,
+        channexGroupId: groupId,
+        channexPropertyId: propertyId,
+        channexUnitTypeId: unitTypeId,
+        channexRatePlanId: ratePlanId,
+      };
+      await DB.insert('channelManager', payload);
+      await DB.update('unitTypeV2', { isChannelManagerActivated: true }, { id: req.body.unitTypeV2Id });
+      res.send({
+        code: 200,
+        msg: 'Channel manager activated',
+      });
     } catch (e) {
       console.log(e);
+      res.send({
+        code: 444,
+        msg: 'wrong entity passed',
+      });
     }
   });
 
