@@ -210,7 +210,7 @@ const reservationRouter = () => {
               const customizeBooking = {
                 data: bookingData,
               };
-              unitsData.booking = customizeBooking;
+              unitsData.bookings = customizeBooking;
               units.push(unitsData);
             });
           }
