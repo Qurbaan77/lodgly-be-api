@@ -85,14 +85,14 @@ const channelRouter = () => {
         title: ratesData.rateName,
         property_id: propertyId,
         room_type_id: unitTypeId,
-        // parent_rate_plan_id: null,
+        parent_rate_plan_id: null,
         children_fee: 0.00,
         infant_fee: 0.00,
         options: [
           {
             occupancy: ratesData.standardGuests,
             is_primary: true,
-            rate: ratesData.price_per_night * 100, // price should be multiplied by 100 or multiply by 1.00
+            rate: ratesData.price_per_night.toString(),
           },
         ],
         currency: ratesData.currency,
@@ -101,8 +101,8 @@ const channelRouter = () => {
         closed_to_arrival: [false, false, false, false, false, false, false],
         closed_to_departure: [false, false, false, false, false, false, false],
         stop_sell: [false, false, false, false, false, false, false],
-        min_stay_arrival: ratesData.minimum_stay,
-        max_stay: [0, 0, 0, 0, 0, 0, 0],
+        // min_stay_arrival: ratesData.minimum_stay,
+        // max_stay: [0, 0, 0, 0, 0, 0, 0],
         max_sell: null,
         max_availability: null,
         availability_offset: null,
@@ -138,7 +138,7 @@ const channelRouter = () => {
         country, state, city, zip,
         lattitude, longitude, image, address, standardGuests, units,
       }] = data;
-      const { unitTypeName } = data[0].name[0];
+      const { name: unitTypeName } = data[0].unitTypeName[0];
       const { description } = data[0].description[0];
       const { sleepingArrangement } = data[0];
       const babyCrib = JSON.parse(sleepingArrangement.babyCrib);
@@ -146,7 +146,7 @@ const channelRouter = () => {
       const rateData = await DB.select('ratesV2', { unitTypeId: req.body.unitTypeV2Id });
       console.log(rateData);
       const [{
-        rateName, currency, price_per_night, checkIn_on_monday,
+        rateName, price_per_night, minimum_stay, checkIn_on_monday,
         checkIn_on_tuesday, checkIn_on_wednesday, checkIn_on_thursday,
         checkIn_on_friday, checkIn_on_saturday, checkIn_on_sunday,
         checkOut_on_monday, checkOut_on_tuesday,
@@ -183,7 +183,7 @@ const channelRouter = () => {
       };
       const ratesData = {
         rateName,
-        currency,
+        currency: 'eur',
         price_per_night,
         standardGuests,
         checkIn_Restriction: [checkIn_on_monday === 1,
@@ -195,10 +195,13 @@ const channelRouter = () => {
           checkOut_on_wednesday === 1,
           checkOut_on_thursday === 1,
           checkOut_on_friday === 1, checkOut_on_saturday === 1, checkOut_on_sunday === 1],
-        minimum_stay: [minimum_stay_on_monday,
-          minimum_stay_on_tuesday,
-          minimum_stay_on_wednesday,
-          minimum_stay_on_thursday, minimum_stay_on_friday, minimum_stay_on_saturday, minimum_stay_on_sunday],
+        minimum_stay: [minimum_stay_on_monday || minimum_stay,
+          minimum_stay_on_tuesday || minimum_stay,
+          minimum_stay_on_wednesday || minimum_stay,
+          minimum_stay_on_thursday || minimum_stay,
+          minimum_stay_on_friday || minimum_stay,
+          minimum_stay_on_saturday || minimum_stay,
+          minimum_stay_on_sunday || minimum_stay],
       };
       const groupId = await createGroup(companyName);
       console.log(groupId);

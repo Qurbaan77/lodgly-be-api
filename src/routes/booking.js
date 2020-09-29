@@ -106,13 +106,12 @@ const bookingRouter = () => {
       // const data = await DB.selectCol(['isChannelManagerActivated'], 'unitTypeV2', { id: body.property });
       // const [{ isChannelManagerActivated }] = data;
       // console.log('channel manager activated', isChannelManagerActivated);
-      /**
-       * if user's channel manager is activated push this booking to channex
-       */
-      // if (isChannelManagerActivated) {
+      // /**
+      //  * if user's channel manager is activated push this booking to channex
+      //  */
+      // if (false) {
       //   const planId = await DB.selectCol(['channexRatePlanId'], 'channelManager', { unitTypeId: body.property });
       //   const [{ ratePlanId }] = planId;
-      //   // const ratePlanId = 'dgfdyasrdtsfghedys';
       //   const newBookingData = {
       //     id: Id,
       //     startDate: startDateTime,
@@ -164,6 +163,7 @@ const bookingRouter = () => {
           if (data.length !== 0) {
             guestData.push(data);
           }
+          console.log(items.id);
           const data1 = await DB.select('bookingServiceV2', { bookingId: items.id });
           if (data1.length !== 0) {
             serviceData.push(data1);

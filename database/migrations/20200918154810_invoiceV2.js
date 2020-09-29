@@ -19,6 +19,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.integer('total');
   table.string('status');
   table.string('type');
+  table.string('logo');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
   table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');
