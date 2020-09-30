@@ -2598,8 +2598,9 @@ const usersRouter = () => {
         subUser,
         async (items, next) => {
           const itemsCopy = items;
+          console.log(itemsCopy);
           const data = await DB.selectCol(['isvalid', 'fullname'], 'users', { email: itemsCopy.email });
-
+          console.log(data);
           const [{ isvalid, fullname }] = data;
           itemsCopy.status = isvalid;
           itemsCopy.fullname = fullname;

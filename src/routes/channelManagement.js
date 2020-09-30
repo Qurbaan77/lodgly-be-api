@@ -1,17 +1,18 @@
 /* eslint-disable camelcase */
 const express = require('express');
-const Config = require('config');
+// const Config = require('config');
 const axios = require('axios');
-const auth = require('../channexIntegration/authorization');
+const each = require('sync-each');
+// const auth = require('../channexIntegration/authorization');
 const getConfig = require('../channexIntegration/config');
 const DB = require('../services/database');
 const { updateRate } = require('../channelManagement');
-// const { userAuthCheck } = require('../middlewares/middlewares');
+const { userAuthCheck } = require('../middlewares/middlewares');
 
 const channelRouter = () => {
   const router = express.Router();
-  const user = Config.get('CHANNEX_USER');
-  const password = Config.get('CHANNEX_PASSWORD');
+  // const user = Config.get('CHANNEX_USER');
+  // const password = Config.get('CHANNEX_PASSWORD');
   let token;
 
   /* pushing property data to channex starts here */
@@ -124,116 +125,182 @@ const channelRouter = () => {
   };
 
   // A single API to push all property data to channex
-  router.post('/pushProperty', async (req, res) => {
+  router.post('/activateChannel', userAuthCheck, async (req, res) => {
     try {
-      token = await auth(user, password);
-      const userData = await DB.select('users', { id: 1 });
+      console.log(req.body);
+      const { body } = req;
+      // token = await auth(user, password);
+      const userData = await DB.select('users', { id: body.tokenData.userid });
       const [{
         email, phone, companyName,
       }] = userData;
-      const data = await DB.select('unitTypeV2', { id: req.body.unitTypeV2Id });
-      console.log('unit Type data', data[0].unitTypeName[0].name);
-      console.log('unit Type data', data[0].description[0].description);
-      const [{
-        country, state, city, zip,
-        lattitude, longitude, image, address, standardGuests, units,
-      }] = data;
-      const { name: unitTypeName } = data[0].unitTypeName[0];
-      const { description } = data[0].description[0];
-      const { sleepingArrangement } = data[0];
-      const babyCrib = JSON.parse(sleepingArrangement.babyCrib);
-      const childBed = JSON.parse(sleepingArrangement.childBed);
-      const rateData = await DB.select('ratesV2', { unitTypeId: req.body.unitTypeV2Id });
-      console.log(rateData);
-      const [{
-        rateName, price_per_night, minimum_stay, checkIn_on_monday,
-        checkIn_on_tuesday, checkIn_on_wednesday, checkIn_on_thursday,
-        checkIn_on_friday, checkIn_on_saturday, checkIn_on_sunday,
-        checkOut_on_monday, checkOut_on_tuesday,
-        checkOut_on_wednesday,
-        checkOut_on_thursday,
-        checkOut_on_friday, checkOut_on_saturday,
-        checkOut_on_sunday,
-        minimum_stay_on_monday,
-        minimum_stay_on_tuesday,
-        minimum_stay_on_wednesday,
-        minimum_stay_on_thursday, minimum_stay_on_friday, minimum_stay_on_saturday, minimum_stay_on_sunday,
-      }] = rateData;
-      const propertyData = {
-        email,
-        phone,
-        unitTypeName,
-        description,
-        country,
-        state,
-        city,
-        zip,
-        lattitude,
-        longitude,
-        image,
-        address,
-      };
-      const unitTypeData = {
-        unitTypeName,
-        description,
-        units,
-        standardGuests,
-        babyCrib,
-        childBed,
-      };
-      const ratesData = {
-        rateName,
-        currency: 'eur',
-        price_per_night,
-        standardGuests,
-        checkIn_Restriction: [checkIn_on_monday === 1,
-          checkIn_on_tuesday === 1, checkIn_on_wednesday === 1, checkIn_on_thursday === 1,
-          checkIn_on_friday === 1, checkIn_on_saturday === 1, checkIn_on_sunday === 1],
-        checkOut_Restriction: [
-          checkOut_on_monday === 1,
-          checkOut_on_tuesday === 1,
-          checkOut_on_wednesday === 1,
-          checkOut_on_thursday === 1,
-          checkOut_on_friday === 1, checkOut_on_saturday === 1, checkOut_on_sunday === 1],
-        minimum_stay: [minimum_stay_on_monday || minimum_stay,
-          minimum_stay_on_tuesday || minimum_stay,
-          minimum_stay_on_wednesday || minimum_stay,
-          minimum_stay_on_thursday || minimum_stay,
-          minimum_stay_on_friday || minimum_stay,
-          minimum_stay_on_saturday || minimum_stay,
-          minimum_stay_on_sunday || minimum_stay],
-      };
-      const groupId = await createGroup(companyName);
-      console.log(groupId);
-      const propertyId = await createProperty(propertyData, groupId);
-      console.log(propertyId);
-      const unitTypeId = await createUnitType(propertyId, unitTypeData);
-      console.log(unitTypeId);
-      const ratePlanId = await createRatePlan(propertyId, unitTypeId, ratesData);
-      console.log(ratePlanId);
-      const seasonRatesData = await DB.select('seasonRatesV2', { unitTypeId: req.body.unitTypeV2Id });
-      if (seasonRatesData && seasonRatesData.length > 0) {
-        const [{ startDate, endDate, price_per_night: rate }] = seasonRatesData;
-        await updateRate(propertyId, unitTypeId, startDate, endDate, rate * 100);
-      }
-      const payload = {
-        unitTypeId: req.body.unitTypeV2Id,
-        channexGroupId: groupId,
-        channexPropertyId: propertyId,
-        channexUnitTypeId: unitTypeId,
-        channexRatePlanId: ratePlanId,
-      };
-      await DB.insert('channelManager', payload);
-      await DB.update('unitTypeV2', { isChannelManagerActivated: true }, { id: req.body.unitTypeV2Id });
-      res.send({
-        code: 200,
-        msg: 'Channel manager activated',
-      });
+      each(
+        body.properties,
+        async (propertyId, next) => {
+          const data = await DB.select('unitTypeV2', { propertyId: parseInt(propertyId, 10) });
+          //  console.log('unit Type data', data[0].unitTypeName[0].name);
+          // console.log('unit Type data', data[0].description[0].description);
+          const [{
+            id: unitTypeV2Id, country, state, city, zip,
+            lattitude, longitude, image, address, standardGuests, units,
+          }] = data;
+          const { name: unitTypeName } = data[0].unitTypeName[0];
+          const { description } = data[0].description[0];
+          const { sleepingArrangement } = data[0];
+          const babyCrib = sleepingArrangement && JSON.parse(sleepingArrangement.babyCrib);
+          const childBed = sleepingArrangement && JSON.parse(sleepingArrangement.childBed);
+          const rateData = await DB.select('ratesV2', { unitTypeId: unitTypeV2Id });
+          // console.log(rateData);
+          const [{
+            rateName, price_per_night, minimum_stay, checkIn_on_monday,
+            checkIn_on_tuesday, checkIn_on_wednesday, checkIn_on_thursday,
+            checkIn_on_friday, checkIn_on_saturday, checkIn_on_sunday,
+            checkOut_on_monday, checkOut_on_tuesday,
+            checkOut_on_wednesday,
+            checkOut_on_thursday,
+            checkOut_on_friday, checkOut_on_saturday,
+            checkOut_on_sunday,
+            minimum_stay_on_monday,
+            minimum_stay_on_tuesday,
+            minimum_stay_on_wednesday,
+            minimum_stay_on_thursday, minimum_stay_on_friday, minimum_stay_on_saturday, minimum_stay_on_sunday,
+          }] = rateData;
+          const propertyData = {
+            email,
+            phone,
+            unitTypeName,
+            description,
+            country,
+            state,
+            city,
+            zip,
+            lattitude,
+            longitude,
+            image,
+            address,
+          };
+          const unitTypeData = {
+            unitTypeName,
+            description,
+            units,
+            standardGuests,
+            babyCrib,
+            childBed,
+          };
+          const ratesData = {
+            rateName,
+            currency: 'eur',
+            price_per_night,
+            standardGuests,
+            checkIn_Restriction: [checkIn_on_monday === 1,
+              checkIn_on_tuesday === 1, checkIn_on_wednesday === 1, checkIn_on_thursday === 1,
+              checkIn_on_friday === 1, checkIn_on_saturday === 1, checkIn_on_sunday === 1],
+            checkOut_Restriction: [
+              checkOut_on_monday === 1,
+              checkOut_on_tuesday === 1,
+              checkOut_on_wednesday === 1,
+              checkOut_on_thursday === 1,
+              checkOut_on_friday === 1, checkOut_on_saturday === 1, checkOut_on_sunday === 1],
+            minimum_stay: [minimum_stay_on_monday || minimum_stay,
+              minimum_stay_on_tuesday || minimum_stay,
+              minimum_stay_on_wednesday || minimum_stay,
+              minimum_stay_on_thursday || minimum_stay,
+              minimum_stay_on_friday || minimum_stay,
+              minimum_stay_on_saturday || minimum_stay,
+              minimum_stay_on_sunday || minimum_stay],
+          };
+          console.log('properties data', propertyData);
+          console.log('unit Type Data', unitTypeData);
+          console.log('rates data', ratesData);
+          const groupId = await createGroup(companyName);
+          console.log(groupId);
+          const channexPropertyId = await createProperty(propertyData, groupId);
+          console.log(propertyId);
+          const unitTypeId = await createUnitType(propertyId, unitTypeData);
+          console.log(unitTypeId);
+          const ratePlanId = await createRatePlan(propertyId, unitTypeId, ratesData);
+          console.log(ratePlanId);
+          const seasonRatesData = await DB.select('seasonRatesV2', { unitTypeId: unitTypeV2Id });
+          if (seasonRatesData && seasonRatesData.length > 0) {
+            const [{ startDate, endDate, price_per_night: rate }] = seasonRatesData;
+            await updateRate(propertyId, unitTypeId, startDate, endDate, rate * 100);
+          }
+          // const submissionpayload = {
+          //   email: body.email,
+          //   propertiesToMap: JSON.stringify(body.properties),
+          // };
+          const payload = {
+            unitTypeId: unitTypeV2Id,
+            channexGroupId: groupId,
+            channexPropertyId,
+            channexUnitTypeId: unitTypeId,
+            channexRatePlanId: ratePlanId,
+          };
+          await DB.insert('channelManager', payload);
+          await DB.update('unitTypeV2', { isChannelManagerActivated: true }, { id: unitTypeV2Id });
+          next();
+        },
+        () => {
+          res.send({
+            code: 200,
+            msg: 'channel manager activated',
+          });
+        },
+      );
     } catch (e) {
       console.log(e);
       res.send({
         code: 444,
         msg: 'wrong entity passed',
+      });
+    }
+  });
+
+  /**
+   * API for checking if property has rates
+   */
+  router.post('/checkRates', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      console.log(body);
+      let isEmpty = false;
+      let property = '';
+      each(
+        body.properties,
+        async (propertyId, next) => {
+          const data = await DB.selectCol(['id'], 'unitTypeV2', { propertyId: parseInt(propertyId, 10) });
+          const [{
+            id: unitTypeV2Id,
+          }] = data;
+          const rateData = await DB.select('ratesV2', { unitTypeId: unitTypeV2Id });
+          console.log(rateData);
+          if (rateData.length < 1) {
+            const data0 = await DB.selectCol(['propertyName'], 'propertyV2', { id: propertyId });
+            const [{ propertyName }] = data0;
+            isEmpty = true;
+            property = propertyName;
+          }
+          next();
+        },
+        () => {
+          if (isEmpty) {
+            res.send({
+              code: 401,
+              msg: `property ${property} do not have any rates, either set the rates or remove it from the list`,
+            });
+          } else {
+            res.send({
+              code: 200,
+              msg: 'all good',
+            });
+          }
+        },
+      );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
       });
     }
   });
