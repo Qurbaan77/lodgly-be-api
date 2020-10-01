@@ -98,7 +98,7 @@ const bookingRouter = () => {
             servicePrice: el.servicePrice,
             quantity: el.serviceQuantity,
             serviceTax: el.serviceTax,
-            serviceAmount: el.serviceAmount,
+            serviceAmount: el.serviceTotal,
           };
           await DB.insert('bookingServiceV2', Data);
         });
