@@ -139,6 +139,143 @@ const bookingRouter = () => {
     }
   });
 
+  // Update Booking
+  router.post('/changeBooking', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const bookingDetail = await DB.select('bookingV2', { id: body.id, userId: id });
+      if (bookingDetail) {
+        const bookingData = {
+          userId: id,
+          propertyId: body.propertyId,
+          propertyName: body.property,
+          unitId: body.unit,
+          unitName: body.unitName,
+          startDate: body.groupname[0].split('T', 1),
+          endDate: body.groupname[1].split('T', 1),
+          acknowledge: body.acknowledge,
+          channel: body.channel,
+          commission: body.commission,
+          adult: body.adult,
+          guest: body.guest,
+          children1: body.children1,
+          children2: body.children2,
+          notes1: body.notes1,
+          notes2: body.notes2,
+
+          perNight: body.perNight,
+          night: body.night,
+          amt: body.amt,
+          discountType: body.discountType,
+          discount: body.discount,
+          accomodation: body.accomodation,
+
+          noOfservices: body.noOfservices,
+          totalAmount: body.totalAmount,
+          deposit: body.deposit,
+          depositType: body.depositType,
+        };
+        await DB.update('bookingV2', bookingData, { id: body.id, userId: id });
+      }
+      if (body.guestData.length) {
+        body.guestData.map(async (el) => {
+          if (el.id) {
+            const Data = {
+              userId: id,
+              bookingId: el.bookingId,
+              fullname: el.fullname,
+              country: el.country,
+              email: el.email,
+              phone: el.phone,
+            };
+            console.log(Data);
+            await DB.update('guestV2', Data, { id: el.id });
+          } else {
+            const Data = {
+              userId: id,
+              bookingId: el.bookingId,
+              fullname: el.fullname,
+              country: el.country,
+              email: el.email,
+              phone: el.phone,
+            };
+            console.log(Data);
+            await DB.insert('guestV2', Data);
+          }
+        });
+      }
+
+      console.log(body.serviceData);
+      if (body.serviceData.length) {
+        body.serviceData.map(async (el) => {
+          if (el.id) {
+            const Data = {
+              userId: id,
+              bookingId: el.bookingId,
+              serviceName: el.serviceName,
+              servicePrice: el.servicePrice,
+              quantity: el.quantity,
+              serviceTax: el.serviceTax,
+              serviceAmount: el.serviceAmount,
+            };
+            await DB.update('bookingServiceV2', Data, { id: el.id });
+          } else {
+            const Data = {
+              userId: id,
+              bookingId: el.bookingId,
+              serviceName: el.serviceName,
+              servicePrice: el.servicePrice,
+              quantity: el.serviceQuantity,
+              serviceTax: el.serviceTax,
+              serviceAmount: el.serviceAmount,
+            };
+            await DB.insert('bookingServiceV2', Data);
+          }
+        });
+      }
+
+      if (body.deleteGuestId) {
+        try {
+          await DB.remove('guestV2', { id: body.deleteGuestId });
+        } catch (e) {
+          sentryCapture(e);
+          res.send({
+            code: 400,
+            msg: e,
+          });
+        }
+      }
+      if (body.deleteServiceId) {
+        try {
+          await DB.remove('guestV2', { id: body.deleteServiceId });
+        } catch (e) {
+          sentryCapture(e);
+          res.send({
+            code: 400,
+            msg: e,
+          });
+        }
+      }
+      res.send({
+        code: 200,
+        msg: 'Booking change successfully!',
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
   // API for get booking
   router.post('/getBooking', userAuthCheck, async (req, res) => {
     try {
