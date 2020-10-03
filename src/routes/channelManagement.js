@@ -77,8 +77,8 @@ const channelRouter = () => {
           title: unitTypeData.unitTypeName,
           count_of_rooms: unitTypeData.units,
           occ_adults: unitTypeData.standardGuests,
-          occ_children: unitTypeData.childBed,
-          occ_infants: unitTypeData.babyCrib,
+          occ_children: unitTypeData.childBed || 0,
+          occ_infants: unitTypeData.babyCrib || 0,
           default_occupancy: unitTypeData.standardGuests,
           content: {
             description: unitTypeData.description,
