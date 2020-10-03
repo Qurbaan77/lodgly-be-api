@@ -187,31 +187,33 @@ const reservationRouter = () => {
               unitTypeId: items.id,
             },
           );
-          JSON.parse(items.unitsData).forEach((ele, i) => {
-            const unitsData = {
-              id: i,
-              name: ele,
-              color: getRandomColor(),
-            };
-            const bookingData = [];
-            reservation
-              .filter((el) => el.bookedUnit === i)
-              .map((data) => {
-                const cutomizeData = {
-                  id: data.id,
-                  from: +new Date(data.startDate),
-                  to: +new Date(data.endDate),
-                  guestName: data.guest,
-                  price: data.totalAmount,
-                };
-                return bookingData.push(cutomizeData);
-              });
-            const customizeBooking = {
-              data: bookingData,
-            };
-            unitsData.booking = customizeBooking;
-            units.push(unitsData);
-          });
+          if (items.unitsData) {
+            JSON.parse(items.unitsData).forEach((ele, i) => {
+              const unitsData = {
+                id: i,
+                name: ele,
+                color: getRandomColor(),
+              };
+              const bookingData = [];
+              reservation
+                .filter((el) => el.bookedUnit === i)
+                .map((data) => {
+                  const cutomizeData = {
+                    id: data.id,
+                    from: +new Date(data.startDate),
+                    to: +new Date(data.endDate),
+                    guestName: data.guest,
+                    price: data.totalAmount,
+                  };
+                  return bookingData.push(cutomizeData);
+                });
+              const customizeBooking = {
+                data: bookingData,
+              };
+              unitsData.bookings = customizeBooking;
+              units.push(unitsData);
+            });
+          }
           const cutomizeUnits = {
             data: units,
           };

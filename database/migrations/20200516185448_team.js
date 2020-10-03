@@ -14,6 +14,9 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.boolean('propertiesRead').defaultTo(false);
   table.boolean('propertiesWrite').defaultTo(false);
   table.boolean('propertiesDelete').defaultTo(false);
+  table.boolean('channelRead').defaultTo(false);
+  table.boolean('channelWrite').defaultTo(false);
+  table.boolean('channelDelete').defaultTo(false);
   table.boolean('guestsRead').defaultTo(false);
   table.boolean('guestsWrite').defaultTo(false);
   table.boolean('guestsDelete').defaultTo(false);

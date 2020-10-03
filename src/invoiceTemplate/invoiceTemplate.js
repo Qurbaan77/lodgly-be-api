@@ -17,6 +17,7 @@ module.exports = ({
   phone,
   total,
   impression,
+  logo,
 }) => (
   `
 <!doctype html>
@@ -41,8 +42,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                     <table style="margin: 0;padding: 0;width: 100%;">
                         <tr style="margin: 0;padding: 0;">
                             <td align="center" style="margin: 0;padding: 0;"><a href="#">
-                            <img src="https://s3.eu-west-1.
-                            amazonaws.com/storage.lodgly.dev-eu-west-1/bucketFolder/1595937581175-lg.jpg"
+                            <img src=${`${logo}`}
                             style="margin: 10px 10px; width: 50px;"></a></td>
                         </tr>
                     </table>
@@ -68,14 +68,14 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                 <span style="color: #f9b32b; font-size: 20px;">${`${propertyName}`}</span>
                             </td> 
                             <td align="right">
-                            ${`${phone || ''}`}
+                            ${`${phone || 'N/A'}`}
                             </td>                     
                         </tr> 
 
                         <tr>
                             <td></td>  
                             <td align="right">
-                            ${`${userEmail}`}
+                            ${`${userEmail || 'N/A'}`}
                             </td>                       
                         </tr>  
                         
@@ -84,7 +84,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                             ${`${propertyAddress}`}
                             </td> 
                             <td align="right">
-                            ${`${website}`}
+                            ${`${website || 'N/A'}`}
                             </td>                     
                         </tr> 
 
@@ -296,8 +296,9 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
 
 
                             <p style="color: #999; font-size:12px;max-width: 335px;
-                             margin: 0px auto;text-align: center;">${`${propertyAddress}`} | ${`${phone}`}
-                                | ${`${email}`} | ${`${website}`}  </p>
+                             margin: 0px auto;text-align: center;">
+                             ${`${propertyAddress || 'N/A'}`} | ${`${phone || 'N/A'}`}
+                                | ${`${email || 'N/A'}`} | ${`${website || 'N/A'}`}  </p>
                             </td>
                         </tr>
                     </table>
