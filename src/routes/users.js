@@ -127,6 +127,7 @@ const usersRouter = () => {
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = req.body;
+    console.log(body);
     const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password, body.coupon);
     try {
       if (isValid) {
@@ -245,6 +246,7 @@ const usersRouter = () => {
               const userData = {
                 organizationId: saveData,
                 fullname: body.name,
+                companyName: body.company,
                 encrypted_password: body.encrypted_password,
                 email: body.email,
                 phone: body.phone,
@@ -2227,6 +2229,7 @@ const usersRouter = () => {
             pdfurl: data.Location,
             status: body.status,
             type: body.type,
+            logo: body.logo,
           };
           if (!body.id) {
             const Id = await DB.insert('invoiceV2', invoiceData);
@@ -2595,8 +2598,9 @@ const usersRouter = () => {
         subUser,
         async (items, next) => {
           const itemsCopy = items;
+          console.log(itemsCopy);
           const data = await DB.selectCol(['isvalid', 'fullname'], 'users', { email: itemsCopy.email });
-
+          console.log(data);
           const [{ isvalid, fullname }] = data;
           itemsCopy.status = isvalid;
           itemsCopy.fullname = fullname;

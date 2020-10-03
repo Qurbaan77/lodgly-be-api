@@ -17,6 +17,7 @@ module.exports = ({
   phone,
   total,
   impression,
+  logo,
 }) => (
   `
 <!doctype html>
@@ -41,8 +42,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                     <table style="margin: 0;padding: 0;width: 100%;">
                         <tr style="margin: 0;padding: 0;">
                             <td align="center" style="margin: 0;padding: 0;"><a href="#">
-                            <img src="https://s3.eu-west-1.
-                            amazonaws.com/storage.lodgly.dev-eu-west-1/bucketFolder/1595937581175-lg.jpg"
+                            <img src=${`${logo}`}
                             style="margin: 10px 10px; width: 50px;"></a></td>
                         </tr>
                     </table>

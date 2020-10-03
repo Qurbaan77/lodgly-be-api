@@ -116,6 +116,31 @@ const propertyRouter = () => {
     );
   });
 
+  router.get('/getPropertyName', userAuthCheck, async (req, res) => {
+    try {
+      console.log('get property', req.body);
+      const propertyData = await DB.select('propertyV2', { userId: req.body.tokenData.userid });
+      if (propertyData && propertyData.length > 0) {
+        res.send({
+          code: 200,
+          propertyData,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'No properties created',
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
   // API for update unittype location
   router.post('/updateLocation', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
