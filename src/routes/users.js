@@ -40,10 +40,6 @@ const usersRouter = () => {
 
   const uploadFile = async (buffer, name, type, organizationid) => {
     try {
-      console.log('organization id in upload file', organizationid);
-      console.log(config.get('aws.accessKey'));
-      console.log(config.get('aws.accessSecretKey'));
-      console.log(config.get('aws.s3.storageBucketName'));
       const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
@@ -63,7 +59,6 @@ const usersRouter = () => {
 
   // function for uploading invoice pdf
   const uploadPdf = async (buffer, name, type, organizationid) => {
-    console.log(config.get('aws.s3.storageBucketName'));
     const bucket = config.get('aws.s3.storageBucketName');
     const params = {
       ACL: 'public-read',
@@ -132,7 +127,7 @@ const usersRouter = () => {
   // post request to signup user
   router.post('/signup', async (req, res) => {
     const { ...body } = req.body;
-    console.log('signup body', body);
+    console.log(body);
     const { isValid } = checkIfEmpty(body.name, body.company, body.email, body.password, body.coupon);
     try {
       if (isValid) {
@@ -164,6 +159,7 @@ const usersRouter = () => {
                 const userData = {
                   organizationId: saveData,
                   fullname: body.name,
+                  companyName: body.company,
                   encrypted_password: body.encrypted_password,
                   email: body.email,
                   phone: body.phone,
@@ -250,6 +246,7 @@ const usersRouter = () => {
               const userData = {
                 organizationId: saveData,
                 fullname: body.name,
+                companyName: body.company,
                 encrypted_password: body.encrypted_password,
                 email: body.email,
                 phone: body.phone,
@@ -785,7 +782,6 @@ const usersRouter = () => {
       };
       // creating unit type with same name
       const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
-      console.log('unitTypeV2Id', unitTypeV2Id);
       res.send({
         code: 200,
         savedData,
@@ -1828,10 +1824,10 @@ const usersRouter = () => {
         notes: body.notes,
       };
       if (body.id) {
-        await DB.update('guest', guestData, { id: body.id });
+        await DB.update('guestV2', guestData, { id: body.id });
         res.send({
           code: 200,
-          msg: 'Data updated successfully!',
+          msg: 'Changes saved successfully!',
         });
       } else {
         await DB.insert('guest', guestData);
@@ -2233,6 +2229,7 @@ const usersRouter = () => {
             pdfurl: data.Location,
             status: body.status,
             type: body.type,
+            logo: body.logo,
           };
           if (!body.id) {
             const Id = await DB.insert('invoiceV2', invoiceData);
@@ -2430,6 +2427,9 @@ const usersRouter = () => {
             propertiesRead: body.propertiesRead,
             propertiesWrite: body.propertiesWrite,
             propertiesDelete: body.propertiesDelete,
+            channelRead: body.channelRead,
+            channelWrite: body.channelWrite,
+            channelDelete: body.channelDelete,
             guestsRead: body.guestsRead,
             guestsWrite: body.guestsWrite,
             guestsDelete: body.guestsDelete,
@@ -2548,6 +2548,9 @@ const usersRouter = () => {
         propertiesRead: body.propertiesRead,
         propertiesWrite: body.propertiesWrite,
         propertiesDelete: body.propertiesDelete,
+        channelRead: body.channelRead,
+        channelWrite: body.channelWrite,
+        channelDelete: body.channelDelete,
         guestsRead: body.guestsRead,
         guestsWrite: body.guestsWrite,
         guestsDelete: body.guestsDelete,
@@ -2601,8 +2604,9 @@ const usersRouter = () => {
         subUser,
         async (items, next) => {
           const itemsCopy = items;
+          console.log(itemsCopy);
           const data = await DB.selectCol(['isvalid', 'fullname'], 'users', { email: itemsCopy.email });
-
+          console.log(data);
           const [{ isvalid, fullname }] = data;
           itemsCopy.status = isvalid;
           itemsCopy.fullname = fullname;
@@ -3050,7 +3054,6 @@ const usersRouter = () => {
   // API for upload property picture
   router.post('/propertyPicture', async (req, res) => {
     const form = new multiparty.Form();
-    console.log(req.query);
     form.parse(req, async (error, fields, files) => {
       if (error) {
         console.log(error);
@@ -3082,7 +3085,6 @@ const usersRouter = () => {
   router.post('/addService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const servicData = {
         propertyId: body.propertyNo,
         serviceName: body.servicename,
@@ -3117,7 +3119,6 @@ const usersRouter = () => {
   router.post('/getService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('body.propertyId==>', body.propertyId);
       const servicData = await DB.select('serviceV2', {
         propertyId: body.propertyId,
       });
@@ -3275,7 +3276,6 @@ const usersRouter = () => {
   // API to get user info
   router.post('/getuserDetails', getAuthCheck, async (req, res) => {
     try {
-      console.log('body of user', req.body);
       const { ...body } = req.body;
       const userData = await DB.selectCol(['fullname', 'email'], 'users', {
         id: body.tokenData.userid,
@@ -3298,7 +3298,6 @@ const usersRouter = () => {
   router.post('/getCompanyData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const companyData = await DB.select('organizations', { name: body.company });
       res.send({
         code: 200,
@@ -3591,7 +3590,6 @@ const usersRouter = () => {
   router.post('/charge', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('charge body', body);
       const {
         stripeToken,
         // amount,
@@ -3603,17 +3601,15 @@ const usersRouter = () => {
       } = body;
       const data = await DB.selectCol(['email'], 'users', { id: req.body.tokenData.userid });
       const [{ email }] = data;
-      const now = new Date();
-      const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
-      const nextMonth = nextdate / 1000;
-      console.log(nextMonth, 'nextMonth');
+      // const now = new Date();
+      // const nextdate = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
+      // const nextMonth = nextdate / 1000;
       // create the customer
       const customer = await stripe.customers.create({
         email,
         source: stripeToken,
         metadata: { currency },
       });
-      console.log('customer', customer);
       let subscription;
       // checking for monthly and yearly plan & apply coupon
       if (interval === 'month') {
@@ -3631,7 +3627,6 @@ const usersRouter = () => {
       } else {
         // retrieving the coupon id from coupon code
         const couponCode = await stripe.coupons.retrieve(coupon);
-        console.log('coupon ====>>>>>>', couponCode);
         // creating the yearly subscription
         subscription = await stripe.subscriptions.create({
           customer: customer.id,
@@ -3646,7 +3641,6 @@ const usersRouter = () => {
         });
       }
 
-      console.log('This is subscription object ====>.>>>>', subscription);
       if (subscription.status === 'active') {
         const subscriptionObject = {
           productId: subscription.plan.product.id,
@@ -3660,7 +3654,6 @@ const usersRouter = () => {
           planType,
           currency,
         };
-        console.log('subscription object', subscriptionObject);
         await DB.insert('subscription', subscriptionObject);
         await DB.update('users', { isSubscribed: true, isOnTrial: false }, { id: body.tokenData.userid });
         if (planType === 'basic') {
@@ -3705,7 +3698,6 @@ const usersRouter = () => {
       const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
       if (transactions && transactions.length) {
         const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
-        console.log('subscription', subscription);
         const endDate = subscription.current_period_end * 1000;
         const { status } = subscription;
         res.send({
@@ -3785,7 +3777,7 @@ const usersRouter = () => {
   router.post('/cancelSubscription', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      stripe.subscriptions.del(body.subscriptionId, (err, confirmation) => {
+      stripe.subscriptions.del(body.subscriptionId, (err) => {
         if (err) {
           console.log(err);
           res.send({
@@ -3793,7 +3785,6 @@ const usersRouter = () => {
             err,
           });
         }
-        console.log(confirmation);
         res.send({
           code: 200,
           msg: 'Your subscription is cancelled',
@@ -3839,7 +3830,6 @@ const usersRouter = () => {
       } else {
         // retrieving the coupon id from coupon code
         const couponCode = await stripe.coupons.retrieve(coupon);
-        console.log('coupon ====>>>>>>', couponCode);
         // updating the subvscription
         updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
@@ -3854,7 +3844,6 @@ const usersRouter = () => {
           coupon: couponCode.id,
         });
       }
-      console.log('updated subscription', updatedSubscription);
       if (updatedSubscription.status === 'active') {
         const payload = {
           subscriptionId: updatedSubscription.id,
@@ -3865,8 +3854,7 @@ const usersRouter = () => {
           planType,
           amount,
         };
-        const id = await DB.update('subscription', payload, { userId: body.tokenData.userid });
-        console.log(id);
+        await DB.update('subscription', payload, { userId: body.tokenData.userid });
         if (planType === 'basic') {
           await DB.update(
             'feature',
@@ -3900,17 +3888,14 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const Data = await DB.selectCol(['subscriptionId'], 'subscription', { userId: body.tokenData.userid });
-      console.log('subscription status data===>>', Data);
       if (Data && Data.length > 0) {
         const [{ subscriptionId }] = Data;
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        console.log('active subscription', subscription);
         if (subscription) {
           if (subscription.status === 'canceled') {
             const end = moment(subscription.current_period_end * 1000).format('YYYY-MM-DD');
             const today = moment(new Date()).format('YYYY-MM-DD');
             const compare = moment(end).isSameOrBefore(today);
-            console.log(compare);
             if (compare) {
               await DB.update('users', { isSubscribed: false, issubscriptionEnded: true }, { id: body.tokenData.userid });
             }
@@ -3944,7 +3929,6 @@ const usersRouter = () => {
         'users',
         { id: userid },
       );
-      console.log(userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
@@ -4008,16 +3992,13 @@ const usersRouter = () => {
   router.post('/groupReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       let id;
       const startDateTime = new Date(body.groupname[0]);
       const endDateTime = new Date(body.groupname[1]);
 
       if (!body.affiliateId) {
-        console.log('no affiliaate id');
         id = body.tokenData.userid;
       } else {
-        console.log('affiliate id');
         id = body.affiliateId;
       }
 
@@ -4042,10 +4023,7 @@ const usersRouter = () => {
               discount: body.discount,
               totalAmount: body.totalAmount,
             };
-            console.log('reservation data', reservationData);
             const saveData = await DB.insert('reservation', reservationData);
-            console.log('saveData', saveData);
-
             const Data = {
               userId: id,
               reservationId: saveData,
@@ -4054,7 +4032,6 @@ const usersRouter = () => {
               email: body.email,
               phone: body.phone,
             };
-            console.log(Data);
             await DB.insert('guest', Data);
             next();
             return itemsCopy;
@@ -4080,7 +4057,6 @@ const usersRouter = () => {
   router.post('/deleteBookings', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       each(
         body.bookings,
         async (items, next) => {
@@ -4110,7 +4086,6 @@ const usersRouter = () => {
   router.post('/addRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const rateData = {
         unitTypeId: body.unitTypeId,
         rateName: body.rateName,
@@ -4175,11 +4150,8 @@ const usersRouter = () => {
   router.post('/getRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const ratesData = await DB.select('rates', { unitTypeId: body.unittypeId });
       const seasonRatesData = await DB.select('seasonRates', { unitTypeId: body.unittypeId });
-      console.log(ratesData);
-      console.log(seasonRatesData);
       res.send({
         code: 200,
         ratesData,
@@ -4199,7 +4171,6 @@ const usersRouter = () => {
   router.post('/getUnitTypeRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const unittypeData = await DB.select('unitType', { userId: body.tokenData.userid });
       res.send({
         code: 200,
@@ -4219,7 +4190,6 @@ const usersRouter = () => {
   router.post('/addSeasonRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       let startDateTime;
       let endDateTime;
       if (body.groupname) {
@@ -4297,7 +4267,6 @@ const usersRouter = () => {
   router.post('/getSeasonRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('getSeasonRates', body);
       const seasonRateData = await DB.select('seasonRates', { unitTypeId: body.unitTypeId });
       res.send({
         code: 200,
@@ -4355,9 +4324,7 @@ const usersRouter = () => {
   router.post('/getGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
-      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
-      console.log('guestData', guestData);
+      const guestData = await DB.select('guestV2', { userId: body.tokenData.userid });
       res.send({
         code: 200,
         guestData,
@@ -4376,7 +4343,6 @@ const usersRouter = () => {
   router.post('/copyRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const rateData = {
         unitTypeId: body.newUnitType,
         rateName: body.rateName,
@@ -4460,7 +4426,6 @@ const usersRouter = () => {
   router.post('/addCompany', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const companyData = {
         userId: body.tokenData.userid,
         name: body.name,
