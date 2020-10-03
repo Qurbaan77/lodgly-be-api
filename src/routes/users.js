@@ -3109,9 +3109,11 @@ const usersRouter = () => {
   router.post('/getService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('Ravi Verma', body);
       const servicData = await DB.select('serviceV2', {
         propertyId: body.propertyId,
       });
+      console.log('servicData', servicData);
       res.send({
         code: 200,
         servicData,

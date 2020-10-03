@@ -155,8 +155,6 @@ const bookingRouter = () => {
         bookingData = await DB.select('bookingV2', { userId: body.affiliateId });
         unittypeData = await DB.select('unitTypeV2', { userId: body.affiliateId });
       }
-      console.log('bookingData', bookingData);
-      console.log('unittypeData', unittypeData);
       each(
         bookingData,
         async (items, next) => {

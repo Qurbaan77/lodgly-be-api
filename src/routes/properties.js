@@ -5,6 +5,7 @@ const fs = require('fs');
 const AWS = require('aws-sdk');
 const fileType = require('file-type');
 const bluebird = require('bluebird');
+const each = require('sync-each');
 const multiparty = require('multiparty');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
@@ -92,34 +93,27 @@ const propertyRouter = () => {
       id = body.tokenData.userid;
     }
     const data = await DB.select('unitTypeV2', { userId: id });
-    console.log('fetch property data', data);
     const propertiesData = data;
-    // data.forEach((property) => {
-    //   const noOfUnits = property.unitsData ? JSON.parse(property.unitsData).length : 0;
-    //   const copyProperty = property;
-    //   copyProperty.noOfUnits = noOfUnits;
-    //   propertiesData.push(copyProperty);
-    // });
-    res.send({
-      code: 200,
-      propertiesData,
-    });
-    // each(
+    // res.send({
+    //   code: 200,
     //   propertiesData,
-    //   async (items, next) => {
-    //     const itemsCopy = items;
-    //     const data = await DB.select('unitTypeV2', { propertyId: items.id });
-    //     itemsCopy.unitType = data;
-    //     next();
-    //     return itemsCopy;
-    //   },
-    //   () => {
-    //     res.send({
-    //       code: 200,
-    //       propertiesData,
-    //     });
-    //   },
-    // );
+    // });
+    each(
+      propertiesData,
+      async (items, next) => {
+        const itemsCopy = items;
+        const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
+        itemsCopy.unitDataV2 = unitDataV2;
+        next();
+        return itemsCopy;
+      },
+      () => {
+        res.send({
+          code: 200,
+          propertiesData,
+        });
+      },
+    );
   });
 
   // API for update unittype location
@@ -147,9 +141,15 @@ const propertyRouter = () => {
   router.post('/fetchUnittypeData', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     const unitTypeV2Data = await DB.select('unitTypeV2', { id: body.unitTypeV2Id });
+    const newDataArray = [];
+    unitTypeV2Data.forEach((unitTypeV2) => {
+      const copyValues = unitTypeV2;
+      copyValues.arrayOfUnits = JSON.parse(unitTypeV2.unitsData);
+      newDataArray.push(copyValues);
+    });
     res.send({
       code: 200,
-      unitTypeV2Data,
+      unitTypeV2Data: newDataArray,
     });
   });
 
@@ -196,9 +196,24 @@ const propertyRouter = () => {
       unitsData: body.unitsData,
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
-    res.send({
-      code: 200,
-    });
+    each(
+      JSON.parse(body.unitsData),
+      async (items, next) => {
+        const unitData = {
+          userId: body.tokenData.userid,
+          unittypeId: body.unitTypeV2Id,
+          unitName: items,
+        };
+        console.log(unitData);
+        await DB.insert('unitV2', unitData);
+        next();
+      },
+      () => {
+        res.send({
+          code: 200,
+        });
+      },
+    );
   });
 
   // API for update SleepingArrangement

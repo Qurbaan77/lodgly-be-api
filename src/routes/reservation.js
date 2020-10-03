@@ -4,7 +4,7 @@ const moment = require('moment');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const sentryCapture = require('../../config/sentryCapture');
-const { enumerateDaysBetweenDates, getRandomColor } = require('../functions/index');
+const { enumerateDaysBetweenDates } = require('../functions/index');
 
 const reservationRouter = () => {
   const router = express.Router();
@@ -50,47 +50,53 @@ const reservationRouter = () => {
         deposit: body.deposit,
       };
 
-      const Id = await DB.insert('reservationV2', reservationData);
-      if (body.guestData[0] !== null) {
-        body.guestData.map(async (el) => {
-          const Data = {
-            userId: id,
-            reservationId: Id,
-            fullname: el.fullName,
-            country: el.country,
-            email: el.email,
-            phone: el.phone,
-          };
-          await DB.insert('guestV2', Data);
-          await DB.increment(
-            'booking',
-            {
-              id: Id,
-            },
-            {
-              noGuest: 1,
-            },
-          );
+      if (body.reservationId) {
+        await DB.update('reservationV2', reservationData, { id: body.reservationId });
+        if (body.guestData[0] !== null) {
+          body.guestData.map(async (el) => {
+            const Data = {
+              userId: id,
+              reservationId: body.reservationId,
+              fullname: el.fullName,
+              country: el.country,
+              email: el.email,
+              phone: el.phone,
+            };
+            await DB.insert('guestV2', Data);
+          });
+        }
+        res.send({
+          code: 200,
+        });
+      } else {
+        const Id = await DB.insert('reservationV2', reservationData);
+        if (body.guestData[0] !== null) {
+          body.guestData.map(async (el) => {
+            const Data = {
+              userId: id,
+              reservationId: Id,
+              fullname: el.fullName,
+              country: el.country,
+              email: el.email,
+              phone: el.phone,
+            };
+            await DB.insert('guestV2', Data);
+            await DB.increment(
+              'booking',
+              {
+                id: Id,
+              },
+              {
+                noGuest: 1,
+              },
+            );
+          });
+        }
+        res.send({
+          code: 200,
+          msg: 'Reservation save successfully!',
         });
       }
-
-      // body.serviceData.map(async (el) => {
-      //   const Data = {
-      //     userId: id,
-      //     bookingId: Id,
-      //     serviceName: el.serviceName,
-      //     servicePrice: el.servicePrice,
-      //     quantity: el.serviceQuantity,
-      //     serviceTax: el.serviceTax,
-      //     serviceAmount: el.serviceAmount
-      //   };
-      //   await DB.insert('bookingService', Data);
-      // });
-
-      res.send({
-        code: 200,
-        msg: 'Reservation save successfully!',
-      });
     } catch (e) {
       sentryCapture(e);
       console.log(e);
@@ -151,6 +157,10 @@ const reservationRouter = () => {
       each(
         unitType,
         async (items, next) => {
+          const randomColor = ['#D5F8BA', '#B4FDC2', '#D2F2F3', '#BBF2E5', '#94EDD3'];
+          const random = Math.floor(Math.random() * randomColor.length);
+          console.log('Random', random);
+          console.log('Random Color', randomColor[random]);
           const units = [];
           const rates = [];
           const itemsCopy = items;
@@ -187,16 +197,17 @@ const reservationRouter = () => {
               unitTypeId: items.id,
             },
           );
-          if (items.unitsData) {
-            JSON.parse(items.unitsData).forEach((ele, i) => {
+          const unit = await DB.select('unitV2', { unitTypeId: items.id });
+          if (unit.length > 0) {
+            unit.forEach((ele) => {
               const unitsData = {
-                id: i,
-                name: ele,
-                color: getRandomColor(),
+                id: ele.id,
+                name: ele.unitName,
+                color: randomColor[random],
               };
               const bookingData = [];
               reservation
-                .filter((el) => el.bookedUnit === i)
+                .filter((el) => el.bookedUnit === ele.id)
                 .map((data) => {
                   const cutomizeData = {
                     id: data.id,
@@ -228,6 +239,63 @@ const reservationRouter = () => {
           });
         },
       );
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
+  // API for get particular Reservation Data
+  router.post('/getParticularReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const guestData = [];
+      const serviceData = [];
+      const reservationData = await DB.select('reservationV2', { id: body.id });
+      each(
+        reservationData,
+        async (items, next) => {
+          const data = await DB.select('guestV2', { reservationId: items.id });
+          if (data.length !== 0) {
+            guestData.push(data);
+          }
+          // const data1 = await DB.select('bookingServiceV2', { reservationId: items.id });
+          // if (data1.length !== 0) {
+          //   serviceData.push(data1);
+          // }
+          next();
+        },
+        () => {
+          res.send({
+            code: 200,
+            guestData,
+            serviceData,
+            reservationData,
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
+  // API for delete particular Reservation
+  router.post('/deleteReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.remove('reservationV2', { id: body.id });
+      res.send({
+        code: 200,
+      });
     } catch (e) {
       console.log(e);
       sentryCapture(e);
