@@ -1824,10 +1824,10 @@ const usersRouter = () => {
         notes: body.notes,
       };
       if (body.id) {
-        await DB.update('guest', guestData, { id: body.id });
+        await DB.update('guestV2', guestData, { id: body.id });
         res.send({
           code: 200,
-          msg: 'Data updated successfully!',
+          msg: 'Changes saved successfully!',
         });
       } else {
         await DB.insert('guest', guestData);
@@ -2427,6 +2427,9 @@ const usersRouter = () => {
             propertiesRead: body.propertiesRead,
             propertiesWrite: body.propertiesWrite,
             propertiesDelete: body.propertiesDelete,
+            channelRead: body.channelRead,
+            channelWrite: body.channelWrite,
+            channelDelete: body.channelDelete,
             guestsRead: body.guestsRead,
             guestsWrite: body.guestsWrite,
             guestsDelete: body.guestsDelete,
@@ -2545,6 +2548,9 @@ const usersRouter = () => {
         propertiesRead: body.propertiesRead,
         propertiesWrite: body.propertiesWrite,
         propertiesDelete: body.propertiesDelete,
+        channelRead: body.channelRead,
+        channelWrite: body.channelWrite,
+        channelDelete: body.channelDelete,
         guestsRead: body.guestsRead,
         guestsWrite: body.guestsWrite,
         guestsDelete: body.guestsDelete,
@@ -4320,7 +4326,7 @@ const usersRouter = () => {
   router.post('/getGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+      const guestData = await DB.select('guestV2', { userId: body.tokenData.userid });
       res.send({
         code: 200,
         guestData,

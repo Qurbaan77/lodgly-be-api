@@ -68,14 +68,14 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                 <span style="color: #f9b32b; font-size: 20px;">${`${propertyName}`}</span>
                             </td> 
                             <td align="right">
-                            ${`${phone || ''}`}
+                            ${`${phone || 'N/A'}`}
                             </td>                     
                         </tr> 
 
                         <tr>
                             <td></td>  
                             <td align="right">
-                            ${`${userEmail}`}
+                            ${`${userEmail || 'N/A'}`}
                             </td>                       
                         </tr>  
                         
@@ -84,7 +84,7 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                             ${`${propertyAddress}`}
                             </td> 
                             <td align="right">
-                            ${`${website}`}
+                            ${`${website || 'N/A'}`}
                             </td>                     
                         </tr> 
 
@@ -296,8 +296,9 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
 
 
                             <p style="color: #999; font-size:12px;max-width: 335px;
-                             margin: 0px auto;text-align: center;">${`${propertyAddress}`} | ${`${phone}`}
-                                | ${`${email}`} | ${`${website}`}  </p>
+                             margin: 0px auto;text-align: center;">
+                             ${`${propertyAddress || 'N/A'}`} | ${`${phone || 'N/A'}`}
+                                | ${`${email || 'N/A'}`} | ${`${website || 'N/A'}`}  </p>
                             </td>
                         </tr>
                     </table>

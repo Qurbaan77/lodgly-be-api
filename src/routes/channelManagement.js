@@ -77,8 +77,8 @@ const channelRouter = () => {
           title: unitTypeData.unitTypeName,
           count_of_rooms: unitTypeData.units,
           occ_adults: unitTypeData.standardGuests,
-          occ_children: unitTypeData.childBed,
-          occ_infants: unitTypeData.babyCrib,
+          occ_children: unitTypeData.childBed || 0,
+          occ_infants: unitTypeData.babyCrib || 0,
           default_occupancy: unitTypeData.standardGuests,
           content: {
             description: unitTypeData.description,
@@ -156,6 +156,15 @@ const channelRouter = () => {
       }] = userData;
       const groupId = await createGroup(companyName);
       console.log(groupId);
+      const submissionpayload = {
+        userId: body.tokenData.userid,
+        email: body.email,
+        propertiesToMap: JSON.stringify(body.properties),
+        channelToMap: body.channel,
+        airbnbUsername: body.airbnbUsername,
+        airbnbPassword: body.airbnbPassword,
+      };
+      await DB.insert('channelActivationSubmissions', submissionpayload);
       each(
         body.properties,
         async (propertyId, next) => {
@@ -246,11 +255,6 @@ const channelRouter = () => {
               const [{ startDate, endDate, price_per_night: rate }] = seasonRatesData;
               await updateRate(propertyId, unitTypeId, startDate, endDate, rate * 100);
             }
-            const submissionpayload = {
-              userId: body.tokenData.userid,
-              email: body.email,
-              propertiesToMap: JSON.stringify(body.properties),
-            };
             const payload = {
               unitTypeId: unitTypeV2Id,
               channexGroupId: groupId,
@@ -259,7 +263,6 @@ const channelRouter = () => {
               channexRatePlanId: ratePlanId,
             };
             await DB.insert('channelManager', payload);
-            await DB.insert('channelActivationSubmissions', submissionpayload);
             await DB.update('unitTypeV2', { isChannelManagerActivated: true }, { id: unitTypeV2Id });
             next();
           } catch (e) {
