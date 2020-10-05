@@ -3909,10 +3909,12 @@ const usersRouter = () => {
           code: 200,
           msg: 'subscription status updated',
         });
+      } else {
+        res.send({
+          code: 200,
+          msg: 'user not subscribed to any plan',
+        });
       }
-      res.send({
-        code: 200,
-      });
     } catch (e) {
       sentryCapture(e);
       res.send({

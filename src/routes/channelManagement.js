@@ -75,11 +75,11 @@ const channelRouter = () => {
         room_type: {
           property_id: propertyId,
           title: unitTypeData.unitTypeName,
-          count_of_rooms: unitTypeData.units,
-          occ_adults: unitTypeData.standardGuests,
+          count_of_rooms: unitTypeData.units || 0,
+          occ_adults: unitTypeData.standardGuests || 0,
           occ_children: unitTypeData.childBed || 0,
           occ_infants: unitTypeData.babyCrib || 0,
-          default_occupancy: unitTypeData.standardGuests,
+          default_occupancy: unitTypeData.standardGuests || 0,
           content: {
             description: unitTypeData.description,
           },
