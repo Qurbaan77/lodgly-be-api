@@ -143,6 +143,86 @@ const reservationRouter = () => {
         deposit: body.deposit,
       };
       await DB.update('reservationV2', reservationData, { id: body.reservationId });
+      if (body.guestData.length) {
+        body.guestData.map(async (el) => {
+          if (el.created_at) {
+            const Data = {
+              userId: id,
+              reservationId: el.reservationId,
+              fullname: el.fullname,
+              country: el.country,
+              email: el.email,
+              phone: el.phone,
+            };
+            console.log(Data);
+            const updatation = await DB.update('guestV2', Data, { id: el.id });
+            console.log('updatation', updatation);
+          } else {
+            const Data = {
+              userId: id,
+              reservationId: el.reservationId,
+              fullname: el.fullname,
+              country: el.country,
+              email: el.email,
+              phone: el.phone,
+            };
+            console.log(Data);
+            const insertion = await DB.insert('guestV2', Data);
+            console.log('insertion', insertion);
+          }
+        });
+      }
+
+      if (body.serviceData.length) {
+        body.serviceData.map(async (el) => {
+          if (el.id) {
+            const Data = {
+              userId: id,
+              reservationId: el.reservationId,
+              serviceName: el.serviceName,
+              servicePrice: el.servicePrice,
+              quantity: el.quantity,
+              serviceTax: el.serviceTax,
+              serviceAmount: el.serviceAmount,
+            };
+            await DB.update('bookingServiceV2', Data, { id: el.id });
+          } else {
+            const Data = {
+              userId: id,
+              reservationId: el.reservationId,
+              serviceName: el.serviceName,
+              servicePrice: el.servicePrice,
+              quantity: el.serviceQuantity,
+              serviceTax: el.serviceTax,
+              serviceAmount: el.serviceAmount,
+            };
+            await DB.insert('bookingServiceV2', Data);
+          }
+        });
+      }
+
+      if (body.deleteGuestId) {
+        try {
+          await DB.remove('guestV2', { id: body.deleteGuestId });
+        } catch (e) {
+          sentryCapture(e);
+          res.send({
+            code: 400,
+            msg: e,
+          });
+        }
+      }
+      if (body.deleteServiceId) {
+        try {
+          await DB.remove('guestV2', { id: body.deleteServiceId });
+        } catch (e) {
+          sentryCapture(e);
+          res.send({
+            code: 400,
+            msg: e,
+          });
+        }
+      }
       res.send({
         code: 200,
         msg: 'Reservation update successfully!',
