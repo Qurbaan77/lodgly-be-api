@@ -2880,9 +2880,9 @@ const usersRouter = () => {
 
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
-        await DB.update('propertyV2', { ownerId: 0 }, { ownerId: body.id });
+        await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
-          await DB.update('propertyV2', { ownerId: body.id }, { id: items });
+          await DB.update('unitTypeV2', { ownerId: body.id }, { id: items });
           next();
         });
         res.send({
@@ -2892,7 +2892,7 @@ const usersRouter = () => {
       } else {
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
-          await DB.update('propertyV2', { ownerId: saveData }, { id: items });
+          await DB.update('unitTypeV2', { ownerId: saveData }, { id: items });
           next();
         });
         res.send({
@@ -2940,7 +2940,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       await DB.remove('owner', { id: body.id });
-      await DB.update('property', { ownerId: 0 }, { ownerId: body.id });
+      await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
       res.send({
         code: 200,
         msg: 'Data remove successfully!',
@@ -3119,9 +3119,11 @@ const usersRouter = () => {
   router.post('/getService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('Ravi Verma', body);
       const servicData = await DB.select('serviceV2', {
         propertyId: body.propertyId,
       });
+      console.log('servicData', servicData);
       res.send({
         code: 200,
         servicData,
