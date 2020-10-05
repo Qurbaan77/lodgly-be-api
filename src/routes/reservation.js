@@ -13,13 +13,13 @@ const reservationRouter = () => {
   router.post('/addReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('addReservation', body);
       let id;
       if (!body.affiliateId) {
         id = body.tokenData.userid;
       } else {
         id = body.affiliateId;
       }
+      console.log('Body', body);
       const reservationData = {
         userId: id,
         unitTypeId: body.property,
@@ -50,53 +50,103 @@ const reservationRouter = () => {
         deposit: body.deposit,
       };
 
-      if (body.reservationId) {
-        await DB.update('reservationV2', reservationData, { id: body.reservationId });
-        if (body.guestData[0] !== null) {
-          body.guestData.map(async (el) => {
-            const Data = {
-              userId: id,
-              reservationId: body.reservationId,
-              fullname: el.fullName,
-              country: el.country,
-              email: el.email,
-              phone: el.phone,
-            };
-            await DB.insert('guestV2', Data);
-          });
-        }
-        res.send({
-          code: 200,
-        });
-      } else {
-        const Id = await DB.insert('reservationV2', reservationData);
-        if (body.guestData[0] !== null) {
-          body.guestData.map(async (el) => {
-            const Data = {
-              userId: id,
-              reservationId: Id,
-              fullname: el.fullName,
-              country: el.country,
-              email: el.email,
-              phone: el.phone,
-            };
-            await DB.insert('guestV2', Data);
-            await DB.increment(
-              'booking',
-              {
-                id: Id,
-              },
-              {
-                noGuest: 1,
-              },
-            );
-          });
-        }
-        res.send({
-          code: 200,
-          msg: 'Reservation save successfully!',
+      const Id = await DB.insert('reservationV2', reservationData);
+      if (body.guestData[0] !== null) {
+        body.guestData.map(async (el) => {
+          const Data = {
+            userId: id,
+            reservationId: Id,
+            fullname: el.fullName,
+            country: el.country,
+            email: el.email,
+            phone: el.phone,
+          };
+          await DB.insert('guestV2', Data);
+          await DB.increment(
+            'booking',
+            {
+              id: Id,
+            },
+            {
+              noGuest: 1,
+            },
+          );
         });
       }
+
+      if (body.serviceData[0].serviceAmount !== null) {
+        body.serviceData.map(async (el) => {
+          const Data = {
+            userId: id,
+            reservationId: Id,
+            serviceName: el.serviceName,
+            servicePrice: el.servicePrice,
+            quantity: el.serviceQuantity,
+            serviceTax: el.serviceTax,
+            serviceAmount: el.serviceTotal,
+          };
+          await DB.insert('bookingServiceV2', Data);
+        });
+      }
+      res.send({
+        code: 200,
+        msg: 'Reservation save successfully!',
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'Some error occured!',
+      });
+    }
+  });
+
+  // API for Update Reservation
+  router.post('/changeReservation', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('changeReservation', body);
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const reservationData = {
+        userId: id,
+        unitTypeId: body.unitTypeId,
+        propertyName: body.propertyName,
+        bookedUnit: body.unit,
+        unitName: body.unitName,
+        startDate: body.groupname[0].split('T', 1),
+        endDate: body.groupname[1].split('T', 1),
+        acknowledge: body.acknowledge,
+        channel: body.channel,
+        commission: body.commission,
+        adult: body.adult,
+        guest: body.guest,
+        children1: body.children1,
+        children2: body.children2,
+        notes1: body.notes1,
+        notes2: body.notes2,
+
+        perNight: body.perNight,
+        night: body.night,
+        amt: body.amt,
+        discountType: body.discountType,
+        discount: body.discount,
+        accomodation: body.accomodation,
+
+        noOfservices: body.noOfservices,
+        totalAmount: body.totalAmount,
+        deposit: body.deposit,
+      };
+      await DB.update('reservationV2', reservationData, { id: body.reservationId });
+      res.send({
+        code: 200,
+        msg: 'Reservation update successfully!',
+      });
     } catch (e) {
       sentryCapture(e);
       console.log(e);
@@ -263,10 +313,10 @@ const reservationRouter = () => {
           if (data.length !== 0) {
             guestData.push(data);
           }
-          // const data1 = await DB.select('bookingServiceV2', { reservationId: items.id });
-          // if (data1.length !== 0) {
-          //   serviceData.push(data1);
-          // }
+          const data1 = await DB.select('bookingServiceV2', { reservationId: items.id });
+          if (data1.length !== 0) {
+            serviceData.push(data1);
+          }
           next();
         },
         () => {

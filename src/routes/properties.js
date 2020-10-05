@@ -714,10 +714,12 @@ const propertyRouter = () => {
     try {
       const { ...body } = req.body;
       const unittypeData = await DB.select('unitTypeV2', { propertyId: body.propertyId });
+      const unitData = await DB.select('unitV2', { unittypeId: body.propertyId });
       if (unittypeData) {
         res.send({
           code: 200,
           unittypeData,
+          unitData,
         });
       } else {
         res.send({
