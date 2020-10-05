@@ -169,7 +169,7 @@ const propertyRouter = () => {
     const newDataArray = [];
     unitTypeV2Data.forEach((unitTypeV2) => {
       const copyValues = unitTypeV2;
-      copyValues.arrayOfUnits = JSON.parse(unitTypeV2.unitsData);
+      copyValues.arrayOfUnits = unitTypeV2.unitsData;
       newDataArray.push(copyValues);
     });
     res.send({
@@ -222,7 +222,7 @@ const propertyRouter = () => {
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     each(
-      JSON.parse(body.unitsData),
+      body.unitsData,
       async (items, next) => {
         const unitData = {
           userId: body.tokenData.userid,
