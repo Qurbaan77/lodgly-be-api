@@ -222,7 +222,7 @@ const propertyRouter = () => {
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     each(
-      body.unitsData,
+      JSON.parse(body.unitsData),
       async (items, next) => {
         const unitData = {
           userId: body.tokenData.userid,
