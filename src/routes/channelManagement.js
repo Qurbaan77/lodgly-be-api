@@ -144,7 +144,7 @@ const channelRouter = () => {
     }
   };
 
-  // A single API to push all property data to channex
+  // A single API to push all property data to channex(one API to rule them all)
   router.post('/activateChannel', userAuthCheck, async (req, res) => {
     try {
       console.log(req.body);
@@ -160,7 +160,7 @@ const channelRouter = () => {
         userId: body.tokenData.userid,
         email: body.email,
         propertiesToMap: JSON.stringify(body.properties),
-        channelToMap: body.channel,
+        channelToMap: body.channelToMap,
         airbnbUsername: body.airbnbUsername,
         airbnbPassword: body.airbnbPassword,
       };
@@ -263,7 +263,14 @@ const channelRouter = () => {
               channexRatePlanId: ratePlanId,
             };
             await DB.insert('channelManager', payload);
-            await DB.update('unitTypeV2', { isChannelManagerActivated: true }, { id: unitTypeV2Id });
+            const unittypepayload = {
+              isChannelManagerActivated: true,
+              airbnb: body.channelToMap === 'airbnb',
+              booking: body.channelToMap === 'booking',
+              expedia: body.channelToMap === 'expedia',
+            };
+            await DB.update('unitTypeV2', unittypepayload,
+              { id: unitTypeV2Id });
             next();
           } catch (e) {
             console.log(e);
@@ -330,6 +337,56 @@ const channelRouter = () => {
       res.send({
         code: 444,
         msg: 'some error occured',
+      });
+    }
+  });
+
+  /**
+   * API for geting channel status of property
+   */
+  router.get('/channelStatus', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      const channelStatus = await DB.selectCol(['isChannelManagerActivated', 'airbnb', 'booking'], 'unitTypeV2',
+        { userId: body.tokenData.userid });
+      console.log(channelStatus);
+      let airbnb = false;
+      let booking = false;
+      let expedia = false;
+      each(
+        channelStatus,
+        (channel, next) => {
+          if (!airbnb) {
+            if (channel.airbnb) {
+              airbnb = true;
+            }
+          }
+          if (!booking) {
+            if (channel.booking) {
+              booking = true;
+            }
+          }
+          if (!expedia) {
+            if (channel.expedia) {
+              expedia = true;
+            }
+          }
+          next();
+        },
+        () => {
+          res.send({
+            code: 200,
+            airbnb,
+            booking,
+            expedia,
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
       });
     }
   });
