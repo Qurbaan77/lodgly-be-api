@@ -145,10 +145,10 @@ const propertyRouter = () => {
   router.post('/updateLocation', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     const data = {
-      address: body.location,
-      country: body.country,
-      state: body.state,
-      city: body.city,
+      address: JSON.stringify(body.location),
+      country: JSON.stringify(body.country),
+      state: JSON.stringify(body.state),
+      city: JSON.stringify(body.city),
       zip: body.zip,
       lattitude: body.latLng.lat,
       longitude: body.latLng.lng,

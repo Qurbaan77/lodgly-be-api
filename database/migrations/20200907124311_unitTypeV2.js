@@ -17,10 +17,10 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.json('amenities');
   table.json('sleepingArrangement');
   table.json('rooms');
-  table.string('address');
-  table.string('country');
-  table.string('state');
-  table.string('city');
+  table.json('address');
+  table.json('country');
+  table.json('state');
+  table.json('city');
   table.string('zip');
   table.decimal('lattitude').defaultTo(0);
   table.decimal('longitude').defaultTo(0);
