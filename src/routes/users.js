@@ -3933,6 +3933,7 @@ const usersRouter = () => {
         'users',
         { id: userid },
       );
+      console.log('user subs details ====>>>>>>>', userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
