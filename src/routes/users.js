@@ -3238,7 +3238,7 @@ const usersRouter = () => {
         state: body.state,
         city: body.city,
         zip: body.zip,
-        vatid: body.vatId,
+        vatId: body.vatId,
       };
       await DB.update('organizations', companyData, { id: body.tokenData.organizationid });
       res.send({
