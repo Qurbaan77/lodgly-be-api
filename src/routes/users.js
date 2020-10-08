@@ -2827,7 +2827,6 @@ const usersRouter = () => {
       );
     } catch (e) {
       sentryCapture(e);
-      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
