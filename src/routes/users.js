@@ -172,6 +172,7 @@ const usersRouter = () => {
 
                 const featureData = {
                   organizationId: saveData,
+                  follow: 'advance',
                 };
                 await DB.insert('feature', featureData);
                 const confirmationUrl = frontendUrl(company, '/', {
@@ -258,6 +259,7 @@ const usersRouter = () => {
 
               const featureData = {
                 organizationId: saveData,
+                follow: 'advance',
               };
               await DB.insert('feature', featureData);
               const confirmationUrl = frontendUrl(company, '/', {
@@ -664,42 +666,61 @@ const usersRouter = () => {
   router.post('/getFeature', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('feature body', body);
       let id;
       if (body.affiliateId) {
         id = body.affiliateId;
       } else {
         id = body.tokenData.organizationid;
       }
-      const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
-      if (organizationPlan && organizationPlan.length) {
-        const [{ planType }] = organizationPlan;
-        if (planType === 'basic') {
-          const data0 = await DB.select('plan', { planType });
-          const data1 = await DB.select('feature', { organizationId: id });
-          const webPerm = data1[0].websideBuilder;
-          const chanPerm = data1[0].channelManager;
-          if (webPerm || chanPerm) {
-            const featureData = data1;
-            res.send({
-              code: 200,
-              featureData,
-            });
-          } else {
-            const featureData = data0;
-            res.send({
-              code: 200,
-              featureData,
-            });
-          }
-        } else {
-          const data = await DB.select('plan', { planType });
-          const featureData = data;
-          res.send({
-            code: 200,
-            featureData,
-          });
-        }
+      let featureData;
+      const featureTable = await DB.select('feature', { organizationId: id });
+      const [{ follow }] = featureTable;
+      if (follow === 'advance') {
+        const advancePlan = await DB.select('plan', { planType: 'advance' });
+        featureData = advancePlan;
+      } else if (follow === 'basic') {
+        const basicPlan = await DB.select('plan', { planType: 'basic' });
+        featureData = basicPlan;
+      } else {
+        featureData = featureTable;
       }
+      res.send({
+        code: 200,
+        featureData,
+      });
+      // const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
+      // if (organizationPlan && organizationPlan.length) {
+      //   const [{ planType }] = organizationPlan;
+      //   if (planType === 'basic') {
+      //     const data0 = await DB.select('plan', { planType });
+      //     const data1 = await DB.select('feature', { organizationId: id });
+      //     console.log('data from feature', data0);
+      //     console.log('data from plan', data1);
+      //     const webPerm = data1[0].websideBuilder;
+      //     const chanPerm = data1[0].channelManager;
+      //     if (webPerm || chanPerm) {
+      //       const featureData = data1;
+      //       res.send({
+      //         code: 200,
+      //         featureData,
+      //       });
+      //     } else {
+      //       const featureData = data0;
+      //       res.send({
+      //         code: 200,
+      //         featureData,
+      //       });
+      //     }
+      //   } else {
+      //     const data = await DB.select('plan', { planType });
+      //     const featureData = data;
+      //     res.send({
+      //       code: 200,
+      //       featureData,
+      //     });
+      //   }
+      // }
     } catch (e) {
       sentryCapture(e);
       console.log('error', e);
@@ -3661,7 +3682,7 @@ const usersRouter = () => {
         if (planType === 'basic') {
           await DB.update(
             'feature',
-            { websideBuilder: 0, channelManager: 0 },
+            { follow: 'basic' },
             { organizationId: body.tokenData.organizationid },
           );
           await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
@@ -3860,7 +3881,7 @@ const usersRouter = () => {
         if (planType === 'basic') {
           await DB.update(
             'feature',
-            { websideBuilder: 0, channelManager: 0 },
+            { follow: 'basic' },
             { organizationId: body.tokenData.organizationid },
           );
           await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });

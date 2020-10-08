@@ -14,7 +14,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.boolean('guests').defaultTo(true);
   table.boolean('websideBuilder').defaultTo(true);
   table.boolean('channelManager').defaultTo(true);
-
+  table.string('follow');
   table.foreign('organizationId').references('organizations.id').onUpdate('CASCADE').onDelete('CASCADE');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
