@@ -32,7 +32,7 @@ module.exports = {
       },
     },
     owners: {
-      endpoint: 'https://lodglyowners.dev',
+      endpoint: 'https://%s.lodglyowners.dev',
       paths: {
         accountConfirmation: '/users/verify',
         changePassword: '/auth/password/change',

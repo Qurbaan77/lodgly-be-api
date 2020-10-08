@@ -322,7 +322,7 @@ const reservationRouter = () => {
           itemsCopy.rates = customizeRates;
           const reservation = await DB.selectCol(
             ['id', 'startDate', 'endDate', 'totalAmount', 'bookedUnit', 'guest'],
-            'reservationV2',
+            'bookingV2',
             {
               unitTypeId: items.id,
             },
@@ -385,15 +385,15 @@ const reservationRouter = () => {
       const { ...body } = req.body;
       const guestData = [];
       const serviceData = [];
-      const reservationData = await DB.select('reservationV2', { id: body.id });
+      const reservationData = await DB.select('bookingV2', { id: body.id });
       each(
         reservationData,
         async (items, next) => {
-          const data = await DB.select('guestV2', { reservationId: items.id });
+          const data = await DB.select('guestV2', { bookingId: items.id });
           if (data.length !== 0) {
             guestData.push(data);
           }
-          const data1 = await DB.select('bookingServiceV2', { reservationId: items.id });
+          const data1 = await DB.select('bookingServiceV2', { bookingId: items.id });
           if (data1.length !== 0) {
             serviceData.push(data1);
           }

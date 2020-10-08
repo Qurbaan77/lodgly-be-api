@@ -143,6 +143,7 @@ const bookingRouter = () => {
   router.post('/changeBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('changeBooking', body);
       let id;
       if (body.affiliateId) {
         id = body.affiliateId;
@@ -185,7 +186,7 @@ const bookingRouter = () => {
       }
       if (body.guestData.length) {
         body.guestData.map(async (el) => {
-          if (el.id) {
+          if (el.created_at) {
             const Data = {
               userId: id,
               bookingId: el.bookingId,

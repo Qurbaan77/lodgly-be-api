@@ -18,7 +18,7 @@ const DB = require('../services/database');
 const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
-const { frontendUrl } = require('../functions/frontend');
+const { frontendUrl, ownerPanelUrl } = require('../functions/frontend');
 const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 const sentryCapture = require('../../config/sentryCapture');
@@ -2843,13 +2843,16 @@ const usersRouter = () => {
       let id;
       let verificationhex;
       let encryptedPassword;
-
       if (body.access) {
         const password = randomstring.generate(7);
         const hashedPassword = await hashPassword(password);
         const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
         verificationhex = hash;
         encryptedPassword = hashedPassword;
+        const confirmationUrl = ownerPanelUrl(body.company, '/', {
+          token: hash,
+        });
+        console.log('confirmationUrl', confirmationUrl);
         const msg = {
           from: config.get('mailing.from'),
           templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
@@ -2863,7 +2866,7 @@ const usersRouter = () => {
               dynamic_template_data: {
                 receipt: true,
                 password,
-                link: config.get('frontend.owners.endpoint'),
+                link: confirmationUrl,
               },
             },
           ],
