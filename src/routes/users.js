@@ -667,14 +667,14 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       console.log('feature body', body);
-      let id;
-      if (body.affiliateId) {
-        id = body.affiliateId;
-      } else {
-        id = body.tokenData.organizationid;
-      }
+      // let id;
+      // if (body.affiliateId) {
+      //   id = body.affiliateId;
+      // } else {
+      //   id = body.tokenData.organizationid;
+      // }
       let featureData;
-      const featureTable = await DB.select('feature', { organizationId: id });
+      const featureTable = await DB.select('feature', { organizationId: body.tokenData.organizationid });
       console.log('feature table', featureTable);
       const [{ follow }] = featureTable;
       if (follow === 'advance') {
