@@ -166,10 +166,12 @@ const propertyRouter = () => {
   router.post('/fetchUnittypeData', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     const unitTypeV2Data = await DB.select('unitTypeV2', { id: body.unitTypeV2Id });
+    const unitV2Data = await DB.select('unitV2', { unittypeId: body.unitTypeV2Id });
     const newDataArray = [];
     unitTypeV2Data.forEach((unitTypeV2) => {
       const copyValues = unitTypeV2;
       copyValues.arrayOfUnits = unitTypeV2.unitsData;
+      copyValues.unitV2Data = unitV2Data;
       newDataArray.push(copyValues);
     });
     res.send({
@@ -212,25 +214,34 @@ const propertyRouter = () => {
   // API for upate Property Information
   router.post('/updatePropertyInfo', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    if (body.deletedUnitArray && body.deletedUnitArray.length) {
+      body.deletedUnitArray.forEach(async (el) => {
+        await DB.remove('unitV2', { id: el });
+      });
+    }
     const data = {
       sizeType: body.sqSelectedValue,
       sizeValue: body.sqNumber,
       bedRooms: body.noOfBedRooms,
       standardGuests: body.noOfGuests,
       units: body.noOfUnits,
-      unitsData: body.unitsData,
+      // unitsData: body.unitsData,
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     each(
-      JSON.parse(body.unitsData),
+      // JSON.parse(body.unitsData),
+      body.unitsData,
       async (items, next) => {
         const unitData = {
           userId: body.tokenData.userid,
           unittypeId: body.unitTypeV2Id,
-          unitName: items,
+          unitName: items.unitName,
         };
-        console.log(unitData);
-        await DB.insert('unitV2', unitData);
+        if (items.id) {
+          await DB.update('unitV2', { unitName: items.unitName }, { id: items.id });
+        } else {
+          await DB.insert('unitV2', unitData);
+        }
         next();
       },
       () => {
