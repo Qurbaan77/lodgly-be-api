@@ -676,6 +676,7 @@ const usersRouter = () => {
       let featureData;
       const featureTable = await DB.select('feature', { organizationId: id });
       const [{ follow }] = featureTable;
+      console.log('feature table', featureTable);
       if (follow === 'advance') {
         const advancePlan = await DB.select('plan', { planType: 'advance' });
         featureData = advancePlan;
@@ -2493,7 +2494,7 @@ const usersRouter = () => {
             const url = frontendUrl(body.company, '/', {
               token: userData.verificationhex,
             });
-
+            console.log('url in team section', url);
             const msg = {
               from: config.get('mailing.from'),
               templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
