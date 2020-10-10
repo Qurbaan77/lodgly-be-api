@@ -675,8 +675,8 @@ const usersRouter = () => {
       }
       let featureData;
       const featureTable = await DB.select('feature', { organizationId: id });
-      const [{ follow }] = featureTable;
       console.log('feature table', featureTable);
+      const [{ follow }] = featureTable;
       if (follow === 'advance') {
         const advancePlan = await DB.select('plan', { planType: 'advance' });
         featureData = advancePlan;
