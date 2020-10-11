@@ -736,7 +736,13 @@ const usersRouter = () => {
   router.post('/trialDays', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const user = await DB.select('users', { id: body.tokenData.userid });
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const user = await DB.select('users', { id });
       const diff = Math.abs(new Date() - user[0].created_at);
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
@@ -3949,13 +3955,20 @@ const usersRouter = () => {
   });
 
   // getting subscribed status of user
-  router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
+  router.post('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
     try {
-      const { userid } = req.body.tokenData;
+      // const { userid } = req.body.tokenData;
+      let id;
+      if (req.body.affiliateId) {
+        id = req.body.affiliateId;
+      } else {
+        id = req.body.tokenData.userid;
+      }
+      console.log('user subscription', id);
       const userSubsDetails = await DB.selectCol(
         ['isSubscribed', 'isOnTrial', 'issubscriptionEnded', 'created_at'],
         'users',
-        { id: userid },
+        { id },
       );
       console.log('user subs details ====>>>>>>>', userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
