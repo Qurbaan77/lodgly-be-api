@@ -383,6 +383,24 @@ const bookingRouter = () => {
       });
     }
   });
+
+  // API for get all Booking
+  router.post('/getAllBooking', userAuthCheck, async (req, res) => {
+    try {
+      const allBookingData = await DB.select('bookingV2', {});
+      res.send({
+        code: 200,
+        allBookingData,
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
   return router;
 };
 

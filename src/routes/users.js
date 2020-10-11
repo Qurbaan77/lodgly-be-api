@@ -1852,7 +1852,7 @@ const usersRouter = () => {
           msg: 'Changes saved successfully!',
         });
       } else {
-        await DB.insert('guest', guestData);
+        await DB.insert('guestV2', guestData);
         if (body.reservationId) {
           await DB.increment(
             'reservation',
@@ -1905,7 +1905,7 @@ const usersRouter = () => {
         place: body.place,
         notes: body.notes,
       };
-      await DB.update('guest', guestData, { id: body.guestId });
+      await DB.update('guestV2', guestData, { id: body.guestId });
       res.send({
         code: 200,
         msg: 'Data Update Successfully!',
@@ -1923,7 +1923,7 @@ const usersRouter = () => {
   router.post('/deleteGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('guest', { id: body.id });
+      await DB.remove('guestV2', { id: body.id });
       res.send({
         code: 200,
         msg: 'Data Deleted Successfully!',
