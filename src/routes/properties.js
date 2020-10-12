@@ -201,12 +201,29 @@ const propertyRouter = () => {
     const savePayload = {
       description: JSON.stringify(newPropertyDesciption),
       unitTypeName: JSON.stringify(newPropertyName),
-      propertyType: body.propertyType,
+      // propertyType: body.propertyType,
     };
     const updateResponse = await DB.update('unitTypeV2', savePayload, { propertyId: body.propertyId });
     if (updateResponse) {
       res.send({
         code: 200,
+      });
+    }
+  });
+
+  // API for saving rental type
+  router.post('/changeRentalType', userAuthCheck, async (req, res) => {
+    try {
+      await DB.update('unitTypeV2', { propertyType: req.body.propertyType }, { id: req.body.propertyId });
+      res.send({
+        code: 200,
+        msg: 'successfully saved property type',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
       });
     }
   });
