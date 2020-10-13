@@ -4192,8 +4192,8 @@ const usersRouter = () => {
   router.post('/getRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const ratesData = await DB.select('rates', { unitTypeId: body.unittypeId });
-      const seasonRatesData = await DB.select('seasonRates', { unitTypeId: body.unittypeId });
+      const ratesData = await DB.select('ratesV2', { unitTypeId: body.unittypeId });
+      const seasonRatesData = await DB.select('seasonRatesV2', { unitTypeId: body.unittypeId });
       res.send({
         code: 200,
         ratesData,

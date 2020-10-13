@@ -293,7 +293,30 @@ const reservationRouter = () => {
           console.log('Random Color', randomColor[random]);
           const units = [];
           const rates = [];
+          const normalRates = [];
           const itemsCopy = items;
+
+          const normalRatesData = await DB.selectCol(
+            ['id', 'unitTypeId', 'price_per_night', 'minimum_stay'],
+            'ratesV2',
+            {
+              unitTypeId: items.id,
+            },
+          );
+
+          normalRatesData.forEach((ele) => {
+            const ratesData = {
+              id: ele.id,
+              unitTypeId: ele.unitTypeId,
+              pricePerNight: ele.price_per_night,
+              minStay: ele.minimum_stay,
+            };
+            normalRates.push(ratesData);
+          });
+          const customizeNormalRates = {
+            data: normalRates,
+          };
+
           const seasonRates = await DB.selectCol(
             ['id', 'unitTypeId', 'startDate', 'endDate', 'price_per_night', 'minimum_stay'],
             'seasonRatesV2',
@@ -320,6 +343,7 @@ const reservationRouter = () => {
             data: rates,
           };
           itemsCopy.rates = customizeRates;
+          itemsCopy.normalRates = customizeNormalRates;
           const reservation = await DB.selectCol(
             ['id', 'startDate', 'endDate', 'totalAmount', 'bookedUnit', 'guest'],
             'bookingV2',
