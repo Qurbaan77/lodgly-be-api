@@ -377,8 +377,18 @@ const propertyRouter = () => {
       };
       if (body.id > 0) {
         await DB.update('ratesV2', rateData, { id: body.id });
+        await DB.update('unitTypeV2', { currency: body.currency }, { id: body.unitTypeId });
+        /**
+         * TODO check if channl manager is activated if yes then push this update to channex
+         */
+        // const channelactivate = await DB.selectCol(['isChannelManagerActivated'],
+        // 'unitTypeV2', { id: body.unitTypeId });
+        // const [{ isChannelManagerActivated }] = channelactivate;
+        // if (isChannelManagerActivated) {
+        // }
       } else {
         await DB.insert('ratesV2', rateData);
+        await DB.update('unitTypeV2', { currency: body.currency }, { id: body.unitTypeId });
       }
       res.send({
         code: 200,

@@ -53,6 +53,7 @@ const bookingRouter = () => {
         noOfservices: body.noOfservices,
         totalAmount: body.totalAmount,
         deposit: body.deposit,
+        currency: body.currency,
       };
       const Id = await DB.insert('bookingV2', bookingData);
       if (body.guestData[0] !== null) {
