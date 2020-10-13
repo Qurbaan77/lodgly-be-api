@@ -387,10 +387,36 @@ const bookingRouter = () => {
   // API for get all Booking
   router.post('/getAllBooking', userAuthCheck, async (req, res) => {
     try {
-      const allBookingData = await DB.select('bookingV2', {});
+      const { ...body } = req.body;
+      console.log('getAllBooking', body);
+      const allBookingData = await DB.select('bookingV2', { bookedUnit: body.bookedUnit });
       res.send({
         code: 200,
         allBookingData,
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // Changing the time of Booking
+  router.post('/changeBookingTimeUnit', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log('body', body);
+      const bookingData = {
+        startDate: new Date(body.time.start),
+        endDate: new Date(body.time.end),
+        bookedUnit: parseInt(body.bookedUnit, 10),
+      };
+      await DB.update('bookingV2', bookingData, { id: body.id });
+      res.send({
+        code: 200,
       });
     } catch (e) {
       sentryCapture(e);
