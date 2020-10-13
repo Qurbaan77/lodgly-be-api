@@ -18,7 +18,7 @@ const DB = require('../services/database');
 const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
-const { frontendUrl } = require('../functions/frontend');
+const { frontendUrl, ownerPanelUrl } = require('../functions/frontend');
 const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 const sentryCapture = require('../../config/sentryCapture');
@@ -172,6 +172,7 @@ const usersRouter = () => {
 
                 const featureData = {
                   organizationId: saveData,
+                  follow: 'advance',
                 };
                 await DB.insert('feature', featureData);
                 const confirmationUrl = frontendUrl(company, '/', {
@@ -258,6 +259,7 @@ const usersRouter = () => {
 
               const featureData = {
                 organizationId: saveData,
+                follow: 'advance',
               };
               await DB.insert('feature', featureData);
               const confirmationUrl = frontendUrl(company, '/', {
@@ -664,42 +666,62 @@ const usersRouter = () => {
   router.post('/getFeature', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      let id;
-      if (body.affiliateId) {
-        id = body.affiliateId;
+      console.log('feature body', body);
+      // let id;
+      // if (body.affiliateId) {
+      //   id = body.affiliateId;
+      // } else {
+      //   id = body.tokenData.organizationid;
+      // }
+      let featureData;
+      const featureTable = await DB.select('feature', { organizationId: body.tokenData.organizationid });
+      console.log('feature table', featureTable);
+      const [{ follow }] = featureTable;
+      if (follow === 'advance') {
+        const advancePlan = await DB.select('plan', { planType: 'advance' });
+        featureData = advancePlan;
+      } else if (follow === 'basic') {
+        const basicPlan = await DB.select('plan', { planType: 'basic' });
+        featureData = basicPlan;
       } else {
-        id = body.tokenData.organizationid;
+        featureData = featureTable;
       }
-      const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
-      if (organizationPlan && organizationPlan.length) {
-        const [{ planType }] = organizationPlan;
-        if (planType === 'basic') {
-          const data0 = await DB.select('plan', { planType });
-          const data1 = await DB.select('feature', { organizationId: id });
-          const webPerm = data1[0].websideBuilder;
-          const chanPerm = data1[0].channelManager;
-          if (webPerm || chanPerm) {
-            const featureData = data1;
-            res.send({
-              code: 200,
-              featureData,
-            });
-          } else {
-            const featureData = data0;
-            res.send({
-              code: 200,
-              featureData,
-            });
-          }
-        } else {
-          const data = await DB.select('plan', { planType });
-          const featureData = data;
-          res.send({
-            code: 200,
-            featureData,
-          });
-        }
-      }
+      res.send({
+        code: 200,
+        featureData,
+      });
+      // const organizationPlan = await DB.selectCol(['planType'], 'organizations', { id });
+      // if (organizationPlan && organizationPlan.length) {
+      //   const [{ planType }] = organizationPlan;
+      //   if (planType === 'basic') {
+      //     const data0 = await DB.select('plan', { planType });
+      //     const data1 = await DB.select('feature', { organizationId: id });
+      //     console.log('data from feature', data0);
+      //     console.log('data from plan', data1);
+      //     const webPerm = data1[0].websideBuilder;
+      //     const chanPerm = data1[0].channelManager;
+      //     if (webPerm || chanPerm) {
+      //       const featureData = data1;
+      //       res.send({
+      //         code: 200,
+      //         featureData,
+      //       });
+      //     } else {
+      //       const featureData = data0;
+      //       res.send({
+      //         code: 200,
+      //         featureData,
+      //       });
+      //     }
+      //   } else {
+      //     const data = await DB.select('plan', { planType });
+      //     const featureData = data;
+      //     res.send({
+      //       code: 200,
+      //       featureData,
+      //     });
+      //   }
+      // }
     } catch (e) {
       sentryCapture(e);
       console.log('error', e);
@@ -714,7 +736,13 @@ const usersRouter = () => {
   router.post('/trialDays', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const user = await DB.select('users', { id: body.tokenData.userid });
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const user = await DB.select('users', { id });
       const diff = Math.abs(new Date() - user[0].created_at);
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
@@ -1830,7 +1858,7 @@ const usersRouter = () => {
           msg: 'Changes saved successfully!',
         });
       } else {
-        await DB.insert('guest', guestData);
+        await DB.insert('guestV2', guestData);
         if (body.reservationId) {
           await DB.increment(
             'reservation',
@@ -1883,7 +1911,7 @@ const usersRouter = () => {
         place: body.place,
         notes: body.notes,
       };
-      await DB.update('guest', guestData, { id: body.guestId });
+      await DB.update('guestV2', guestData, { id: body.guestId });
       res.send({
         code: 200,
         msg: 'Data Update Successfully!',
@@ -1901,7 +1929,7 @@ const usersRouter = () => {
   router.post('/deleteGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('guest', { id: body.id });
+      await DB.remove('guestV2', { id: body.id });
       res.send({
         code: 200,
         msg: 'Data Deleted Successfully!',
@@ -2472,7 +2500,7 @@ const usersRouter = () => {
             const url = frontendUrl(body.company, '/', {
               token: userData.verificationhex,
             });
-
+            console.log('url in team section', url);
             const msg = {
               from: config.get('mailing.from'),
               templateId: config.get('mailing.sendgrid.templates.en.subUserConfirmation'),
@@ -2806,7 +2834,6 @@ const usersRouter = () => {
       );
     } catch (e) {
       sentryCapture(e);
-      console.log(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
@@ -2822,13 +2849,16 @@ const usersRouter = () => {
       let id;
       let verificationhex;
       let encryptedPassword;
-
       if (body.access) {
         const password = randomstring.generate(7);
         const hashedPassword = await hashPassword(password);
         const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
         verificationhex = hash;
         encryptedPassword = hashedPassword;
+        const confirmationUrl = ownerPanelUrl(body.company, '/', {
+          token: hash,
+        });
+        console.log('confirmationUrl', confirmationUrl);
         const msg = {
           from: config.get('mailing.from'),
           templateId: config.get('mailing.sendgrid.templates.en.ownerConfirmation'),
@@ -2842,7 +2872,7 @@ const usersRouter = () => {
               dynamic_template_data: {
                 receipt: true,
                 password,
-                link: config.get('frontend.owners.endpoint'),
+                link: confirmationUrl,
               },
             },
           ],
@@ -2880,9 +2910,9 @@ const usersRouter = () => {
 
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
-        await DB.update('propertyV2', { ownerId: 0 }, { ownerId: body.id });
+        await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
-          await DB.update('propertyV2', { ownerId: body.id }, { id: items });
+          await DB.update('unitTypeV2', { ownerId: body.id }, { id: items });
           next();
         });
         res.send({
@@ -2892,7 +2922,7 @@ const usersRouter = () => {
       } else {
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
-          await DB.update('propertyV2', { ownerId: saveData }, { id: items });
+          await DB.update('unitTypeV2', { ownerId: saveData }, { id: items });
           next();
         });
         res.send({
@@ -2940,7 +2970,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       await DB.remove('owner', { id: body.id });
-      await DB.update('property', { ownerId: 0 }, { ownerId: body.id });
+      await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
       res.send({
         code: 200,
         msg: 'Data remove successfully!',
@@ -3119,9 +3149,11 @@ const usersRouter = () => {
   router.post('/getService', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log('Ravi Verma', body);
       const servicData = await DB.select('serviceV2', {
         propertyId: body.propertyId,
       });
+      console.log('servicData', servicData);
       res.send({
         code: 200,
         servicData,
@@ -3236,7 +3268,7 @@ const usersRouter = () => {
         state: body.state,
         city: body.city,
         zip: body.zip,
-        vatid: body.vatId,
+        vatId: body.vatId,
       };
       await DB.update('organizations', companyData, { id: body.tokenData.organizationid });
       res.send({
@@ -3659,7 +3691,7 @@ const usersRouter = () => {
         if (planType === 'basic') {
           await DB.update(
             'feature',
-            { websideBuilder: 0, channelManager: 0 },
+            { follow: 'basic' },
             { organizationId: body.tokenData.organizationid },
           );
           await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
@@ -3858,7 +3890,7 @@ const usersRouter = () => {
         if (planType === 'basic') {
           await DB.update(
             'feature',
-            { websideBuilder: 0, channelManager: 0 },
+            { follow: 'basic' },
             { organizationId: body.tokenData.organizationid },
           );
           await DB.update('organizations', { planType: 'basic' }, { id: body.tokenData.organizationid });
@@ -3907,10 +3939,12 @@ const usersRouter = () => {
           code: 200,
           msg: 'subscription status updated',
         });
+      } else {
+        res.send({
+          code: 200,
+          msg: 'user not subscribed to any plan',
+        });
       }
-      res.send({
-        code: 200,
-      });
     } catch (e) {
       sentryCapture(e);
       res.send({
@@ -3921,14 +3955,22 @@ const usersRouter = () => {
   });
 
   // getting subscribed status of user
-  router.get('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
+  router.post('/getUserSubscriptionStatus', userAuthCheck, async (req, res) => {
     try {
-      const { userid } = req.body.tokenData;
+      // const { userid } = req.body.tokenData;
+      let id;
+      if (req.body.affiliateId) {
+        id = req.body.affiliateId;
+      } else {
+        id = req.body.tokenData.userid;
+      }
+      console.log('user subscription', id);
       const userSubsDetails = await DB.selectCol(
         ['isSubscribed', 'isOnTrial', 'issubscriptionEnded', 'created_at'],
         'users',
-        { id: userid },
+        { id },
       );
+      console.log('user subs details ====>>>>>>>', userSubsDetails);
       const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
@@ -4150,8 +4192,8 @@ const usersRouter = () => {
   router.post('/getRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const ratesData = await DB.select('rates', { unitTypeId: body.unittypeId });
-      const seasonRatesData = await DB.select('seasonRates', { unitTypeId: body.unittypeId });
+      const ratesData = await DB.select('ratesV2', { unitTypeId: body.unittypeId });
+      const seasonRatesData = await DB.select('seasonRatesV2', { unitTypeId: body.unittypeId });
       res.send({
         code: 200,
         ratesData,

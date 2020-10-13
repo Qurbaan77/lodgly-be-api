@@ -93,7 +93,6 @@ exports.seed = (knex) => seed(
     'golf cart',
     'golf clubs',
     'motorboat',
-    'garden(private)',
     'playground(private)',
     'porch(private)',
     'tennis court(private)',

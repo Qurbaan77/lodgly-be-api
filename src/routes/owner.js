@@ -261,16 +261,16 @@ const ownerRouter = () => {
       const { ...body } = req.body;
       console.log(body);
       const unitData = [];
-      const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
+      const propertyData = await DB.select('unitTypeV2', { ownerId: body.tokenData.userid });
       each(
         propertyData,
         async (items, next) => {
           const itemsCopy = items;
           let avgCount = 0;
           let avgCountPer = 0;
-          const bookingData = await DB.select('booking', { propertyId: items.id });
-          const unitTypeData = await DB.selectCol('perNight', 'unitType', { propertyId: items.id });
-          unitData.push(await DB.select('unit', { propertyId: items.id }));
+          const bookingData = await DB.select('bookingV2', { unitTypeId: items.id });
+          // const unitTypeData = await DB.selectCol('perNight', 'unitType', { unitTypeId: items.id });
+          unitData.push(await DB.select('unitV2', { unitTypeId: items.id }));
 
           const count = [];
           bookingData.forEach((el) => {
@@ -281,7 +281,7 @@ const ownerRouter = () => {
 
           itemsCopy.noBookedNights = Math.ceil(avgCount);
           itemsCopy.occupancy = Math.ceil(avgCountPer);
-          itemsCopy.perNight = unitTypeData[0].perNight;
+          // itemsCopy.perNight = unitTypeData[0].perNight;
           next();
           return itemsCopy;
         },
@@ -373,12 +373,12 @@ const ownerRouter = () => {
     try {
       const { ...body } = req.body;
       const reportData = [];
-      const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
-      const unitData = await DB.select('unit', { userId: body.tokenData.userid });
+      const propertyData = await DB.select('unitTypeV2', { ownerId: body.tokenData.userid });
+      const unitData = await DB.select('unitV2', { userId: body.tokenData.userid });
       each(
         propertyData,
         async (items, next) => {
-          reportData.push(await DB.select('booking', { propertyId: items.id }));
+          reportData.push(await DB.select('bookingV2', { unitTypeId: items.id }));
           next();
         },
         () => {
@@ -449,12 +449,12 @@ const ownerRouter = () => {
       let avgBooked = 0;
       let occupancy = 0;
       let perNight = 0;
-      const propertyData = await DB.select('property', { ownerId: body.tokenData.userid });
+      const propertyData = await DB.select('unitTypeV2', { ownerId: body.tokenData.userid });
       each(
         propertyData,
         async (items, next) => {
-          reportData.push(await DB.select('booking', { propertyId: items.id }));
-          unitTypeData.push(await DB.selectCol('perNight', 'unitType', { propertyId: items.id }));
+          reportData.push(await DB.select('bookingV2', { unitTypeId: items.id }));
+          // unitTypeData.push(await DB.selectCol('perNight', 'unitType', { propertyId: items.id }));
           next();
         },
         () => {
@@ -515,7 +515,7 @@ const ownerRouter = () => {
     try {
       const { ...body } = req.body;
       const arr = [];
-      const bookingData = await DB.select('booking', { propertyId: body.propertyId, status: 'booked' });
+      const bookingData = await DB.select('bookingV2', { unitTypeId: body.propertyId, status: 'booked' });
       bookingData.forEach((el) => {
         arr.push({
           id: el.id,
@@ -551,15 +551,15 @@ const ownerRouter = () => {
           startDate: new Date(body.startDate),
           endDate: new Date(body.endDate),
           notes1: body.notes,
-          unitId: body.unit,
+          bookedUnit: body.unit,
           unitName: body.unitName,
           userId: ownerData[0].userId,
-          propertyId: body.propertyId,
+          unitTypeId: body.propertyId,
           propertyName: body.propertyName,
           totalAmount: body.totalAmount,
         };
-        await DB.update('booking', { status: 'decline', statusColour: 'grey' }, { id: body.bookingId });
-        const Id = await DB.insert('booking', ownerBookingData);
+        await DB.update('bookingV2', { status: 'decline', statusColour: 'grey' }, { id: body.bookingId });
+        const Id = await DB.insert('bookingV2', ownerBookingData);
         console.log(Id);
         res.send({
           code: 200,
