@@ -4,6 +4,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.increments('id', 500);
   table.integer('userId').notNull().unsigned();
   table.integer('propertyId').notNull().unsigned();
+  table.integer('ownerId').defaultTo(0);
   table.json('unitTypeName');
   table.json('description');
   table.string('sizeType');
@@ -16,10 +17,10 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.json('amenities');
   table.json('sleepingArrangement');
   table.json('rooms');
-  table.string('address');
-  table.string('country');
-  table.string('state');
-  table.string('city');
+  table.json('address');
+  table.json('country');
+  table.json('state');
+  table.json('city');
   table.string('zip');
   table.decimal('lattitude').defaultTo(0);
   table.decimal('longitude').defaultTo(0);
@@ -30,6 +31,9 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('website');
   table.string('image');
   table.boolean('isChannelManagerActivated').defaultTo(false);
+  table.boolean('airbnb').defaultTo(false);
+  table.boolean('booking').defaultTo(false);
+  table.boolean('expedia').defaultTo(false);
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
   table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');

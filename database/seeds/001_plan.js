@@ -12,7 +12,7 @@ exports.seed = (knex) => seed(knex, 'plan', [
     stats: 1,
     owner: 1,
     guests: 1,
-    websideBuilder: 0,
+    websideBuilder: 1,
     channelManager: 1,
   },
   {

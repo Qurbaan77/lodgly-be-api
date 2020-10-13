@@ -5,6 +5,7 @@ const fs = require('fs');
 const AWS = require('aws-sdk');
 const fileType = require('file-type');
 const bluebird = require('bluebird');
+const each = require('sync-each');
 const multiparty = require('multiparty');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
@@ -92,34 +93,27 @@ const propertyRouter = () => {
       id = body.tokenData.userid;
     }
     const data = await DB.select('unitTypeV2', { userId: id });
-    console.log('fetch property data', data);
     const propertiesData = data;
-    // data.forEach((property) => {
-    //   const noOfUnits = property.unitsData ? JSON.parse(property.unitsData).length : 0;
-    //   const copyProperty = property;
-    //   copyProperty.noOfUnits = noOfUnits;
-    //   propertiesData.push(copyProperty);
-    // });
-    res.send({
-      code: 200,
-      propertiesData,
-    });
-    // each(
+    // res.send({
+    //   code: 200,
     //   propertiesData,
-    //   async (items, next) => {
-    //     const itemsCopy = items;
-    //     const data = await DB.select('unitTypeV2', { propertyId: items.id });
-    //     itemsCopy.unitType = data;
-    //     next();
-    //     return itemsCopy;
-    //   },
-    //   () => {
-    //     res.send({
-    //       code: 200,
-    //       propertiesData,
-    //     });
-    //   },
-    // );
+    // });
+    each(
+      propertiesData,
+      async (items, next) => {
+        const itemsCopy = items;
+        const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
+        itemsCopy.unitDataV2 = unitDataV2;
+        next();
+        return itemsCopy;
+      },
+      () => {
+        res.send({
+          code: 200,
+          propertiesData,
+        });
+      },
+    );
   });
 
   router.get('/getPropertyName', userAuthCheck, async (req, res) => {
@@ -151,10 +145,10 @@ const propertyRouter = () => {
   router.post('/updateLocation', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     const data = {
-      address: body.location,
-      country: body.country,
-      state: body.state,
-      city: body.city,
+      address: JSON.stringify(body.location),
+      country: JSON.stringify(body.country),
+      state: JSON.stringify(body.state),
+      city: JSON.stringify(body.city),
       zip: body.zip,
       lattitude: body.latLng.lat,
       longitude: body.latLng.lng,
@@ -172,9 +166,17 @@ const propertyRouter = () => {
   router.post('/fetchUnittypeData', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     const unitTypeV2Data = await DB.select('unitTypeV2', { id: body.unitTypeV2Id });
+    const unitV2Data = await DB.select('unitV2', { unittypeId: body.unitTypeV2Id });
+    const newDataArray = [];
+    unitTypeV2Data.forEach((unitTypeV2) => {
+      const copyValues = unitTypeV2;
+      copyValues.arrayOfUnits = unitTypeV2.unitsData;
+      copyValues.unitV2Data = unitV2Data;
+      newDataArray.push(copyValues);
+    });
     res.send({
       code: 200,
-      unitTypeV2Data,
+      unitTypeV2Data: newDataArray,
     });
   });
 
@@ -199,7 +201,7 @@ const propertyRouter = () => {
     const savePayload = {
       description: JSON.stringify(newPropertyDesciption),
       unitTypeName: JSON.stringify(newPropertyName),
-      propertyType: body.propertyType,
+      // propertyType: body.propertyType,
     };
     const updateResponse = await DB.update('unitTypeV2', savePayload, { propertyId: body.propertyId });
     if (updateResponse) {
@@ -209,21 +211,62 @@ const propertyRouter = () => {
     }
   });
 
+  // API for saving rental type
+  router.post('/changeRentalType', userAuthCheck, async (req, res) => {
+    try {
+      await DB.update('unitTypeV2', { propertyType: req.body.propertyType }, { id: req.body.propertyId });
+      res.send({
+        code: 200,
+        msg: 'successfully saved property type',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
   // API for upate Property Information
   router.post('/updatePropertyInfo', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    if (body.deletedUnitArray && body.deletedUnitArray.length) {
+      body.deletedUnitArray.forEach(async (el) => {
+        await DB.remove('unitV2', { id: el });
+      });
+    }
     const data = {
       sizeType: body.sqSelectedValue,
       sizeValue: body.sqNumber,
       bedRooms: body.noOfBedRooms,
       standardGuests: body.noOfGuests,
       units: body.noOfUnits,
-      unitsData: body.unitsData,
+      // unitsData: body.unitsData,
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
-    res.send({
-      code: 200,
-    });
+    each(
+      // JSON.parse(body.unitsData),
+      body.unitsData,
+      async (items, next) => {
+        const unitData = {
+          userId: body.tokenData.userid,
+          unittypeId: body.unitTypeV2Id,
+          unitName: items.unitName,
+        };
+        if (items.id) {
+          await DB.update('unitV2', { unitName: items.unitName }, { id: items.id });
+        } else {
+          await DB.insert('unitV2', unitData);
+        }
+        next();
+      },
+      () => {
+        res.send({
+          code: 200,
+        });
+      },
+    );
   });
 
   // API for update SleepingArrangement
@@ -699,10 +742,12 @@ const propertyRouter = () => {
     try {
       const { ...body } = req.body;
       const unittypeData = await DB.select('unitTypeV2', { propertyId: body.propertyId });
+      const unitData = await DB.select('unitV2', { unittypeId: body.propertyId });
       if (unittypeData) {
         res.send({
           code: 200,
           unittypeData,
+          unitData,
         });
       } else {
         res.send({

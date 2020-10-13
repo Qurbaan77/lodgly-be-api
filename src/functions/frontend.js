@@ -10,7 +10,7 @@ exports.domainName = (subdomain) => format(config.get('frontend.app.endpoint'), 
   .replace(/^https?:\/\//, '');
 
 exports.ownerPanelUrl = (subdomain, path = '/', params = {}) => [
-  format(config.get('frontend.owners.endpoint')), path, '?', stringify(params),
+  format(config.get('frontend.owners.endpoint'), subdomain), path, '?', stringify(params),
 ].join('').replace(/\?$/, '');
 
 exports.ownerPanelDomaimName = (subdomain) => format(config.get('frontend.owners.endpoint'), subdomain)
