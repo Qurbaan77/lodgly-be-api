@@ -1,12 +1,14 @@
 /* This file will update rates and bookings on channex */
-const Config = require('config');
+// const Config = require('config');
 const axios = require('axios');
+const NodeCache = require('node-cache');
 // const DB = require('../services/database');
 const getConfig = require('../channexIntegration/config');
-const auth = require('../channexIntegration/authorization');
+// const auth = require('../channexIntegration/authorization');
 
-const user = Config.get('CHANNEX_USER');
-const password = Config.get('CHANNEX_PASSWORD');
+// const user = Config.get('CHANNEX_USER');
+// const password = Config.get('CHANNEX_PASSWORD');
+const myCache = new NodeCache();
 
 /**  This function will update the rate on channex
 /** @param propertyId String
@@ -16,7 +18,7 @@ const password = Config.get('CHANNEX_PASSWORD');
  */
 const updateRate = async (propertyId, ratePlanId, dateFrom, dateTo, rate) => {
   try {
-    const token = await auth(user, password);
+    const token = myCache.get('token');
     const payload = {
       values: [{
         property_id: propertyId,
@@ -45,7 +47,7 @@ const updateRate = async (propertyId, ratePlanId, dateFrom, dateTo, rate) => {
  */
 const pushBooking = async (ratePlanId, bookingData) => {
   try {
-    const token = await auth(user, password);
+    const token = myCache.get('token');
     const payload = {
       booking: {
         status: 'new',
