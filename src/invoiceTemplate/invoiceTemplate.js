@@ -18,6 +18,7 @@ module.exports = ({
   total,
   impression,
   logo,
+  currency,
 }) => (
   `
 <!doctype html>
@@ -223,10 +224,10 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemQuantity}`}</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemPrice}`} EUR</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemPrice}`} ${`${currency}`}</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemAmount}`} EUR</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemAmount}`} ${`${currency}`}</span>
                             </td>     
                             <td style="padding:5px;">
                                <span style="color: #333; font-size: 13px;">${`${el.itemDiscountPer}`}
@@ -234,10 +235,10 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                             </td>  
                              
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscount}`} EUR</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscount}`} ${`${currency}`}</span>
                             </td>     
                             <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemTotal}`} EUR</span>
+                               <span style="color: #333; font-size: 13px;">${`${el.itemTotal}`} ${`${currency}`}</span>
                             </td>     
                         </tr> 
                         `;
@@ -253,7 +254,8 @@ background-color: #eaeaea;font-family: 'Muli', sans-serif;">
                     <table style="width: 100%;color: #666;">
                         <tr>
                             <td align="right">
-                         <span style="color: #333; font-size: 24px; font-weight: 600">Total: ${`${total}`} EURO</span>
+                         <span style="color: #333; font-size: 24px; font-weight: 600">Total: ${`${total}`} 
+                         ${`${currency}`}</span>
                             </td>                     
                         </tr> 
 

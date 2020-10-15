@@ -3,17 +3,21 @@ const express = require('express');
 const Config = require('config');
 const axios = require('axios');
 const each = require('sync-each');
+const NodeCache = require('node-cache');
 const auth = require('../channexIntegration/authorization');
 const getConfig = require('../channexIntegration/config');
 const DB = require('../services/database');
 const { updateRate } = require('../channelManagement');
 const { userAuthCheck } = require('../middlewares/middlewares');
 
+const myCache = new NodeCache();
+
 const channelRouter = () => {
   const router = express.Router();
   const user = Config.get('CHANNEX_USER');
   const password = Config.get('CHANNEX_PASSWORD');
-  let token;
+  // let token;
+  console.log(myCache.get('token'));
 
   /* pushing property data to channex starts here */
 
@@ -25,8 +29,9 @@ const channelRouter = () => {
           title: name,
         },
       };
-      const config = await getConfig('post', 'groups', token, payload);
+      const config = await getConfig('post', 'groups', myCache.get('token'), payload);
       const res = await axios(config);
+      console.log('create group response', res);
       return res.data.data.id;
     } catch (e) {
       console.log(e);
@@ -59,8 +64,9 @@ const channelRouter = () => {
           },
         },
       };
-      const config = await getConfig('post', 'properties', token, payload);
+      const config = await getConfig('post', 'properties', myCache.get('token'), payload);
       const res = await axios(config);
+      console.log('create property resposne', res);
       return res.data.data.id;
     } catch (e) {
       console.log(e);
@@ -85,8 +91,9 @@ const channelRouter = () => {
           },
         },
       };
-      const config = await getConfig('post', 'room_types', token, payload);
+      const config = await getConfig('post', 'room_types', myCache.get('token'), payload);
       const res = await axios(config);
+      console.log('create room type response', res);
       return res.data.data.id;
     } catch (e) {
       console.log(e);
@@ -135,8 +142,9 @@ const channelRouter = () => {
           auto_rate_settings: null,
         },
       };
-      const config = await getConfig('post', 'rate_plans', token, payload);
+      const config = await getConfig('post', 'rate_plans', myCache.get('token'), payload);
       const res = await axios(config);
+      console.log('create rate plan response', res);
       return res.data.data.id;
     } catch (e) {
       console.log(e);
@@ -149,7 +157,9 @@ const channelRouter = () => {
     try {
       console.log(req.body);
       const { body } = req;
-      token = await auth(user, password);
+      if (!myCache.get('token')) {
+        myCache.set('token', await auth(user, password), 86400);
+      }
       const userData = await DB.select('users', { id: body.tokenData.userid });
       const [{
         email, phone, companyName,

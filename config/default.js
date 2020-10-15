@@ -82,4 +82,5 @@ module.exports = {
   RU_PASSWORD: process.env.RU_PASSWORD,
   CHANNEX_USER: process.env.CHANNEX_USER,
   CHANNEX_PASSWORD: process.env.CHANNEX_PASSWORD,
+  TRIAL_DAYS: process.env.TRIAL_DAYS,
 };
