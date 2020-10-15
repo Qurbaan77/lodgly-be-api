@@ -330,6 +330,8 @@ const propertyRouter = () => {
   router.post('/addRates', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
+      const data = await DB.select('ratesV2', { unitTypeId: body.unitTypeId });
       const rateData = {
         unitTypeId: body.unitTypeId,
         rateName: body.rateName,
@@ -375,8 +377,9 @@ const propertyRouter = () => {
         tax: body.taxPer,
         notes: body.notes,
       };
-      if (body.id > 0) {
-        await DB.update('ratesV2', rateData, { id: body.id });
+      if (data.length > 0) {
+        console.log(data[0].id);
+        await DB.update('ratesV2', rateData, { id: data[0].id });
         await DB.update('unitTypeV2', { currency: body.currency }, { id: body.unitTypeId });
         /**
          * TODO check if channl manager is activated if yes then push this update to channex
@@ -390,6 +393,11 @@ const propertyRouter = () => {
         await DB.insert('ratesV2', rateData);
         await DB.update('unitTypeV2', { currency: body.currency }, { id: body.unitTypeId });
       }
+      // if (body.id > 0) {
+      //   await DB.update('ratesV2', rateData, { id: body.id });
+      // } else {
+      //   await DB.insert('ratesV2', rateData);
+      // }
       res.send({
         code: 200,
         msg: 'Data save successfully!',
@@ -429,6 +437,7 @@ const propertyRouter = () => {
     const seasonRateData = {
       unitTypeId: body.unitTypeId,
       seasonRateName: body.seasonRateName,
+      currency: body.currency,
       startDate: startDateTime,
       endDate: endDateTime,
       price_per_night: body.pricePerNight,
@@ -476,10 +485,10 @@ const propertyRouter = () => {
         msg: 'Data update successfully!',
       });
     } else {
-      await DB.insert('seasonRatesV2', seasonRateData);
+      const savedId = await DB.insert('seasonRatesV2', seasonRateData);
       res.send({
         code: 200,
-        msg: 'Data save successfully!',
+        savedId,
       });
     }
   });

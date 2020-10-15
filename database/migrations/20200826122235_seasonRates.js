@@ -6,6 +6,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('seasonRateName');
   table.date('startDate');
   table.date('endDate');
+  table.string('currency');
   table.integer('price_per_night').defaultTo(0);
   table.integer('minimum_stay').defaultTo(0);
   table.integer('discount_price_per_week').defaultTo(0);
