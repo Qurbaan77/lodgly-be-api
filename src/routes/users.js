@@ -751,7 +751,7 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      const remainingDays = 7 - totalDays;
+      const remainingDays = config.get('TRIAL_DAYS') - totalDays;
       console.log(remainingDays);
       const [{ isOnTrial }] = user;
       if (remainingDays <= 0) {
@@ -2258,6 +2258,7 @@ const usersRouter = () => {
             status: body.status,
             type: body.type,
             logo: body.logo,
+            currency: body.currency,
           };
           if (!body.id) {
             const Id = await DB.insert('invoiceV2', invoiceData);
