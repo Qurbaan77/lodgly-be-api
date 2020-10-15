@@ -104,6 +104,24 @@ const propertyRouter = () => {
         const itemsCopy = items;
         const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
         itemsCopy.unitDataV2 = unitDataV2;
+        const rate = await DB.select('ratesV2', { unitTypeId: itemsCopy.id });
+        if (!rate) {
+          itemsCopy.isCompleted = false;
+        }
+        if (!unitDataV2) {
+          itemsCopy.isCompleted = false;
+        }
+        Object.keys(itemsCopy).forEach((key) => {
+          if (!items[key]) {
+            if (key !== 'ownerId' && key !== 'isChannelManagerActivated' && key !== 'airbnb' && key !== 'booking'
+            && key !== 'expedia' && key !== 'unitsData' && key !== 'direction' && key !== 'website') {
+              itemsCopy.isCompleted = false;
+            }
+          }
+        });
+        if (itemsCopy.isCompleted === undefined) {
+          itemsCopy.isCompleted = true;
+        }
         next();
         return itemsCopy;
       },
@@ -114,6 +132,64 @@ const propertyRouter = () => {
         });
       },
     );
+  });
+
+  // Get info for completeness of property
+  router.post('/getPropertyCompleteness', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const data = await DB.select('unitTypeV2', { id: body.unitTypeV2Id });
+      console.log('data coming from sidenav', data);
+      let addressCompleted = true;
+      let imageCompleted = true;
+      let ratesCompleted = true;
+      let OverviewCompleted = true;
+      if (data && data.length > 0) {
+        const ratesData = await DB.select('ratesV2', { unitTypeId: body.unitTypeV2Id });
+        console.log('rates datakj.khk,jbgjv', ratesData);
+        if (ratesData && ratesData.length > 0) {
+          console.log('a');
+        } else {
+          console.log('b');
+          ratesCompleted = false;
+        }
+        data.forEach(async (el) => {
+          // const copyel = el;
+          Object.keys(el).forEach((key) => {
+            if (!el[key]) {
+              console.log('This is empty', key);
+              if (key === 'image') {
+                imageCompleted = false;
+              } else if (key === 'address') {
+                addressCompleted = false;
+              } else if (key === 'sizeType' || key === 'bedrooms' || key === 'standardGuests'
+              || key === 'units' || key === 'propertyType' || key === 'amenities' || key === 'rooms'
+              || key === 'sleepingArrangement') {
+                OverviewCompleted = false;
+              }
+            }
+          });
+        });
+        res.send({
+          code: 200,
+          addressCompleted,
+          imageCompleted,
+          ratesCompleted,
+          OverviewCompleted,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no data found',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
+      });
+    }
   });
 
   router.get('/getPropertyName', userAuthCheck, async (req, res) => {
