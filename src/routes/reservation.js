@@ -446,7 +446,44 @@ const reservationRouter = () => {
   router.post('/deleteReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('reservationV2', { id: body.id });
+      await DB.remove('bookingV2', { id: body.id });
+      res.send({
+        code: 200,
+      });
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
+  // API for update reservation paid status
+  router.post('/updatePaid', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      await DB.update('bookingV2', { paid: body.paid }, { id: body.id });
+      res.send({
+        code: 200,
+      });
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
+  // API for update reservation checkIn status
+  router.post('/updateCheckIn', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.update('bookingV2', { checkIn: body.checkIn }, { id: body.id });
       res.send({
         code: 200,
       });
