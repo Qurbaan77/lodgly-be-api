@@ -146,7 +146,6 @@ const propertyRouter = () => {
       let OverviewCompleted = true;
       if (data && data.length > 0) {
         const ratesData = await DB.select('ratesV2', { unitTypeId: body.unitTypeV2Id });
-        console.log('rates datakj.khk,jbgjv', ratesData);
         if (ratesData && ratesData.length > 0) {
           console.log('a');
         } else {
@@ -387,6 +386,10 @@ const propertyRouter = () => {
     form.parse(req, async (error, fields, files) => {
       if (error) {
         console.log(error);
+        res.send({
+          code: 444,
+          msg: 'some error occured',
+        });
       }
       const { path } = files.file[0];
       const buffer = fs.readFileSync(path);
@@ -396,7 +399,8 @@ const propertyRouter = () => {
       const hash = crypto.createHash('md5').update(fileName).digest('hex');
       const data = await uploadFile(buffer, hash, type, req.query.organizationid);
       await DB.update('unitTypeV2', { image: data.Location }, { id: req.query.unitTypeV2Id });
-      return res.json({
+      return res.send({
+        code: 200,
         image: data.Location,
       });
     });
