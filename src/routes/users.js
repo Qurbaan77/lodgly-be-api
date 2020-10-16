@@ -3350,6 +3350,7 @@ const usersRouter = () => {
   router.post('/getRevenue', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       const currYear = new Date().getFullYear();
       const prevYear = new Date().getFullYear() - 1;
       const arr = [];
@@ -3358,9 +3359,9 @@ const usersRouter = () => {
       const prevYearArr = [];
       let revenueData;
       if (body.propertyId !== null) {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid, unitTypeId: body.propertyId });
       } else {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid });
       }
 
       revenueData
@@ -3421,9 +3422,9 @@ const usersRouter = () => {
       const prevYearArr = [];
       let revenueData;
       if (body.propertyId !== null) {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid, unitTypeId: body.propertyId });
       } else {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid });
       }
 
       revenueData
@@ -3509,9 +3510,9 @@ const usersRouter = () => {
       const prevYearArr = [];
       let revenueData;
       if (body.propertyId !== null) {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid, unitTypeId: body.propertyId });
       } else {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid });
       }
 
       revenueData
@@ -3589,7 +3590,7 @@ const usersRouter = () => {
   router.post('/getCountryReport', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+      const guestData = await DB.select('guestV2', { userId: body.tokenData.userid });
       const country = [];
       const average = [];
       guestData.forEach((el, i, array) => {
