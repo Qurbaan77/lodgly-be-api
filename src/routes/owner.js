@@ -162,6 +162,7 @@ const ownerRouter = () => {
                   receipt: true,
                   confirmation_url: confirmationUrl,
                   email: body.email,
+                  username: `${body.fname} ${body.lname}`,
                 },
               },
             ],

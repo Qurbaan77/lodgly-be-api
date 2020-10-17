@@ -196,6 +196,7 @@ const usersRouter = () => {
                         receipt: true,
                         confirmation_url: confirmationUrl,
                         email: userData.email,
+                        username: userData.fullname,
                       },
                     },
                   ],
@@ -283,6 +284,7 @@ const usersRouter = () => {
                       receipt: true,
                       confirmation_url: confirmationUrl,
                       email: userData.email,
+                      username: userData.fullname,
                     },
                   },
                 ],
@@ -2845,7 +2847,7 @@ const usersRouter = () => {
   // API for adding sub owner
   router.post('/addOwner', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
+    console.log('addOwner', body);
     try {
       let id;
       let verificationhex;
@@ -2903,6 +2905,7 @@ const usersRouter = () => {
         address: body.address,
         typeOfDoc: body.document,
         docNo: body.documentnumber,
+        // properties: JSON.stringify(body.properties),
         notes: body.notes,
         isaccess: body.access,
         verificationhex,
@@ -2911,8 +2914,9 @@ const usersRouter = () => {
 
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
-        await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
+        // await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
+          console.log(items);
           await DB.update('unitTypeV2', { ownerId: body.id }, { id: items });
           next();
         });
@@ -3350,7 +3354,6 @@ const usersRouter = () => {
   router.post('/getRevenue', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
       const currYear = new Date().getFullYear();
       const prevYear = new Date().getFullYear() - 1;
       const arr = [];
@@ -4545,6 +4548,66 @@ const usersRouter = () => {
       await DB.update('users', { image: null }, { id: body.tokenData.userid });
       res.send({
         code: 200,
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for get channelManagement Report
+  router.post('/getChannelsReport', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let unittypeData;
+      let revenueData;
+      if (body.propertyId !== null) {
+        unittypeData = await DB.select('unitTypeV2',
+          {
+            userId: body.tokenData.userid,
+            id: body.propertyId,
+            isChannelManagerActivated: 1,
+          });
+      } else {
+        unittypeData = await DB.select('unitTypeV2',
+          {
+            userId: body.tokenData.userid,
+            isChannelManagerActivated: 1,
+          });
+      }
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('bookingV2',
+          {
+            userId: body.tokenData.userid,
+            unitTypeId: body.propertyId,
+          });
+      } else {
+        revenueData = await DB.select('bookingV2',
+          {
+            userId: body.tokenData.userid,
+          });
+      }
+      const airbnb = revenueData
+        .filter((el) => el.channel === 'airbnb');
+
+      const booking = revenueData
+        .filter((el) => el.channel === 'booking');
+
+      const expedia = revenueData
+        .filter((el) => el.channel === 'expedia');
+      const airbnbPer = (airbnb.length / revenueData.length) * 100;
+      const bookingPer = (booking.length / revenueData.length) * 100;
+      const expediaPer = (expedia.length / revenueData.length) * 100;
+      res.send({
+        code: 200,
+        airbnbPer,
+        bookingPer,
+        expediaPer,
+        unittypeData,
       });
     } catch (e) {
       sentryCapture(e);

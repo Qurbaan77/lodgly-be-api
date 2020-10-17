@@ -306,6 +306,7 @@ const propertyRouter = () => {
   // API for upate Property Information
   router.post('/updatePropertyInfo', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    console.log('body', body);
     if (body.deletedUnitArray && body.deletedUnitArray.length) {
       body.deletedUnitArray.forEach(async (el) => {
         await DB.remove('unitV2', { id: el });
