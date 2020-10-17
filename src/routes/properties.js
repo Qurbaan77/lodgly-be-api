@@ -416,6 +416,7 @@ const propertyRouter = () => {
         unitTypeId: body.unitTypeId,
         rateName: body.rateName,
         currency: body.currency,
+        currencyCode: body.currencyCode,
         price_per_night: body.pricePerNight,
         minimum_stay: body.minStay,
         discount_price_per_week: body.weeklyPrice,
