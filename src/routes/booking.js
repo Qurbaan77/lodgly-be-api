@@ -157,7 +157,7 @@ const bookingRouter = () => {
           userId: id,
           propertyId: body.propertyId,
           propertyName: body.property,
-          unitId: body.unit,
+          bookedUnit: body.unit,
           unitName: body.unitName,
           startDate: body.groupname[0].split('T', 1),
           endDate: body.groupname[1].split('T', 1),
