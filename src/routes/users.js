@@ -732,7 +732,7 @@ const usersRouter = () => {
     }
   });
 
-  // API for check trial days
+  // API for checking trial days
   router.post('/trialDays', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
@@ -743,7 +743,13 @@ const usersRouter = () => {
         id = body.tokenData.userid;
       }
       const user = await DB.select('users', { id });
-      const diff = Math.abs(new Date() - user[0].created_at);
+      const [{ trialEnded, created_at: createdAt }] = user;
+      let diff;
+      if (trialEnded) {
+        diff = Math.abs(createdAt - trialEnded);
+      } else {
+        diff = Math.abs(new Date() - createdAt);
+      }
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
       s %= 60;
@@ -752,10 +758,18 @@ const usersRouter = () => {
       const totalDays = Math.floor(h / 24);
       h %= 24;
       const remainingDays = config.get('TRIAL_DAYS') - totalDays;
-      console.log(remainingDays);
       const [{ isOnTrial }] = user;
       if (remainingDays <= 0) {
-        await DB.update('users', { isOnTrial: false }, { id: body.tokenData.userid });
+        if (user && user[0].trialEnded) {
+          await DB.update('users',
+            { isOnTrial: true }, { id: body.tokenData.userid });
+        } else {
+          await DB.update('users',
+            {
+              isOnTrial: true,
+              trialEnded: moment().utc().format('YYYY-MM-DD hh:mm:ss'),
+            }, { id: body.tokenData.userid });
+        }
       }
       res.send({
         code: 200,
@@ -763,6 +777,7 @@ const usersRouter = () => {
         isOnTrial,
       });
     } catch (e) {
+      console.log(e);
       sentryCapture(e);
       res.send({
         code: 444,
@@ -1946,16 +1961,28 @@ const usersRouter = () => {
 
   // API to get amenities
   router.post('/getAmenities', userAuthCheck, async (req, res) => {
-    const amenities = await DB.select('amenities', {});
-    if (amenities && amenities.length > 0) {
+    try {
+      const amenities = await DB.select('amenities', {});
+      const data = await DB.selectCol(['amenities'], 'unitTypeV2', { id: req.body.unitTypeV2Id });
+      console.log('data from get amenities', data);
+      const selectedAmenities = [];
+      if (data && data[0].amenities) {
+        const [{ amenities: selectedAmenity }] = data;
+        selectedAmenity.forEach((id) => {
+          const [data0] = amenities.filter((el) => el.id === id);
+          selectedAmenities.push(data0);
+        });
+      }
       res.send({
         code: 200,
         amenities,
+        selectedAmenities,
       });
-    } else {
+    } catch (e) {
+      console.log(e);
       res.send({
-        code: 500,
-        msg: 'server error',
+        code: 444,
+        msg: 'some error occured',
       });
     }
   });
@@ -3968,12 +3995,23 @@ const usersRouter = () => {
       }
       console.log('user subscription', id);
       const userSubsDetails = await DB.selectCol(
-        ['isSubscribed', 'isOnTrial', 'issubscriptionEnded', 'created_at'],
+        ['isSubscribed', 'isOnTrial', 'trialEnded', 'issubscriptionEnded', 'created_at'],
         'users',
         { id },
       );
-      console.log('user subs details ====>>>>>>>', userSubsDetails);
-      const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
+      // console.log('user subs details ====>>>>>>>', userSubsDetails);
+      const [{ trialEnded, created_at: createdAt }] = userSubsDetails;
+      let diff;
+      console.log('iiiiiiiiiiii', trialEnded, createdAt);
+      if (trialEnded) {
+        console.log('a');
+        diff = Math.abs(trialEnded - new Date());
+      } else {
+        console.log('b');
+        diff = Math.abs(new Date() - createdAt);
+      }
+      console.log(moment(diff / 1000));
+      // const diff = Math.abs(new Date() - createdAt);
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
       s %= 60;
@@ -3981,8 +4019,10 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
+      console.log('total days', totalDays);
       const remainingDays = 7 - totalDays;
       userSubsDetails[0].days = remainingDays;
+      console.log('dcsujygjyzstfxdhats', remainingDays);
       res.send({
         code: 200,
         userSubsDetails,
