@@ -5,6 +5,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.integer('unitTypeId').notNull().unsigned();
   table.string('rateName').defaultTo('Defaut Rate');
   table.string('currency');
+  table.string('currencyCode');
   table.integer('price_per_night').defaultTo(0);
   table.integer('minimum_stay').defaultTo(0);
   table.integer('discount_price_per_week').defaultTo(0);
