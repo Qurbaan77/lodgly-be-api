@@ -408,7 +408,6 @@ const usersRouter = () => {
         const companyData = await DB.select('organizations', { name: body.company });
         const isUserExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
 
-        console.log('isUserExists', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
           subUser = await DB.select('team', { email: body.email });
@@ -2858,6 +2857,7 @@ const usersRouter = () => {
         const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
         verificationhex = hash;
         encryptedPassword = hashedPassword;
+        // const confirmationUrl = `http://${body.company}.localhost:3001/?token=${hash}`;
         const confirmationUrl = ownerPanelUrl(body.company, '/', {
           token: hash,
         });

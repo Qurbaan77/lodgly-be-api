@@ -9,9 +9,10 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('unitName');
   table.date('startDate');
   table.date('endDate');
-  table.string('acknowledge');
+  table.date('optionalDate');
+  table.string('acknowledge').defaultTo('confirmed');
   table.string('channel');
-  table.integer('commission');
+  table.decimal('commission');
   table.integer('adult');
   table.integer('children1');
   table.integer('children2');
@@ -19,17 +20,15 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.integer('noOfGuest').defaultTo(0);
   table.string('notes1');
   table.string('notes2');
-
-  table.integer('perNight');
+  table.decimal('perNight');
   table.integer('night');
-  table.integer('amt');
+  table.decimal('amt');
   table.string('discountType');
-  table.integer('discount');
-  table.integer('accomodation');
-
+  table.decimal('discount');
+  table.decimal('accomodation');
   table.string('noOfservices');
-  table.integer('totalAmount');
-  table.integer('deposit');
+  table.decimal('totalAmount');
+  table.decimal('deposit');
   table.string('depositType');
   table.string('status').defaultTo('booked');
   table.string('statusColour').defaultTo('red');
