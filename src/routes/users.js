@@ -2199,14 +2199,39 @@ const usersRouter = () => {
     }
   });
 
+  router.post('/getPropDetails', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      const propertyData = await DB.selectCol(['address'], 'unitTypeV2', { id: body.unitTypeId });
+      const [{ address }] = propertyData;
+      const userData = await DB.selectCol(['fullname', 'email', 'phone'], 'users', { id: body.tokenData.userid });
+      const [{ fullname, email, phone }] = userData;
+      const payloadData = {
+        address,
+        fullname,
+        email,
+        phone,
+      };
+      res.send({
+        code: 200,
+        payloadData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
   // API for downloding invoice
 
   router.post('/downloadinvoice', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
       pdf.create(invoiceTemplate(body), { timeout: '100000' }).toFile(
-        `
-        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`,
+        `/invoicepdf/${body.clientName}.pdf`,
         async (err, success) => {
           if (err) {
             console.log(err);
