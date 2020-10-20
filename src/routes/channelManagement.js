@@ -44,7 +44,7 @@ const channelRouter = () => {
       const payload = {
         property: {
           title: propertyData.unitTypeName,
-          currency: 'EUR',
+          currency: propertyData.currency,
           email: propertyData.email,
           phone: propertyData.phone,
           zip_code: propertyData.zip,
@@ -194,7 +194,7 @@ const channelRouter = () => {
             const rateData = await DB.select('ratesV2', { unitTypeId: unitTypeV2Id });
             // console.log(rateData);
             const [{
-              rateName, currency, price_per_night, minimum_stay, checkIn_on_monday,
+              rateName, currencyCode: currency, price_per_night, minimum_stay, checkIn_on_monday,
               checkIn_on_tuesday, checkIn_on_wednesday, checkIn_on_thursday,
               checkIn_on_friday, checkIn_on_saturday, checkIn_on_sunday,
               checkOut_on_monday, checkOut_on_tuesday,
@@ -212,6 +212,7 @@ const channelRouter = () => {
               phone,
               unitTypeName,
               description,
+              currency,
               country,
               state,
               city,

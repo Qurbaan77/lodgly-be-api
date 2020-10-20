@@ -307,15 +307,18 @@ const bookingRouter = () => {
         bookingData,
         async (items, next) => {
           const data = await DB.select('guestV2', { bookingId: items.id });
+          const itemsCopy = items;
+          itemsCopy.guestData = data;
           if (data.length !== 0) {
             guestData.push(data);
+            itemsCopy.guestData = data;
           }
-          console.log(items.id);
           const data1 = await DB.select('bookingServiceV2', { bookingId: items.id });
           if (data1.length !== 0) {
             serviceData.push(data1);
           }
           next();
+          return itemsCopy;
         },
         () => {
           res.send({
