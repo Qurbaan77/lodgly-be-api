@@ -9,7 +9,6 @@ const fileType = require('file-type');
 const multiparty = require('multiparty');
 const pdf = require('html-pdf');
 const DB = require('../services/database');
-const ownerModel = require('../models/owner/repositories');
 const { checkIfEmpty } = require('../functions');
 const { signJwt } = require('../functions');
 const { hashPassword } = require('../functions');
@@ -54,6 +53,41 @@ const ownerRouter = () => {
     return s3.upload(params, url).promise();
   };
 
+  // get request to verify user email
+  router.get('/verify/:hex', async (req, res) => {
+    try {
+      const verificationhex = req.params.hex;
+      // const isExist = await userModel.getOneBy({ verificationhex });
+      const isExist = await DB.select('owner', { verificationhex });
+      if (isExist.length) {
+        const updatedData = await DB.update('owner', { isvalid: 1 }, { id: isExist[0].id });
+        if (updatedData) {
+          res.send({
+            code: 200,
+            msg: 'Email verified successfully.',
+          });
+        } else {
+          res.send({
+            code: 400,
+            msg: 'Try Again!',
+          });
+        }
+      } else {
+        res.send({
+          code: 404,
+          msg: 'Verification hex not found!',
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
   // login API for Owner Panel
   router.post('/ownerLogin', async (req, res) => {
     const { ...body } = await req.body;
@@ -61,11 +95,9 @@ const ownerRouter = () => {
     try {
       const { isValid } = checkIfEmpty(body.email, body.password);
       console.log(isValid);
-      const { email, password } = req.body;
+      const { password } = req.body;
       // finding user with email
-      const isOwnerExists = await ownerModel.getOneBy({
-        email,
-      });
+      const isOwnerExists = await DB.select('owner', { email: body.email });
 
       if (isOwnerExists.length) {
         if (isOwnerExists[0].isvalid === 0) {

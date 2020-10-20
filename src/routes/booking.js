@@ -25,6 +25,10 @@ const bookingRouter = () => {
         id = body.affiliateId;
         console.log(id);
       }
+      let optionalDate = null;
+      if (body.optionalDate) {
+        optionalDate = body.optionalDate.split('T', 1);
+      }
       const bookingData = {
         userId: id,
         unitTypeId: body.property,
@@ -33,6 +37,7 @@ const bookingRouter = () => {
         unitName: body.unitName,
         startDate: startDateTime,
         endDate: endDateTime,
+        optionalDate,
         acknowledge: body.acknowledge,
         channel: body.channel,
         commission: body.commission,
@@ -151,6 +156,10 @@ const bookingRouter = () => {
       } else {
         id = body.tokenData.userid;
       }
+      let optionalDate = null;
+      if (body.optionalDate) {
+        optionalDate = body.optionalDate.split('T', 1);
+      }
       const bookingDetail = await DB.select('bookingV2', { id: body.id, userId: id });
       if (bookingDetail) {
         const bookingData = {
@@ -161,6 +170,7 @@ const bookingRouter = () => {
           unitName: body.unitName,
           startDate: body.groupname[0].split('T', 1),
           endDate: body.groupname[1].split('T', 1),
+          optionalDate,
           acknowledge: body.acknowledge,
           channel: body.channel,
           commission: body.commission,
