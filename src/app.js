@@ -27,7 +27,6 @@ Sentry.init({
 // middlewares
 app.use(Sentry.Handlers.requestHandler());
 app.use(cors({ credentials: true, origin: true }));
-app.use(express.limit('20M'));
 app.use(express.json());
 app.use(
   express.urlencoded({

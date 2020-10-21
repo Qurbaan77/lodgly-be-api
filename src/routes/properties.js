@@ -21,17 +21,30 @@ const propertyRouter = () => {
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
   });
+  const bucket = config.get('aws.s3.storageBucketName');
+
+  // const getSignedUrl = (name, size, type, organizationid = 1, expires = 300) => new Promise((resolve, reject) => {
+  //   console.log(name, type);
+  //   if (!name) return resolve(null);
+  //   return s3.getSignedUrl('putObject', {
+  //     Key: name,
+  //     Bucket: `${bucket}/${organizationid}/photos`,
+  //     ContentType: type,
+  //     Expires: expires,
+  //   }, (error, result) => (error ? reject(error) : resolve(result)));
+  // });
 
   // function for upload image on S3bucket
-  const uploadFile = async (buffer, name, type, organizationid) => {
+  const uploadFile = async (buffer, name, type, organizationid, expires = 300) => {
     try {
-      const bucket = config.get('aws.s3.storageBucketName');
+      // const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
         Body: buffer,
         Bucket: `${bucket}/${organizationid}/photos`,
         ContentType: type.mime,
         Key: `${name}.${type.ext}`,
+        Expires: expires,
       };
       const url = await s3.getSignedUrlPromise('putObject', params);
       return s3.upload(params, url).promise();
@@ -399,6 +412,7 @@ const propertyRouter = () => {
       const fileName = `bucketFolder/${timestamp}-lg`;
       const hash = crypto.createHash('md5').update(fileName).digest('hex');
       const data = await uploadFile(buffer, hash, type, req.query.organizationid);
+      console.log('data from property photo upload', data);
       await DB.update('unitTypeV2', { image: data.Location }, { id: req.query.unitTypeV2Id });
       return res.send({
         code: 200,
