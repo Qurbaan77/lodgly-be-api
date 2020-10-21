@@ -27,12 +27,14 @@ Sentry.init({
 // middlewares
 app.use(Sentry.Handlers.requestHandler());
 app.use(cors({ credentials: true, origin: true }));
-app.use(express.json());
-app.use(
-  express.urlencoded({
-    extended: false,
-  }),
-);
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb' }));
+// app.use(express.json());
+// app.use(
+//   express.urlencoded({
+//     extended: false,
+//   }),
+// );
 
 app.use(cookieParser('cookiesecret'));
 app.use(express.static(path.join(__dirname, 'public')));
