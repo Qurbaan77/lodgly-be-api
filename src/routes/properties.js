@@ -396,6 +396,7 @@ const propertyRouter = () => {
 
   // API for update property image
   router.post('/propertyPicture', async (req, res) => {
+    console.log('request coming');
     const form = new multiparty.Form();
     form.parse(req, async (error, fields, files) => {
       if (error) {
