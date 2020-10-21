@@ -4030,15 +4030,11 @@ const usersRouter = () => {
       // console.log('user subs details ====>>>>>>>', userSubsDetails);
       const [{ trialEnded, created_at: createdAt }] = userSubsDetails;
       let diff;
-      console.log('iiiiiiiiiiii', trialEnded, createdAt);
       if (trialEnded) {
-        console.log('a');
         diff = Math.abs(trialEnded - new Date());
       } else {
-        console.log('b');
         diff = Math.abs(new Date() - createdAt);
       }
-      console.log(moment(diff / 1000));
       // const diff = Math.abs(new Date() - createdAt);
       let s = Math.floor(diff / 1000);
       let m = Math.floor(s / 60);
@@ -4047,10 +4043,8 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      console.log('total days', totalDays);
       const remainingDays = 7 - totalDays;
       userSubsDetails[0].days = remainingDays;
-      console.log('dcsujygjyzstfxdhats', remainingDays);
       res.send({
         code: 200,
         userSubsDetails,

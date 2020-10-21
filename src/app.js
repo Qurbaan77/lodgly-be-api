@@ -1,7 +1,6 @@
 const express = require('express');
 const Sentry = require('@sentry/node');
 const path = require('path');
-const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const config = require('config');
@@ -28,24 +27,12 @@ Sentry.init({
 // middlewares
 app.use(Sentry.Handlers.requestHandler());
 app.use(cors({ credentials: true, origin: true }));
+app.use(express.json());
 app.use(
-  bodyParser.json({
-    limit: '50mb',
+  express.urlencoded({
+    extended: false,
   }),
 );
-app.use(
-  bodyParser.urlencoded({
-    limit: '50mb',
-    extended: true,
-    parameterLimit: 50000,
-  }),
-);
-// app.use(express.json());
-// app.use(
-//   express.urlencoded({
-//     extended: false,
-//   }),
-// );
 
 app.use(cookieParser('cookiesecret'));
 app.use(express.static(path.join(__dirname, 'public')));

@@ -1,6 +1,6 @@
 const express = require('express');
 const config = require('config');
-const crypto = require('crypto');
+// const crypto = require('crypto');
 const fs = require('fs');
 const AWS = require('aws-sdk');
 const fileType = require('file-type');
@@ -20,17 +20,18 @@ const propertyRouter = () => {
   const s3 = new AWS.S3({
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
+    signatureVersion: 'v4',
   });
   const bucket = config.get('aws.s3.storageBucketName');
 
-  // const getSignedUrl = (name, size, type, organizationid = 1, expires = 300) => new Promise((resolve, reject) => {
-  //   console.log(name, type);
+  // const getSignedUrl = (name, size, type, organizationid) => new Promise((resolve, reject) => {
+  //   console.log(organizationid);
   //   if (!name) return resolve(null);
   //   return s3.getSignedUrl('putObject', {
   //     Key: name,
   //     Bucket: `${bucket}/${organizationid}/photos`,
   //     ContentType: type,
-  //     Expires: expires,
+  //     Expires: 300,
   //   }, (error, result) => (error ? reject(error) : resolve(result)));
   // });
 
@@ -40,14 +41,15 @@ const propertyRouter = () => {
       // const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
-        Body: buffer,
+        // Body: buffer,
         Bucket: `${bucket}/${organizationid}/photos`,
         ContentType: type.mime,
-        Key: `${name}.${type.ext}`,
+        Key: name,
         Expires: expires,
       };
       const url = await s3.getSignedUrlPromise('putObject', params);
-      return s3.upload(params, url).promise();
+      return url;
+      // return s3.upload(params, url).promise();
     } catch (err) {
       console.log(err);
       return err;
@@ -243,6 +245,7 @@ const propertyRouter = () => {
       direction: body.direction,
       distance: body.distance,
       distanceIn: body.distanceIn,
+      customAddress: body.customAddress,
     };
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     res.send({
@@ -394,32 +397,58 @@ const propertyRouter = () => {
     });
   });
 
-  // API for update property image
-  router.post('/propertyPicture', async (req, res) => {
-    console.log('request coming');
-    const form = new multiparty.Form();
-    form.parse(req, async (error, fields, files) => {
-      if (error) {
-        console.log(error);
+  // API to get presigned url for photo upload
+  router.post('/getPreSignedUrl', userAuthCheck, async (req, res) => {
+    console.log(req.query.organizationid);
+    try {
+      console.log('request coming');
+      const form = new multiparty.Form();
+      form.parse(req, async (error, fields, files) => {
+        if (error) {
+          console.log(error);
+          res.send({
+            code: 444,
+            msg: 'some error occured',
+          });
+        }
+        const { path } = files.file[0];
+        console.log(files.file[0].originalFilename);
+        const buffer = fs.readFileSync(path);
+        const type = await fileType.fromBuffer(buffer);
+        // const timestamp = Date.now().toString();
+        // const fileName = `bucketFolder/${timestamp}-lg`;
+        // const hash = crypto.createHash('md5').update(fileName).digest('hex');
+        const presignedUrl = await uploadFile(buffer, files.file[0].originalFilename, type, req.query.organizationid);
+        // const presignedUrl = await getSignedUrl(hash, type, req.query.organizationid);
+        // console.log('presigned url', presignedUrl);
         res.send({
-          code: 444,
-          msg: 'some error occured',
+          code: 200,
+          presignedUrl,
+          type,
         });
-      }
-      const { path } = files.file[0];
-      const buffer = fs.readFileSync(path);
-      const type = await fileType.fromBuffer(buffer);
-      const timestamp = Date.now().toString();
-      const fileName = `bucketFolder/${timestamp}-lg`;
-      const hash = crypto.createHash('md5').update(fileName).digest('hex');
-      const data = await uploadFile(buffer, hash, type, req.query.organizationid);
-      console.log('data from property photo upload', data);
-      await DB.update('unitTypeV2', { image: data.Location }, { id: req.query.unitTypeV2Id });
-      return res.send({
-        code: 200,
-        image: data.Location,
       });
-    });
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
+  // API for update property image
+  router.post('/updatePropertyImage', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      console.log(body.url);
+      await DB.update('unitTypeV2', { image: body.url }, { id: body.unitTypeV2Id });
+      res.send({
+        code: 200,
+        msg: 'updated property image',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error ocured',
+      });
+    }
   });
 
   // API fo add rates on UnitType

@@ -35,6 +35,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.boolean('booking').defaultTo(false);
   table.boolean('expedia').defaultTo(false);
   table.string('currency').defaultTo('eur');
+  table.boolean('customAddress').defaultTo(false);
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
   table.foreign('userId').references('users.id').onUpdate('CASCADE').onDelete('CASCADE');
