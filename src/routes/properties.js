@@ -1,12 +1,12 @@
 const express = require('express');
 const config = require('config');
 // const crypto = require('crypto');
-const fs = require('fs');
+// const fs = require('fs');
 const AWS = require('aws-sdk');
-const fileType = require('file-type');
+// const fileType = require('file-type');
 const bluebird = require('bluebird');
 const each = require('sync-each');
-const multiparty = require('multiparty');
+// const multiparty = require('multiparty');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const sentryCapture = require('../../config/sentryCapture');
@@ -36,14 +36,14 @@ const propertyRouter = () => {
   // });
 
   // function for upload image on S3bucket
-  const uploadFile = async (buffer, name, type, organizationid, expires = 300) => {
+  const uploadFile = async (name, type, organizationid, expires = 300) => {
     try {
       // const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
         // Body: buffer,
         Bucket: `${bucket}/${organizationid}/photos`,
-        ContentType: type.mime,
+        ContentType: type,
         Key: name,
         Expires: expires,
       };
@@ -401,31 +401,18 @@ const propertyRouter = () => {
   router.post('/getPreSignedUrl', userAuthCheck, async (req, res) => {
     console.log(req.query.organizationid);
     try {
+      const { body } = req;
+      const { name, type } = body;
       console.log('request coming');
-      const form = new multiparty.Form();
-      form.parse(req, async (error, fields, files) => {
-        if (error) {
-          console.log(error);
-          res.send({
-            code: 444,
-            msg: 'some error occured',
-          });
-        }
-        const { path } = files.file[0];
-        console.log(files.file[0].originalFilename);
-        const buffer = fs.readFileSync(path);
-        const type = await fileType.fromBuffer(buffer);
-        // const timestamp = Date.now().toString();
-        // const fileName = `bucketFolder/${timestamp}-lg`;
-        // const hash = crypto.createHash('md5').update(fileName).digest('hex');
-        const presignedUrl = await uploadFile(buffer, files.file[0].originalFilename, type, req.query.organizationid);
-        // const presignedUrl = await getSignedUrl(hash, type, req.query.organizationid);
-        // console.log('presigned url', presignedUrl);
-        res.send({
-          code: 200,
-          presignedUrl,
-          type,
-        });
+      // const timestamp = Date.now().toString();
+      // const fileName = `bucketFolder/${timestamp}-lg`;
+      // const hash = crypto.createHash('md5').update(fileName).digest('hex');
+      const presignedUrl = await uploadFile(name, type, req.query.organizationid);
+      // const presignedUrl = await getSignedUrl(hash, type, req.query.organizationid);
+      // console.log('presigned url', presignedUrl);
+      res.send({
+        code: 200,
+        presignedUrl,
       });
     } catch (e) {
       console.log(e);
