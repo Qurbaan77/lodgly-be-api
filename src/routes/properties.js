@@ -1,11 +1,12 @@
 const express = require('express');
 const config = require('config');
+const each = require('sync-each');
 // const crypto = require('crypto');
 // const fs = require('fs');
 const AWS = require('aws-sdk');
 // const fileType = require('file-type');
 const bluebird = require('bluebird');
-const each = require('sync-each');
+// const each = require('sync-each');
 // const multiparty = require('multiparty');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
@@ -231,6 +232,36 @@ const propertyRouter = () => {
     }
   });
 
+  // Get unit type name and id only
+  router.get('/getPropDetail', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      const payload = await DB.selectCol(['id', 'unitTypeName'], 'unitTypeV2', { userId: body.tokenData.userid });
+      const data = [];
+      each(
+        payload,
+        (item, next) => {
+          const obj = {};
+          obj.id = item.id;
+          const [label] = item.unitTypeName
+            .filter((e) => e.lang === 'en')
+            .map((name) => name.name);
+          obj.name = label;
+          data.push(obj);
+          next();
+        },
+        () => {
+          res.send({
+            code: 200,
+            data,
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
   // API for update unittype location
   router.post('/updateLocation', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
@@ -434,6 +465,23 @@ const propertyRouter = () => {
       res.send({
         code: 444,
         msg: 'some error ocured',
+      });
+    }
+  });
+
+  router.post('/updateUserPic', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      await DB.update('users', { image: body.url }, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        msg: 'successfully updated image',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
       });
     }
   });

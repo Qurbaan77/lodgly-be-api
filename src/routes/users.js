@@ -2969,7 +2969,7 @@ const usersRouter = () => {
         // await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
           console.log(items);
-          await DB.update('unitTypeV2', { ownerId: body.id }, { id: items });
+          await DB.update('unitTypeV2', { ownerId: body.id }, { id: items.id });
           next();
         });
         res.send({
@@ -2979,7 +2979,7 @@ const usersRouter = () => {
       } else {
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
-          await DB.update('unitTypeV2', { ownerId: saveData }, { id: items });
+          await DB.update('unitTypeV2', { ownerId: saveData }, { id: items.id });
           next();
         });
         res.send({
