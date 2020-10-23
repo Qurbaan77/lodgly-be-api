@@ -236,13 +236,15 @@ const propertyRouter = () => {
   router.get('/getPropDetail', userAuthCheck, async (req, res) => {
     try {
       const { body } = req;
-      const payload = await DB.selectCol(['id', 'unitTypeName'], 'unitTypeV2', { userId: body.tokenData.userid });
+      const payload = await DB.selectCol(['id', 'unitTypeName', 'ownerId'],
+        'unitTypeV2', { userId: body.tokenData.userid });
       const data = [];
       each(
         payload,
         (item, next) => {
           const obj = {};
           obj.id = item.id;
+          obj.ownerId = item.ownerId;
           const [label] = item.unitTypeName
             .filter((e) => e.lang === 'en')
             .map((name) => name.name);

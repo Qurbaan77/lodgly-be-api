@@ -2966,7 +2966,7 @@ const usersRouter = () => {
 
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
-        // await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
+        await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
           console.log(items);
           await DB.update('unitTypeV2', { ownerId: body.id }, { id: items.id });
