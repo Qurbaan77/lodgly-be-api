@@ -283,7 +283,14 @@ const reservationRouter = () => {
       } else {
         id = body.affiliateId;
       }
-      const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'], 'unitTypeV2', { userId: id });
+      let unitType;
+      if (!body.unitTypeId) {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id });
+      } else {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id, id: body.unitTypeId });
+      }
       each(
         unitType,
         async (items, next) => {
@@ -351,7 +358,6 @@ const reservationRouter = () => {
           );
           customNormalRate.forEach((ele) => {
             const daysBetween = enumerateDaysBetweenDates(moment(new Date(ele.startDate)), moment(new Date(ele.endDate)));
-            console.log('daysBetween', daysBetween);
             daysBetween.forEach((el) => {
               const dateInmiliseconds = +new Date(el);
               const ratesData = {
@@ -364,11 +370,9 @@ const reservationRouter = () => {
               customRate.push(ratesData);
             });
           });
-          console.log('customRate', customRate);
           const customRates = {
             data: customRate,
           };
-          console.log('customNormalRate', customRates);
           itemsCopy.rates = customizeRates;
           itemsCopy.normalRates = customizeNormalRates;
           itemsCopy.customRates = customRates;
