@@ -19,7 +19,7 @@ const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
 const { frontendUrl, ownerPanelUrl } = require('../functions/frontend');
-const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
+const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 const sentryCapture = require('../../config/sentryCapture');
 
@@ -2905,6 +2905,7 @@ const usersRouter = () => {
       let encryptedPassword;
       if (body.access) {
         const password = randomstring.generate(7);
+        console.log(password);
         const hashedPassword = await hashPassword(password);
         const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
         verificationhex = hash;
@@ -3363,7 +3364,7 @@ const usersRouter = () => {
     }
   });
   // API to get user info
-  router.post('/getuserDetails', getAuthCheck, async (req, res) => {
+  router.post('/getuserDetails', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
       const userData = await DB.selectCol(['fullname', 'email'], 'users', {
