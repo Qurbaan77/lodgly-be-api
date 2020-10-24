@@ -8,6 +8,7 @@ const AWS = require('aws-sdk');
 const bluebird = require('bluebird');
 // const each = require('sync-each');
 // const multiparty = require('multiparty');
+const moment = require('moment');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const sentryCapture = require('../../config/sentryCapture');
@@ -236,13 +237,15 @@ const propertyRouter = () => {
   router.get('/getPropDetail', userAuthCheck, async (req, res) => {
     try {
       const { body } = req;
-      const payload = await DB.selectCol(['id', 'unitTypeName'], 'unitTypeV2', { userId: body.tokenData.userid });
+      const payload = await DB.selectCol(['id', 'unitTypeName', 'ownerId'],
+        'unitTypeV2', { userId: body.tokenData.userid });
       const data = [];
       each(
         payload,
         (item, next) => {
           const obj = {};
           obj.id = item.id;
+          obj.ownerId = item.ownerId;
           const [label] = item.unitTypeName
             .filter((e) => e.lang === 'en')
             .map((name) => name.name);
@@ -935,6 +938,39 @@ const propertyRouter = () => {
           msg: 'No Unittype Saved',
         });
       }
+    } catch (e) {
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for add CustomRates of Property
+  router.post('/addCustomRate', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let startDateTime;
+      let endDateTime;
+      if (body.groupname) {
+        startDateTime = new Date(body.groupname[0]);
+        endDateTime = moment(new Date(body.groupname[0])).add(1, 'd').format('YYYY-MM-DD');
+      }
+      const customRateData = {
+        unitTypeId: body.unitTypeId,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        rateType: body.rateType,
+        price_per_night: body.rate,
+        minimum_stay: body.stay,
+      };
+      console.log('customRateDate', customRateData);
+      await DB.insert('customRate', customRateData);
+      res.send({
+        code: 200,
+      });
     } catch (e) {
       sentryCapture(e);
       res.send({

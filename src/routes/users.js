@@ -2967,7 +2967,7 @@ const usersRouter = () => {
 
       if (body.id) {
         await DB.update('owner', ownerData, { id: body.id });
-        // await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
+        await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
           console.log(items);
           await DB.update('unitTypeV2', { ownerId: body.id }, { id: items.id });
@@ -4116,8 +4116,8 @@ const usersRouter = () => {
             const itemsCopy = items;
             const reservationData = {
               userId: id,
-              propertyId: body.propertyId,
-              unitId: items,
+              unitTypeId: body.propertyId,
+              bookedUnit: items,
               startDate: startDateTime,
               endDate: endDateTime,
               acknowledge: body.acknowledge,
@@ -4130,7 +4130,7 @@ const usersRouter = () => {
               discount: body.discount,
               totalAmount: body.totalAmount,
             };
-            const saveData = await DB.insert('reservation', reservationData);
+            const saveData = await DB.insert('bookingV2', reservationData);
             const Data = {
               userId: id,
               reservationId: saveData,
@@ -4139,7 +4139,7 @@ const usersRouter = () => {
               email: body.email,
               phone: body.phone,
             };
-            await DB.insert('guest', Data);
+            await DB.insert('guestV2', Data);
             next();
             return itemsCopy;
           },

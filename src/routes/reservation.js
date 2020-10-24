@@ -283,17 +283,23 @@ const reservationRouter = () => {
       } else {
         id = body.affiliateId;
       }
-      const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'], 'unitTypeV2', { userId: id });
+      let unitType;
+      if (!body.unitTypeId) {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id });
+      } else {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id, id: body.unitTypeId });
+      }
       each(
         unitType,
         async (items, next) => {
           const randomColor = ['#D5F8BA', '#B4FDC2', '#D2F2F3', '#BBF2E5', '#94EDD3'];
           const random = Math.floor(Math.random() * randomColor.length);
-          console.log('Random', random);
-          console.log('Random Color', randomColor[random]);
           const units = [];
           const rates = [];
           const normalRates = [];
+          const customRate = [];
           const itemsCopy = items;
 
           const normalRatesData = await DB.selectCol(
@@ -342,8 +348,34 @@ const reservationRouter = () => {
           const customizeRates = {
             data: rates,
           };
+
+          const customNormalRate = await DB.selectCol(
+            ['id', 'unitTypeId', 'startDate', 'endDate', 'price_per_night', 'minimum_stay'],
+            'customRate',
+            {
+              unitTypeId: items.id,
+            },
+          );
+          customNormalRate.forEach((ele) => {
+            const daysBetween = enumerateDaysBetweenDates(moment(new Date(ele.startDate)), moment(new Date(ele.endDate)));
+            daysBetween.forEach((el) => {
+              const dateInmiliseconds = +new Date(el);
+              const ratesData = {
+                id: ele.id,
+                unitTypeId: ele.unitTypeId,
+                date: dateInmiliseconds,
+                pricePerNight: ele.price_per_night,
+                minStay: ele.minimum_stay,
+              };
+              customRate.push(ratesData);
+            });
+          });
+          const customRates = {
+            data: customRate,
+          };
           itemsCopy.rates = customizeRates;
           itemsCopy.normalRates = customizeNormalRates;
+          itemsCopy.customRates = customRates;
           const reservation = await DB.selectCol(
             ['id', 'startDate', 'endDate', 'totalAmount', 'bookedUnit', 'guest'],
             'bookingV2',
