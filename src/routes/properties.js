@@ -95,6 +95,7 @@ const propertyRouter = () => {
   router.post('/deleteProperty', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     await DB.remove('propertyV2', { id: body.id });
+    await DB.remove('unitTypeV2', { id: body.id });
     res.send({
       code: 200,
     });
@@ -130,8 +131,10 @@ const propertyRouter = () => {
         }
         Object.keys(itemsCopy).forEach((key) => {
           if (!items[key]) {
+            console.log('This is empty', key);
             if (key !== 'ownerId' && key !== 'isChannelManagerActivated' && key !== 'airbnb' && key !== 'booking'
-            && key !== 'expedia' && key !== 'unitsData' && key !== 'direction' && key !== 'website') {
+            && key !== 'expedia' && key !== 'unitsData' && key !== 'direction' && key !== 'website'
+            && key !== 'customAddress') {
               itemsCopy.isCompleted = false;
             }
           }
