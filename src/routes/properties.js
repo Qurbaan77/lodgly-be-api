@@ -71,24 +71,32 @@ const propertyRouter = () => {
       userId: id,
       propertyName: body.name,
     };
-    const savedData = await DB.insert('propertyV2', propertyData);
-    const jsonName = JSON.stringify([{ lang: 'en', name: body.name }]);
-    const langJson = JSON.stringify([{ en: 'English' }]);
-    const descriptionJson = JSON.stringify([]);
-    const unitTypeData = {
-      userId: id,
-      propertyId: savedData,
-      unitTypeName: jsonName,
-      languages: langJson,
-      description: descriptionJson,
-    };
-    // creating unit type with same name
-    const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
-    res.send({
-      code: 200,
-      savedData,
-      unitTypeV2Id,
-    });
+    const data = await DB.select('propertyV2', { propertyName: body.name });
+    if (data && data.length > 0) {
+      res.send({
+        code: 440,
+        msg: 'This property already exist',
+      });
+    } else {
+      const savedData = await DB.insert('propertyV2', propertyData);
+      const jsonName = JSON.stringify([{ lang: 'en', name: body.name }]);
+      const langJson = JSON.stringify([{ en: 'English' }]);
+      const descriptionJson = JSON.stringify([]);
+      const unitTypeData = {
+        userId: id,
+        propertyId: savedData,
+        unitTypeName: jsonName,
+        languages: langJson,
+        description: descriptionJson,
+      };
+      // creating unit type with same name
+      const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
+      res.send({
+        code: 200,
+        savedData,
+        unitTypeV2Id,
+      });
+    }
   });
 
   // post request to delete property
@@ -979,6 +987,32 @@ const propertyRouter = () => {
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API for getting minimum stay from rates table
+  router.post('/getMinStay', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      console.log(body);
+      const data = await DB.selectCol(['minimum_stay'], 'ratesV2', { unitTypeId: body.unitTypeV2Id });
+      if (data && data.length > 0) {
+        const [{ minimum_stay: minimumStay }] = data;
+        res.send({
+          code: 200,
+          minimumStay,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'rates not set yet',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
       });
     }
   });
