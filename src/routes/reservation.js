@@ -283,14 +283,16 @@ const reservationRouter = () => {
       } else {
         id = body.affiliateId;
       }
-      let unitType;
-      if (!body.unitTypeId) {
-        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
-          'unitTypeV2', { userId: id });
-      } else {
-        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
-          'unitTypeV2', { userId: id, id: body.unitTypeId });
-      }
+      const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+        'unitTypeV2', { userId: id });
+      // let unitType;
+      // if (!body.unitTypeId) {
+      //   unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+      //     'unitTypeV2', { userId: id });
+      // } else {
+      //   unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+      //     'unitTypeV2', { userId: id, id: body.unitTypeId });
+      // }
       each(
         unitType,
         async (items, next) => {

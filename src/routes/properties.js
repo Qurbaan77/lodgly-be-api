@@ -925,19 +925,22 @@ const propertyRouter = () => {
     try {
       const { ...body } = req.body;
       const unittypeData = await DB.select('unitTypeV2', { propertyId: body.propertyId });
-      const unitData = await DB.select('unitV2', { unittypeId: body.propertyId });
-      if (unittypeData) {
-        res.send({
-          code: 200,
-          unittypeData,
-          unitData,
-        });
-      } else {
-        res.send({
-          code: 401,
-          msg: 'No Unittype Saved',
-        });
-      }
+      each(
+        unittypeData,
+        async (items, next) => {
+          const itemsCopy = items;
+          const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
+          itemsCopy.unitDataV2 = unitDataV2;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            unittypeData,
+          });
+        },
+      );
     } catch (e) {
       sentryCapture(e);
       res.send({
