@@ -203,19 +203,10 @@ const ownerRouter = () => {
           sgMail.send(msg, (error, result) => {
             if (error) {
               console.log(error);
-              res.send({
-                code: 400,
-                msg: 'Some has error occured!',
-              });
             } else {
               console.log(result);
-              res.send({
-                code: 200,
-                msg: 'Data saved successfully, please verify your email address!',
-              });
             }
           });
-
           res.send({
             code: 200,
             msg: 'Please check your email for forget password link!',
