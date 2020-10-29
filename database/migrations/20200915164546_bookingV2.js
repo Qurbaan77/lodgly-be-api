@@ -7,8 +7,8 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.integer('bookedUnit');
   table.string('propertyName');
   table.string('unitName');
-  table.date('startDate');
-  table.date('endDate');
+  table.timestamp('startDate');
+  table.timestamp('endDate');
   table.date('optionalDate');
   table.string('acknowledge').defaultTo('confirmed');
   table.string('channel');

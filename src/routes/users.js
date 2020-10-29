@@ -4099,7 +4099,10 @@ const usersRouter = () => {
   router.post('/groupReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       let id;
+      let guest;
+      let adult;
       const startDateTime = new Date(body.groupname[0]);
       const endDateTime = new Date(body.groupname[1]);
 
@@ -4109,47 +4112,58 @@ const usersRouter = () => {
         id = body.affiliateId;
       }
 
-      body.unitType.forEach((ele) => {
-        each(
-          ele.bookedUnits,
-          async (items, next) => {
-            const itemsCopy = items;
-            const reservationData = {
-              userId: id,
-              unitTypeId: body.propertyId,
-              bookedUnit: items,
-              startDate: startDateTime,
-              endDate: endDateTime,
-              acknowledge: body.acknowledge,
-              channel: body.channel,
-              commission: body.commissionPercentage,
-              notes1: body.notes1,
-              perNight: ele.perNight,
-              night: body.night,
-              amt: ele.amt,
-              discount: body.discount,
-              totalAmount: body.totalAmount,
-            };
-            const saveData = await DB.insert('bookingV2', reservationData);
-            const Data = {
-              userId: id,
-              reservationId: saveData,
-              fullname: body.fullName,
-              country: body.country,
-              email: body.email,
-              phone: body.phone,
-            };
-            await DB.insert('guestV2', Data);
-            next();
-            return itemsCopy;
-          },
-          () => {},
-        );
-      });
-      res.send({
-        code: 200,
-        msg: 'Group Reservation save successfully!',
-      });
+      each(
+        body.unitType,
+        async (items, next) => {
+          const itemsCopy = items;
+          const unitData = await DB.selectCol(['unitName'], 'unitV2', { id: items });
+          if (body.fullName) {
+            guest = body.fullName;
+            adult = 1;
+          } else {
+            guest = 'No Guest';
+            adult = 0;
+          }
+          const reservationData = {
+            userId: id,
+            unitTypeId: body.propertyId,
+            propertyName: body.propertyName,
+            bookedUnit: items,
+            unitName: unitData[0].unitName,
+            startDate: startDateTime,
+            endDate: endDateTime,
+            acknowledge: body.acknowledge,
+            channel: body.channel,
+            commission: body.commissionPercentage,
+            adult,
+            guest,
+            notes1: body.notes1,
+            perNight: body.perNight,
+            night: body.night,
+            discount: body.discount,
+            accomodation: parseFloat(body.totalAmount / body.unitType.length).toFixed(2),
+            totalAmount: parseFloat(body.totalAmount / body.unitType.length).toFixed(2),
+          };
+          const saveData = await DB.insert('bookingV2', reservationData);
+          const Data = {
+            userId: id,
+            bookingId: saveData,
+            fullname: body.fullName,
+            country: body.country,
+            email: body.email,
+            phone: body.phone,
+          };
+          await DB.insert('guestV2', Data);
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            msg: 'Group Reservation save successfully!',
+          });
+        },
+      );
     } catch (e) {
       sentryCapture(e);
       console.log(e);
