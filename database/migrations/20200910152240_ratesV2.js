@@ -46,7 +46,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.boolean('checkOut_on_sunday');
   table.string('tax_status');
   table.integer('tax');
-  table.string('notes');
+  table.json('notes');
   table.foreign('unitTypeId').references('unitTypeV2.id').onUpdate('CASCADE').onDelete('CASCADE');
   table.timestamp('created_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP'));
   table.timestamp('updated_at').notNull().defaultTo(knex.raw('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'));
