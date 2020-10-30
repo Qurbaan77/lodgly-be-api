@@ -279,6 +279,16 @@ const propertyRouter = () => {
   // API for update unittype location
   router.post('/updateLocation', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    console.log(body);
+    const directionToSave = { lang: body.direction.lang, direction: body.direction.directionText };
+    let newDirection = [];
+    const responseData = await DB.selectCol(['direction'], 'unitTypeV2', {
+      id: body.unitTypeV2Id,
+    });
+    if (responseData && responseData[0].direction !== null) {
+      newDirection = responseData[0].direction.filter((el) => el.lang !== body.direction.lang);
+    }
+    newDirection.push(directionToSave);
     const data = {
       address: JSON.stringify(body.location),
       country: JSON.stringify(body.country),
@@ -287,11 +297,12 @@ const propertyRouter = () => {
       zip: body.zip,
       lattitude: body.latLng.lat,
       longitude: body.latLng.lng,
-      direction: body.direction,
+      direction: JSON.stringify(newDirection),
       distance: body.distance,
       distanceIn: body.distanceIn,
       customAddress: body.customAddress,
     };
+
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     res.send({
       code: 200,
@@ -505,6 +516,13 @@ const propertyRouter = () => {
     try {
       const { ...body } = req.body;
       console.log(body);
+      const notesToSave = { lang: body.notes.lang, note: body.notes.note };
+      let newNotes = [];
+      const responseData = await DB.selectCol(['notes'], 'ratesV2', { unitTypeId: body.unitTypeId });
+      if (responseData && responseData.length > 0) {
+        newNotes = responseData[0].notes.filter((el) => el.lang !== body.notes.lang);
+      }
+      newNotes.push(notesToSave);
       const data = await DB.select('ratesV2', { unitTypeId: body.unitTypeId });
       const rateData = {
         unitTypeId: body.unitTypeId,
@@ -550,7 +568,7 @@ const propertyRouter = () => {
         checkOut_on_sunday: body.checkOut_on_sunday,
         tax_status: body.tax,
         tax: body.taxPer,
-        notes: body.notes,
+        notes: JSON.stringify(newNotes),
       };
       if (data.length > 0) {
         console.log(data[0].id);
@@ -873,6 +891,139 @@ const propertyRouter = () => {
       res.status(400).send({
         msg: 'Internal Server Error',
       });
+    }
+  });
+
+  // save rate's notes translation
+  router.post('/saveNotesTranslation', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      let newNotes = [];
+      const responseData = await DB.selectCol(['notes'], 'ratesV2', {
+        unitTypeId: body.propertyId,
+      });
+      console.log(responseData);
+      if (responseData && responseData.length && responseData[0].notes !== null) {
+        newNotes = responseData[0].notes.filter((el) => el.lang !== body.notesObject.lang);
+      }
+      newNotes.push(body.directionObject);
+      const savePayload = {
+        notes: JSON.stringify(newNotes),
+      };
+      console.log(savePayload);
+      const saveResponse = await DB.update('ratesV2', savePayload, { unitTypeId: body.propertyId });
+      console.log(saveResponse);
+      if (saveResponse) {
+        res.send({
+          code: 200,
+          directionText: body.notesObject,
+        });
+      } else {
+        res.send({
+          code: 402,
+          msg: 'Error Saving Translation',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // save direction translation
+  router.post('/saveDirectionTranslation', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      let directionText = [];
+      const responseData = await DB.selectCol(['direction'], 'unitTypeV2', {
+        propertyId: body.propertyId,
+      });
+      console.log(responseData);
+      if (responseData && responseData[0].direction !== null) {
+        directionText = responseData[0].direction.filter((el) => el.lang !== body.directionObject.lang);
+      }
+      directionText.push(body.directionObject);
+      const savePayload = {
+        direction: JSON.stringify(directionText),
+      };
+      const saveResponse = await DB.update('unitTypeV2', savePayload, { propertyId: body.propertyId });
+      if (saveResponse) {
+        res.send({
+          code: 200,
+          directionText: body.directionObject,
+        });
+      } else {
+        res.send({
+          code: 402,
+          msg: 'Error Saving Translation',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // fetch translated rate's note text
+  router.get('/fetchTranslatedNotes/:lang/:propertyId', async (req, res) => {
+    try {
+      const { lang, propertyId } = req.params;
+      console.log(req.params);
+      let filteredNotes = [];
+      const responseData = await DB.selectCol(['notes'], 'ratesV2', {
+        unitTypeId: propertyId,
+      });
+      if (responseData && responseData[0].notes !== null) {
+        filteredNotes = responseData[0].notes.filter((el) => el.lang === lang);
+      }
+      if (filteredNotes && filteredNotes.length > 0) {
+        res.send({
+          code: 200,
+          filteredNotes,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no notes for the chosen language',
+        });
+      }
+    } catch (error) {
+      console.log('Error', error);
+    }
+  });
+
+  // fetch translated direction text
+  router.get('/fetchTranslatedDirection/:lang/:propertyId', async (req, res) => {
+    try {
+      const { lang, propertyId } = req.params;
+      let filteredDirection = [];
+      const responseData = await DB.selectCol(['direction'], 'unitTypeV2', {
+        propertyId,
+      });
+      if (responseData && responseData[0].direction !== null) {
+        filteredDirection = responseData[0].direction.filter((el) => el.lang === lang);
+      }
+      if (filteredDirection && filteredDirection.length > 0) {
+        res.send({
+          code: 200,
+          filteredDirection,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no direction for the chosen language',
+        });
+      }
+    } catch (error) {
+      console.log('Error', error);
     }
   });
 

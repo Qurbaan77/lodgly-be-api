@@ -24,7 +24,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.string('zip');
   table.decimal('lattitude').defaultTo(0);
   table.decimal('longitude').defaultTo(0);
-  table.string('direction');
+  table.json('direction');
   table.string('distanceIn').defaultTo('km');
   table.json('distance');
   table.json('languages');

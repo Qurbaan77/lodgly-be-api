@@ -747,7 +747,7 @@ const usersRouter = () => {
       const [{ trialEnded, created_at: createdAt }] = user;
       let diff;
       if (trialEnded) {
-        diff = Math.abs(createdAt - trialEnded);
+        diff = Math.abs(new Date() - trialEnded);
       } else {
         diff = Math.abs(new Date() - createdAt);
       }
@@ -758,7 +758,7 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      const remainingDays = config.get('TRIAL_DAYS') - totalDays;
+      const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
       const [{ isOnTrial }] = user;
       if (remainingDays <= 0) {
         if (user && user[0].trialEnded) {
@@ -4044,7 +4044,8 @@ const usersRouter = () => {
       m %= 60;
       const totalDays = Math.floor(h / 24);
       h %= 24;
-      const remainingDays = 7 - totalDays;
+      console.log('total days', totalDays);
+      const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
       userSubsDetails[0].days = remainingDays;
       res.send({
         code: 200,
