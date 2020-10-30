@@ -49,7 +49,7 @@ const bookingRouter = () => {
         notes2: body.notes2,
 
         perNight: body.perNight,
-        night: body.nights,
+        night: body.night,
         amt: body.amt,
         discountType: body.discountType,
         discount: body.discount,
@@ -58,6 +58,7 @@ const bookingRouter = () => {
         noOfservices: body.noOfservices,
         totalAmount: body.totalAmount,
         deposit: body.deposit,
+        depositType: body.depositType,
         currency: body.currency,
       };
       const Id = await DB.insert('bookingV2', bookingData);
@@ -422,11 +423,43 @@ const bookingRouter = () => {
   router.post('/changeBookingTimeUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('body', body);
+      const data = await DB.selectCol([
+        'perNight',
+        'discountType',
+        'discount',
+        'deposit',
+        'depositType',
+        'currency',
+      ],
+      'bookingV2', { id: body.id });
+      const bookedServices = await DB.selectCol([
+        'serviceAmount',
+      ], 'bookingServiceV2', { bookingId: body.id });
+      let sum = 0;
+      let accomodation;
+      let totalAmount = 0;
+      const nightsAmount = body.night * data[0].perNight;
+      if (data[0].discountType === data[0].currency) {
+        accomodation = nightsAmount - data[0].discount;
+      } else {
+        accomodation = nightsAmount - ((nightsAmount * data[0].discount) / 100);
+      }
+      bookedServices.forEach((el) => {
+        sum += el.serviceAmount;
+      });
+      totalAmount = accomodation + sum;
+      // if (data[0].depositType === '%') {
+      //   totalAmount -= ((totalAmount * data[0].deposit) / 100);
+      // } else {
+      //   totalAmount -= data[0].deposit;
+      // }
       const bookingData = {
         startDate: new Date(body.time.start),
         endDate: new Date(body.time.end),
         bookedUnit: parseInt(body.bookedUnit, 10),
+        night: body.night,
+        accomodation,
+        totalAmount,
       };
       await DB.update('bookingV2', bookingData, { id: body.id });
       res.send({
