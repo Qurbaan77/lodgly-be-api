@@ -2230,7 +2230,7 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       pdf.create(invoiceTemplate(body), { timeout: '100000' }).toFile(
-        `/invoicepdf/${body.clientName}.pdf`,
+        `${__dirname}/${body.clientName}.pdf`,
         async (err, success) => {
           if (err) {
             console.log(err);
