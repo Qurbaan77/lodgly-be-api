@@ -71,6 +71,7 @@ const bookingRouter = () => {
           const Data = {
             userId: id,
             bookingId: Id,
+            unitTypeId: body.property,
             fullname: el.fullName,
             country: el.country,
             email: el.email,

@@ -62,26 +62,26 @@ max-width: 700px;display: block;">
 <table style="width: 100%;color: #666">
 <tr>
 <td>
-<span style="color: #FAB52C; font-size: 10px;">
+<span style="color: #FAB52C; font-size: 12px;">
 ${`${propertyName}`}</span>
 </td>
-<td align="right" style="font-size: 8px;color: rgba(62, 63, 66, 0.5);">
+<td align="right" style="font-size: 9px;color: rgba(62, 63, 66, 0.5);">
 ${`${phone || 'N/A'}`}
 </td>
 </tr>
 
 <tr>
-<td style="font-size: 10px;line-height: 20px;color: rgba(62, 63, 66, 0.5);"></td>
-<td align="right" style="font-size: 12px;line-height: 20px;color: rgba(62, 63, 66, 0.5);">
+<td style="font-size: 9px;color: rgba(62, 63, 66, 0.5);"></td>
+<td align="right" style="font-size:9px;color: rgba(62, 63, 66, 0.5);">
 ${`${userEmail || 'N/A'}`}
 </td>
 </tr>
 
 <tr>
-<td style="font-size: 8px;color: rgba(62, 63, 66, 0.5);">
+<td style="font-size: 9px;color: rgba(62, 63, 66, 0.5);">
 ${`${propertyAddress || 'N/A'}`}
 </td>
-<td align="right" style="font-size: 8px;color: rgba(62, 63, 66, 0.5);">
+<td align="right" style="font-size: 9px;color: rgba(62, 63, 66, 0.5);">
 ${`${website || 'N/A'}`}
 </td>
 </tr>
@@ -116,22 +116,22 @@ max-width: 700px;display: block;">
 <table style="width: 100%;color: #666">
 <tr>
 <td style="padding: 0px 10px;">
-<span style="color: rgba(62, 63, 66, 0.5);font-size: 10px;">
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">
 DATE/TIME</span>
 </td>
 <td align="right" style="padding: 0px 10px;">
-<span style="color: #3E3F42;font-size: 10px;">
+<span style="color: #3E3F42;font-size: 9px;">
 ${`${date || 'N/A'}`} /${`${time || 'N/A'}`}
 </span>
 </td>
 
 <td style="padding: 0px 10px;">
 <span style="color: rgba(62, 63, 66, 0.5);
-font-size: 10px;">FULL
+font-size: 9px;">FULL
 NAME</span>
 </td>
-<td align="right" style="padding: 0px 10px;">
-<span style="color: #3E3F42;font-size: 10px;">${`${clientName}`}</span>
+<td align="right" style="padding: 0px 9px;">
+<span style="color: #3E3F42;font-size: 9px;">${`${clientName}`}</span>
 </td>
 </tr>
 
@@ -139,18 +139,18 @@ NAME</span>
 <tr>
 <td style="padding: 0px 10px;">
 <span style="color: rgba(62, 63, 66, 0.5);
-font-size: 10px;">DELIVERY
+font-size: 9px;">DELIVERY
 DATE</span>
 </td>
 <td align="right" style="padding: 0px 10px;">
-<span style="color: #3E3F42;font-size: 10px;">${`${deliveryDate}`}</span>
+<span style="color: #3E3F42;font-size: 9px;">${`${deliveryDate}`}</span>
 </td>
 
 <td style="padding: 0px 10px;">
 <span style="color: rgba(62, 63, 66, 0.5);
-font-size: 10px;">EMAIL</span>
+font-size: 9px;">EMAIL</span>
 </td>
-<td align="right" style="padding: 0px 10px;">
+<td align="right" style="padding: 0px 9px;">
 <span style="color: #3E3F42;font-size: 10px;">${`${email}`}</span>
 </td>
 </tr>
@@ -159,39 +159,39 @@ font-size: 10px;">EMAIL</span>
 <tr>
 <td style="padding: 0px 10px;">
 <span style="color: rgba(62, 63, 66, 0.5);
-font-size: 10px;">
+font-size: 9px;">
 DATE
 </span>
 </td>
 <td align="right" style="padding: 0px 10px;">
-<span style="color: #3E3F42;font-size: 10px;">${`${dueDate}`}</span>
+<span style="color: #3E3F42;font-size: 9px;">${`${dueDate}`}</span>
 </td>
 
 <td style="padding: 0px 10px;">
-<span style="color: rgba(62, 63, 66, 0.5);font-size: 10px;">
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">
 ADDRESS</span>
 </td>
 <td align="right" style="padding: 0px 10px;">
-<span style="color: #3E3F42;font-size: 10px;">${`${address || 'N/A'}`}</span>
+<span style="color: #3E3F42;font-size: 9px;">${`${address || 'N/A'}`}</span>
 </td>
 </tr>
 
 
 <tr>
 <td style="padding: 0px 10px;">
-<span style="color: rgba(62, 63, 66, 0.5);font-size: 10px;">PAYMENT
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">PAYMENT
 TYPE</span>
 </td>
-<td align="right" style="padding: 0px 10px;">
+<td align="right" style="padding: 0px 9px;">
 <span style="color: #3E3F42;font-size: 10px;">${`${paymentType || 'N/A'}`}</span>
 </td>
 
 <td style="padding: 0px 10px;">
-<span style="color: rgba(62, 63, 66, 0.5);font-size: 10px;">VAT
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">VAT
 ID</span>
 </td>
 <td align="right" style="padding: 0px 10px;">
-<span style="color: #3E3F42;font-size: 10px;">
+<span style="color: #3E3F42;font-size: 9px;">
 ${`${vat || 'N/A'}`}</span>
 </td>
 </tr>
@@ -207,24 +207,24 @@ padding-top: 60px; max-width: 700px;display: block; ">
 <thead>
 <tr>
 <th style="padding:0px 5px; color: rgba(62, 63, 66, 0.5);
-font-size: 10px;text-align: left;
-border-bottom: 1px solid rgba(62, 63, 66, 0.5);">ITEM DESCRIPTION</th>
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">ITEM DESCRIPTION</th>
 <th style="padding:0px 5px; color: rgba(62, 63, 66, 0.5);
-font-size: 10px;text-align: left;
-border-bottom: 1px solid rgba(62, 63, 66, 0.5);">QTY</th>
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">QTY</th>
 <th style="padding:0px 5px; color: rgba(62, 63, 66, 0.5);
-font-size: 10px;text-align: left;
-border-bottom: 1px solid rgba(62, 63, 66, 0.5);">PRICE</th>
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">PRICE</th>
 <th style="padding:0px 5px; color: rgba(62, 63, 66, 0.5);
-font-size: 10px;text-align: left;
-border-bottom: 1px solid rgba(62, 63, 66, 0.5);">AMOUNT</th>
+font-size:9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">AMOUNT</th>
 
 <th style="padding:0px 5px; color: rgba(62, 63, 66, 0.5);
-font-size: 10px;text-align: left;
-border-bottom: 1px solid rgba(62, 63, 66, 0.5);">DISCOUNT</th>
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">DISCOUNT</th>
 <th style="padding:0px 5px; color: rgba(62, 63, 66, 0.5);
-font-size: 10px;text-align: left;
-border-bottom: 1px solid rgba(62, 63, 66, 0.5);">TOTAL</th>
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">TOTAL</th>
 </tr>
 </thead>
 <tbody>
@@ -234,29 +234,29 @@ ${itemData.map((el) => {
     return `
 <tr>
 <td style="padding:0px 5px;">
-<span style="color: #3E3F42; font-size: 10px;">
+<span style="color: #3E3F42; font-size: 9px;">
 ${`${el.itemDescription}`}</span>
 </td>
 <td style="padding:0px 5px;">
-<span style="color: #3E3F42; font-size: 10px;">
+<span style="color: #3E3F42; font-size: 9px;">
 ${`${el.itemQuantity}`}</span>
 </td>
 <td style="padding:0px 5px;">
-<span style="color: #3E3F42; font-size: 10px;">
+<span style="color: #3E3F42; font-size: 9px;">
 ${`${el.itemPrice}`} ${`${currency}`}</span>
 </td>
 <td style="padding:0px 5px;">
-<span style="color: #3E3F42; font-size: 10px;">
+<span style="color: #3E3F42; font-size: 9px;">
 ${`${el.itemAmount}`} ${`${currency}`}</span>
 </td>
 
 
 <td style="padding:0px 5px;">
-<span style="color: #3E3F42; font-size: 10px;">
+<span style="color: #3E3F42; font-size: 9px;">
 ${`${el.itemDiscount}`} ${`${currency}`}</span>
 </td>
 <td style="padding:0px 5px;">
-<span style="color: #3E3F42; font-size: 10px;">
+<span style="color: #3E3F42; font-size: 9px;">
 ${`${el.itemTotal}`} ${`${currency}`}</span>
 </td>
 </tr>
@@ -271,8 +271,7 @@ padding-top: 30px; max-width: 700px;display: block; ">
 <table style="width: 100%;color: #666;">
 <tr>
 <td align="right">
-<span style="color: #3E3F42; font-size: 15px;
-line-height: 15px; font-weight: 500">
+<span style="color: #3E3F42; font-size: 14px; font-weight: 600">
 Total: ${`${total}`}
 ${`${currency}`}</span>
 </td>
@@ -296,7 +295,7 @@ ${`${currency}`}</span>
 <td class="header container" bgcolor="#ffffff" style="margin: 0 auto!important;
 padding: 0;display: block!important;max-width: 700px!important;clear: both!important;margin-top: 50px;">
 
-<div class="content" style="margin: 0 auto;padding: 40px 40px;max-width: 700px;display: block;">
+<div class="content" style="margin: 0 auto;padding: 80px 40px;max-width: 700px;display: block;">
 <table style="margin: 0;padding: 0;width: 100%;">
 <tr style="margin: 0;padding: 0;">
 <td align="left" style="margin: 0;padding: 0;">
