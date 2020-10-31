@@ -1855,6 +1855,7 @@ const usersRouter = () => {
         userId: id,
         bookingId: body.bookingId,
         reservationId: body.reservationId,
+        unitTypeId: body.unitTypeId,
         fullName: body.fullName,
         country: body.country,
         email: body.email,
@@ -4474,10 +4475,33 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const guestData = await DB.select('guestV2', { userId: body.tokenData.userid });
-      res.send({
-        code: 200,
+      each(
         guestData,
-      });
+        async (item, next) => {
+          const itemsCopy = item;
+          const bookingData = await DB.selectCol(['totalAmount', 'currency', 'night', 'noOfGuest'],
+            'bookingV2', { id: item.bookingId });
+          const [{
+            totalAmount, currency, night, noOfGuest,
+          }] = bookingData;
+          itemsCopy.spent = totalAmount;
+          itemsCopy.currency = currency;
+          itemsCopy.nights = night;
+          itemsCopy.guests = noOfGuest;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            guestData,
+          });
+        },
+      );
+      // res.send({
+      //   code: 200,
+      //   guestData,
+      // });
     } catch (e) {
       sentryCapture(e);
       console.log(e);

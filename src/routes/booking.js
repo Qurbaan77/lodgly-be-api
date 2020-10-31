@@ -47,7 +47,7 @@ const bookingRouter = () => {
         children2: body.children2,
         notes1: body.notes1,
         notes2: body.notes2,
-
+        noOfGuest: body.noOfGuest,
         perNight: body.perNight,
         night: body.night,
         amt: body.amt,
