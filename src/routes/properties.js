@@ -981,8 +981,10 @@ const propertyRouter = () => {
       const responseData = await DB.selectCol(['notes'], 'ratesV2', {
         unitTypeId: propertyId,
       });
-      if (responseData && responseData[0].notes !== null) {
-        filteredNotes = responseData[0].notes.filter((el) => el.lang === lang);
+      if (responseData.length > 0) {
+        if (responseData[0].notes !== null) {
+          filteredNotes = responseData[0].notes.filter((el) => el.lang === lang);
+        }
       }
       if (filteredNotes && filteredNotes.length > 0) {
         res.send({
