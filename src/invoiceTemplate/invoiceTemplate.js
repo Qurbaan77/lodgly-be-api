@@ -98,11 +98,11 @@ max-width: 700px;display: block;">
 <table style="width: 100%;color: #666; border-bottom: 1px solid #333;">
 <tr>
 <td>
-<span style="color: #3E3F42; font-size: 10px;font-weight: 500">
+<span style="color: #3E3F42; font-size: 10px;font-weight: 600">
 ${`${label}`}</span>
 </td>
 <td align="right">
-<span style="color: #3E3F42; font-size: 10px;font-weight: 500">
+<span style="color: #3E3F42; font-size: 10px;font-weight: 600">
 CLIENT</span>
 </td>
 </tr>
@@ -119,7 +119,7 @@ max-width: 700px;display: block;">
 <span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">
 DATE/TIME</span>
 </td>
-<td align="right">
+<td align="right" style="padding-right: 100px;">
 <span style="color: #3E3F42;font-size: 9px;">
 ${`${date || 'N/A'}`} /${`${time || 'N/A'}`}
 </span>
@@ -142,7 +142,7 @@ NAME</span>
 font-size: 9px;">DELIVERY
 DATE</span>
 </td>
-<td align="right">
+<td align="right" style="padding-right: 100px;">
 <span style="color: #3E3F42;font-size: 9px;">${`${deliveryDate}`}</span>
 </td>
 
@@ -163,7 +163,7 @@ font-size: 9px;">
 DATE
 </span>
 </td>
-<td align="right">
+<td align="right" style="padding-right: 100px;">
 <span style="color: #3E3F42;font-size: 9px;">${`${dueDate}`}</span>
 </td>
 
@@ -171,7 +171,7 @@ DATE
 <span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">
 ADDRESS</span>
 </td>
-<td align="right">
+<td align="right" >
 <span style="color: #3E3F42;font-size: 9px;">${`${address || 'N/A'}`}</span>
 </td>
 </tr>
@@ -182,7 +182,7 @@ ADDRESS</span>
 <span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">PAYMENT
 TYPE</span>
 </td>
-<td align="right" style="padding: 0px 9px;">
+<td align="right" style="padding-right: 100px;">
 <span style="color: #3E3F42;font-size: 10px;">${`${paymentType || 'N/A'}`}</span>
 </td>
 
@@ -271,7 +271,7 @@ max-width: 700px;display: block;">
 <table style="width: 100%;color: #666;">
 <tr>
 <td align="right">
-<span style="color: #3E3F42; font-size: 14px; font-weight: 500">
+<span style="color: #3E3F42; font-size: 14px; font-weight: 600">
 Total: ${`${total}`}
 ${`${currency}`}</span>
 </td>
@@ -295,7 +295,7 @@ ${`${currency}`}</span>
 <td class="header container" bgcolor="#ffffff" style="margin: 0 auto!important;
 padding: 0;display: block!important;max-width: 700px!important;clear: both!important;margin-top: 50px;">
 
-<div class="content" style="margin: 0 auto;padding: 80px 40px;max-width: 700px;display: block;" >
+<div class="content" style="margin: 0 auto;padding: 100px 40px;max-width: 700px;display: block;" >
 <table style="margin: 0;padding: 0;width: 100%;">
 <tr style="margin: 0;padding: 0;">
 <td align="left" style="margin: 0;padding: 0;">
