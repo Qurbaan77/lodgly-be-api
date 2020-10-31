@@ -3674,9 +3674,11 @@ const usersRouter = () => {
     }
   });
 
-  // Billing related apis
+  /**
+   * *  Billing related apis
+   */
 
-  // API for creating produc and charging customer and activating subscription
+  // API for charging customer and activating subscription
   router.post('/charge', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
@@ -3708,13 +3710,13 @@ const usersRouter = () => {
           customer: customer.id,
           items: [
             {
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
           expand: ['latest_invoice.payment_intent', 'plan.product'],
         });
-      } else {
+      } else if (coupon) {
         // retrieving the coupon id from coupon code
         const couponCode = await stripe.coupons.retrieve(coupon);
         // creating the yearly subscription
@@ -3722,11 +3724,22 @@ const usersRouter = () => {
           customer: customer.id,
           items: [
             {
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
           coupon: couponCode.id,
+          expand: ['latest_invoice.payment_intent', 'plan.product'],
+        });
+      } else {
+        subscription = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [
+            {
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
+              quantity: noOfUnits,
+            },
+          ],
           expand: ['latest_invoice.payment_intent', 'plan.product'],
         });
       }
@@ -3788,6 +3801,7 @@ const usersRouter = () => {
       const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
       if (transactions && transactions.length) {
         const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
+        console.log('subscription', subscription);
         const endDate = subscription.current_period_end * 1000;
         const { status } = subscription;
         res.send({
@@ -3896,7 +3910,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       const {
         subscriptionId,
-        amount,
+        // amount,
         interval,
         noOfUnits,
         // currency,
@@ -3912,12 +3926,12 @@ const usersRouter = () => {
           items: [
             {
               id: subscription.items.data[0].id,
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
         });
-      } else {
+      } else if (coupon) {
         // retrieving the coupon id from coupon code
         const couponCode = await stripe.coupons.retrieve(coupon);
         // updating the subvscription
@@ -3927,14 +3941,27 @@ const usersRouter = () => {
           items: [
             {
               id: subscription.items.data[0].id,
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
           coupon: couponCode.id,
         });
+      } else {
+        updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: false,
+          proration_behavior: 'create_prorations',
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
+              quantity: noOfUnits,
+            },
+          ],
+        });
       }
       if (updatedSubscription.status === 'active') {
+        const invoice = await stripe.invoices.retrieve(updatedSubscription.latest_invoice);
         const payload = {
           subscriptionId: updatedSubscription.id,
           planId: updatedSubscription.plan.id,
@@ -3942,7 +3969,7 @@ const usersRouter = () => {
           units: noOfUnits,
           interval,
           planType,
-          amount,
+          amount: invoice.amount_paid / 100,
         };
         await DB.update('subscription', payload, { userId: body.tokenData.userid });
         if (planType === 'basic') {
