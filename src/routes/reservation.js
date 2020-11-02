@@ -305,7 +305,26 @@ const reservationRouter = () => {
           const itemsCopy = items;
 
           const normalRatesData = await DB.selectCol(
-            ['id', 'unitTypeId', 'price_per_night', 'minimum_stay'],
+            [
+              'id',
+              'unitTypeId',
+              'price_per_night',
+              'minimum_stay',
+              'price_on_monday',
+              'price_on_tuesday',
+              'price_on_wednesday',
+              'price_on_thursday',
+              'price_on_friday',
+              'price_on_saturday',
+              'price_on_sunday',
+              'minimum_stay_on_monday',
+              'minimum_stay_on_tuesday',
+              'minimum_stay_on_wednesday',
+              'minimum_stay_on_thursday',
+              'minimum_stay_on_friday',
+              'minimum_stay_on_saturday',
+              'minimum_stay_on_sunday',
+            ],
             'ratesV2',
             {
               unitTypeId: items.id,
@@ -318,6 +337,20 @@ const reservationRouter = () => {
               unitTypeId: ele.unitTypeId,
               pricePerNight: ele.price_per_night,
               minStay: ele.minimum_stay,
+              monPrice: ele.price_on_monday,
+              tuePrice: ele.price_on_tuesday,
+              wedPrice: ele.price_on_wednesday,
+              thuPrice: ele.price_on_thursday,
+              friPrice: ele.price_on_friday,
+              satPrice: ele.price_on_saturday,
+              sunPrice: ele.price_on_sunday,
+              monStay: ele.minimum_stay_on_monday,
+              tueStay: ele.minimum_stay_on_tuesday,
+              wedStay: ele.minimum_stay_on_wednesday,
+              thuStay: ele.minimum_stay_on_thursday,
+              friStay: ele.minimum_stay_on_friday,
+              satStay: ele.minimum_stay_on_saturday,
+              sunStay: ele.minimum_stay_on_sunday,
             };
             normalRates.push(ratesData);
           });
@@ -326,7 +359,28 @@ const reservationRouter = () => {
           };
 
           const seasonRates = await DB.selectCol(
-            ['id', 'unitTypeId', 'startDate', 'endDate', 'price_per_night', 'minimum_stay'],
+            [
+              'id',
+              'unitTypeId',
+              'startDate',
+              'endDate',
+              'price_per_night',
+              'minimum_stay',
+              'price_on_monday',
+              'price_on_tuesday',
+              'price_on_wednesday',
+              'price_on_thursday',
+              'price_on_friday',
+              'price_on_saturday',
+              'price_on_sunday',
+              'minimum_stay_on_monday',
+              'minimum_stay_on_tuesday',
+              'minimum_stay_on_wednesday',
+              'minimum_stay_on_thursday',
+              'minimum_stay_on_friday',
+              'minimum_stay_on_saturday',
+              'minimum_stay_on_sunday',
+            ],
             'seasonRatesV2',
             {
               unitTypeId: items.id,
@@ -334,15 +388,33 @@ const reservationRouter = () => {
           );
 
           seasonRates.forEach((ele) => {
-            const daysBetween = enumerateDaysBetweenDates(moment(new Date(ele.startDate)), moment(new Date(ele.endDate)));
+            const daysBetween = enumerateDaysBetweenDates(
+              moment(new Date(ele.startDate)), moment(new Date(ele.endDate)).add(1, 'day'),
+            );
             daysBetween.forEach((el) => {
               const dateInmiliseconds = +new Date(el);
+              console.log(dateInmiliseconds);
+              console.log(el);
               const ratesData = {
                 id: ele.id,
                 unitTypeId: ele.unitTypeId,
                 date: dateInmiliseconds,
                 pricePerNight: ele.price_per_night,
                 minStay: ele.minimum_stay,
+                monPrice: ele.price_on_monday,
+                tuePrice: ele.price_on_tuesday,
+                wedPrice: ele.price_on_wednesday,
+                thuPrice: ele.price_on_thursday,
+                friPrice: ele.price_on_friday,
+                satPrice: ele.price_on_saturday,
+                sunPrice: ele.price_on_sunday,
+                monStay: ele.minimum_stay_on_monday,
+                tueStay: ele.minimum_stay_on_tuesday,
+                wedStay: ele.minimum_stay_on_wednesday,
+                thuStay: ele.minimum_stay_on_thursday,
+                friStay: ele.minimum_stay_on_friday,
+                satStay: ele.minimum_stay_on_saturday,
+                sunStay: ele.minimum_stay_on_sunday,
               };
               rates.push(ratesData);
             });
@@ -399,8 +471,8 @@ const reservationRouter = () => {
                 .map((data) => {
                   const cutomizeData = {
                     id: data.id,
-                    from: +new Date(data.startDate),
-                    to: +new Date(data.endDate),
+                    from: +new Date(data.startDate) + 43000000,
+                    to: +new Date(data.endDate) + 43000000,
                     guestName: data.guest,
                     price: data.totalAmount,
                   };
