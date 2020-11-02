@@ -3843,30 +3843,21 @@ const usersRouter = () => {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
       if (Data && Data.length > 0) {
         const [{ customerId }] = Data;
-        const invoicesList = [];
-        await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
-          invoices.data.forEach((el) => {
-            if (el.customer === customerId) {
-              const { currency } = el;
-              const amount = el.amount_paid / 100;
-              // let amount = Math.floor(parseFloat(initial))
-              // const { units } = Data[0];
-              const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
-              const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
-              const dt = {
-                invoiceId: el.id,
-                start,
-                end,
-                amount,
-                // units,
-                currency,
-                pdf: el.invoice_pdf,
-              };
-              invoicesList.push(dt);
-            }
+        const invoices = await stripe.invoices.list({ customer: customerId });
+        console.log('customer invoices', invoices);
+        console.log(Object.keys(invoices).length === 0 && invoices.constructor === Object);
+        if (Object.keys(invoices).length === 0 && invoices.constructor === Object) {
+          res.send({
+            code: 404,
+            msg: 'No invoices for this customer',
           });
-          res.send({ code: 200, invoicesList });
-        });
+        } else {
+          const { data } = invoices;
+          res.send({
+            code: 200,
+            data,
+          });
+        }
       } else {
         res.send({
           code: 200,
@@ -3935,10 +3926,11 @@ const usersRouter = () => {
       } else if (coupon) {
         // retrieving the coupon id from coupon code
         const couponCode = await stripe.coupons.retrieve(coupon);
-        // updating the subvscription
+        // updating the subscription
         updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
-          proration_behavior: 'create_prorations',
+          // pass always_invoice if oyu want to charge always
+          proration_behavior: 'always_invoice',
           items: [
             {
               id: subscription.items.data[0].id,
@@ -3961,8 +3953,11 @@ const usersRouter = () => {
           ],
         });
       }
+
+      console.log(updatedSubscription);
       if (updatedSubscription.status === 'active') {
         const invoice = await stripe.invoices.retrieve(updatedSubscription.latest_invoice);
+        console.log('latest invoice', invoice);
         const payload = {
           subscriptionId: updatedSubscription.id,
           planId: updatedSubscription.plan.id,
