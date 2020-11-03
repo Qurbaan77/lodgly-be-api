@@ -142,7 +142,7 @@ const propertyRouter = () => {
             console.log('This is empty', key);
             if (key !== 'ownerId' && key !== 'isChannelManagerActivated' && key !== 'airbnb' && key !== 'booking'
             && key !== 'expedia' && key !== 'unitsData' && key !== 'direction' && key !== 'website'
-            && key !== 'customAddress') {
+            && key !== 'customAddress' && key !== 'country' && key !== 'state' && key !== 'city' && key !== 'zip') {
               itemsCopy.isCompleted = false;
             }
           }
