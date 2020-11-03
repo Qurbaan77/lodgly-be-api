@@ -189,7 +189,7 @@ const propertyRouter = () => {
                 imageCompleted = false;
               } else if (key === 'address') {
                 addressCompleted = false;
-              } else if (key === 'sizeType' || key === 'bedrooms' || key === 'standardGuests'
+              } else if (key === 'sizeType' || key === 'bedRooms' || key === 'standardGuests'
               || key === 'units' || key === 'propertyType' || key === 'amenities' || key === 'rooms'
               || key === 'sleepingArrangement') {
                 OverviewCompleted = false;
