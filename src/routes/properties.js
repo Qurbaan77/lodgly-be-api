@@ -142,7 +142,7 @@ const propertyRouter = () => {
             console.log('This is empty', key);
             if (key !== 'ownerId' && key !== 'isChannelManagerActivated' && key !== 'airbnb' && key !== 'booking'
             && key !== 'expedia' && key !== 'unitsData' && key !== 'direction' && key !== 'website'
-            && key !== 'customAddress') {
+            && key !== 'customAddress' && key !== 'country' && key !== 'state' && key !== 'city' && key !== 'zip') {
               itemsCopy.isCompleted = false;
             }
           }
@@ -189,7 +189,7 @@ const propertyRouter = () => {
                 imageCompleted = false;
               } else if (key === 'address') {
                 addressCompleted = false;
-              } else if (key === 'sizeType' || key === 'bedrooms' || key === 'standardGuests'
+              } else if (key === 'sizeType' || key === 'bedRooms' || key === 'standardGuests'
               || key === 'units' || key === 'propertyType' || key === 'amenities' || key === 'rooms'
               || key === 'sleepingArrangement') {
                 OverviewCompleted = false;
@@ -1165,6 +1165,36 @@ const propertyRouter = () => {
         });
       }
     } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // API for getting units left of the user
+  router.get('/getUnitsLeft', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      const totalUnitsData = await DB.select('unitV2', { userId: body.tokenData.userid });
+      const subscribedUnitData = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
+      if (subscribedUnitData && subscribedUnitData.length > 0) {
+        const [{ units }] = subscribedUnitData;
+        const createdUnits = totalUnitsData.length;
+        const leftUnits = units - createdUnits;
+        res.send({
+          code: 200,
+          leftUnits,
+        });
+      } else {
+        // user is on trial
+        res.send({
+          code: 205,
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
       console.log(e);
       res.send({
         code: 444,
