@@ -71,7 +71,7 @@ const propertyRouter = () => {
       userId: id,
       propertyName: body.name,
     };
-    const data = await DB.select('propertyV2', { propertyName: body.name });
+    const data = await DB.select('propertyV2', { propertyName: body.name, userId: body.tokenData.userid });
     if (data && data.length > 0) {
       res.send({
         code: 440,
