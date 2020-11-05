@@ -744,39 +744,41 @@ const usersRouter = () => {
         id = body.tokenData.userid;
       }
       const user = await DB.select('users', { id });
-      const [{ trialEnded, created_at: createdAt }] = user;
-      let diff;
-      if (trialEnded) {
-        diff = Math.abs(new Date() - trialEnded);
-      } else {
-        diff = Math.abs(new Date() - createdAt);
-      }
-      let s = Math.floor(diff / 1000);
-      let m = Math.floor(s / 60);
-      s %= 60;
-      let h = Math.floor(m / 60);
-      m %= 60;
-      const totalDays = Math.floor(h / 24);
-      h %= 24;
-      const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
-      const [{ isOnTrial }] = user;
-      if (remainingDays <= 0) {
-        if (user && user[0].trialEnded) {
-          await DB.update('users',
-            { isOnTrial: true }, { id: body.tokenData.userid });
+      if (user && user.length > 0) {
+        const [{ trialEnded, created_at: createdAt }] = user;
+        let diff;
+        if (trialEnded) {
+          diff = Math.abs(new Date() - trialEnded);
         } else {
-          await DB.update('users',
-            {
-              isOnTrial: true,
-              trialEnded: moment().utc().format('YYYY-MM-DD hh:mm:ss'),
-            }, { id: body.tokenData.userid });
+          diff = Math.abs(new Date() - createdAt);
         }
+        let s = Math.floor(diff / 1000);
+        let m = Math.floor(s / 60);
+        s %= 60;
+        let h = Math.floor(m / 60);
+        m %= 60;
+        const totalDays = Math.floor(h / 24);
+        h %= 24;
+        const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
+        const [{ isOnTrial }] = user;
+        if (remainingDays <= 0) {
+          if (user && user[0].trialEnded) {
+            await DB.update('users',
+              { isOnTrial: true }, { id: body.tokenData.userid });
+          } else {
+            await DB.update('users',
+              {
+                isOnTrial: true,
+                trialEnded: moment().utc().format('YYYY-MM-DD hh:mm:ss'),
+              }, { id: body.tokenData.userid });
+          }
+        }
+        res.send({
+          code: 200,
+          remainingDays,
+          isOnTrial,
+        });
       }
-      res.send({
-        code: 200,
-        remainingDays,
-        isOnTrial,
-      });
     } catch (e) {
       console.log(e);
       sentryCapture(e);
@@ -4045,35 +4047,35 @@ const usersRouter = () => {
       } else {
         id = req.body.tokenData.userid;
       }
-      console.log('user subscription', id);
       const userSubsDetails = await DB.selectCol(
         ['isSubscribed', 'isOnTrial', 'trialEnded', 'issubscriptionEnded', 'created_at'],
         'users',
         { id },
       );
       // console.log('user subs details ====>>>>>>>', userSubsDetails);
-      const [{ trialEnded, created_at: createdAt }] = userSubsDetails;
-      let diff;
-      if (trialEnded) {
-        diff = Math.abs(trialEnded - new Date());
-      } else {
-        diff = Math.abs(new Date() - createdAt);
+      if (userSubsDetails && userSubsDetails.length > 0) {
+        const [{ trialEnded, created_at: createdAt }] = userSubsDetails;
+        let diff;
+        if (trialEnded) {
+          diff = Math.abs(trialEnded - new Date());
+        } else {
+          diff = Math.abs(new Date() - createdAt);
+        }
+        // const diff = Math.abs(new Date() - createdAt);
+        let s = Math.floor(diff / 1000);
+        let m = Math.floor(s / 60);
+        s %= 60;
+        let h = Math.floor(m / 60);
+        m %= 60;
+        const totalDays = Math.floor(h / 24);
+        h %= 24;
+        const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
+        userSubsDetails[0].days = remainingDays;
+        res.send({
+          code: 200,
+          userSubsDetails,
+        });
       }
-      // const diff = Math.abs(new Date() - createdAt);
-      let s = Math.floor(diff / 1000);
-      let m = Math.floor(s / 60);
-      s %= 60;
-      let h = Math.floor(m / 60);
-      m %= 60;
-      const totalDays = Math.floor(h / 24);
-      h %= 24;
-      console.log('total days', totalDays);
-      const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
-      userSubsDetails[0].days = remainingDays;
-      res.send({
-        code: 200,
-        userSubsDetails,
-      });
     } catch (e) {
       sentryCapture(e);
       console.log(e);

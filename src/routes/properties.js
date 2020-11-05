@@ -475,16 +475,67 @@ const propertyRouter = () => {
     }
   });
 
+  // get property images
+  router.post('/propertyImages', userAuthCheck, async ({ body }, res) => {
+    try {
+      const images = await DB.selectCol(['url', 'id'], 'images', { unitTypeId: body.unitTypeV2Id });
+      if (images && images.length > 0) {
+        res.send({
+          code: 200,
+          images,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no images for this property',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
+      });
+    }
+  });
+
+  // API for update property image
+  router.post('/insertPropertyImage', userAuthCheck, async (req, res) => {
+    console.log('api hitting', req.body);
+    try {
+      const { propertyurl, unitTypeV2Id } = req.body;
+      await DB.insert('images', { url: propertyurl, unitTypeId: unitTypeV2Id });
+      res.send({
+        code: 200,
+        msg: 'photo saved successfully',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error ocured',
+      });
+    }
+  });
+
   // API for update property image
   router.post('/updatePropertyImage', userAuthCheck, async (req, res) => {
     try {
-      const { body } = req;
-      console.log(body.url);
-      await DB.update('unitTypeV2', { image: body.url }, { id: body.unitTypeV2Id });
-      res.send({
-        code: 200,
-        msg: 'updated property image',
-      });
+      const { urls, unitTypeV2Id } = req.body;
+      each(
+        urls,
+        async (url, next) => {
+          await DB.insert('images', { url, unitTypeId: unitTypeV2Id });
+          next();
+        },
+        () => {
+          res.send({
+            code: 200,
+            msg: 'updated property image',
+          });
+        },
+      );
     } catch (e) {
       console.log(e);
       res.send({
@@ -783,14 +834,16 @@ const propertyRouter = () => {
 
   // API for getting individual property details
   router.post('/getProperty', userAuthCheck, async (req, res) => {
-    const propertyData = await DB.selectCol(['unitTypeName', 'image'], 'unitTypeV2', {
+    const propertyData = await DB.selectCol(['unitTypeName'], 'unitTypeV2', {
       propertyId: req.body.propertyId,
     });
     const name = propertyData[0].unitTypeName.filter((el) => el.lang === 'en');
+    const imageData = await DB.selectCol(['url'], 'images', { unitTypeId: req.body.propertyId });
+    const image = imageData && imageData.length && imageData[0].url;
     if (propertyData) {
       res.send({
         code: 200,
-        image: propertyData[0].image,
+        image,
         name,
       });
     } else {
@@ -804,7 +857,7 @@ const propertyRouter = () => {
   // API for removing property photo
   router.post('/removePropertyPhoto', userAuthCheck, async (req, res) => {
     try {
-      await DB.update('unitTypeV2', { image: null }, { id: req.body.unitTypeV2Id });
+      await DB.remove('images', { id: req.body.id });
       res.send({
         code: 200,
         msg: 'successfully removed property photo',
