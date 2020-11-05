@@ -277,15 +277,23 @@ const reservationRouter = () => {
   router.post('/getReservationCalendarData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       let id;
       if (!body.affiliateId) {
         id = body.tokenData.userid;
       } else {
         id = body.affiliateId;
       }
-      const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
-        'unitTypeV2', { userId: id });
-      // let unitType;
+      // const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+      //   'unitTypeV2', { userId: id });
+      let unitType;
+      if (body.unitTypeId > 0) {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id, id: body.unitTypeId });
+      } else {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id });
+      }
       // if (!body.unitTypeId) {
       //   unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
       //     'unitTypeV2', { userId: id });
