@@ -131,6 +131,8 @@ const propertyRouter = () => {
         const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
         itemsCopy.unitDataV2 = unitDataV2;
         const rate = await DB.select('ratesV2', { unitTypeId: itemsCopy.id });
+        const data1 = await DB.selectCol(['url'], 'images', { unitTypeId: items.id });
+        itemsCopy.image = data1 && data1.length && data1[0].url;
         if (!rate) {
           itemsCopy.isCompleted = false;
         }
@@ -139,7 +141,6 @@ const propertyRouter = () => {
         }
         Object.keys(itemsCopy).forEach((key) => {
           if (!items[key]) {
-            console.log('This is empty', key);
             if (key !== 'ownerId' && key !== 'isChannelManagerActivated' && key !== 'airbnb' && key !== 'booking'
             && key !== 'expedia' && key !== 'unitsData' && key !== 'direction' && key !== 'website'
             && key !== 'customAddress' && key !== 'country' && key !== 'state' && key !== 'city' && key !== 'zip') {
@@ -184,7 +185,6 @@ const propertyRouter = () => {
           // const copyel = el;
           Object.keys(el).forEach((key) => {
             if (!el[key]) {
-              console.log('This is empty', key);
               if (key === 'image') {
                 imageCompleted = false;
               } else if (key === 'address') {
@@ -221,7 +221,6 @@ const propertyRouter = () => {
 
   router.get('/getPropertyName', userAuthCheck, async (req, res) => {
     try {
-      console.log('get property', req.body);
       const propertyData = await DB.select('propertyV2', { userId: req.body.tokenData.userid });
       if (propertyData && propertyData.length > 0) {
         res.send({
