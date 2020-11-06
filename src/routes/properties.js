@@ -131,9 +131,7 @@ const propertyRouter = () => {
         const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
         itemsCopy.unitDataV2 = unitDataV2;
         const rate = await DB.select('ratesV2', { unitTypeId: itemsCopy.id });
-        console.log('unit type id in fetch property', items.id);
         const data1 = await DB.selectCol(['url'], 'images', { unitTypeId: items.id });
-        console.log('images in fetch property', data1);
         itemsCopy.image = data1 && data1.length && data1[0].url;
         if (!rate) {
           itemsCopy.isCompleted = false;
@@ -170,7 +168,6 @@ const propertyRouter = () => {
     try {
       const { ...body } = req.body;
       const data = await DB.select('unitTypeV2', { id: body.unitTypeV2Id });
-      console.log('data coming from sidenav', data);
       let addressCompleted = true;
       let imageCompleted = true;
       let ratesCompleted = true;
@@ -178,18 +175,21 @@ const propertyRouter = () => {
       if (data && data.length > 0) {
         const ratesData = await DB.select('ratesV2', { unitTypeId: body.unitTypeV2Id });
         if (ratesData && ratesData.length > 0) {
-          console.log('a');
+          ratesCompleted = true;
         } else {
-          console.log('b');
           ratesCompleted = false;
+        }
+        const imageData = await DB.selectCol(['url'], 'images', { unitTypeId: body.unitTypeV2Id });
+        if (imageData && imageData.length > 0) {
+          imageCompleted = true;
+        } else {
+          imageCompleted = false;
         }
         data.forEach(async (el) => {
           // const copyel = el;
           Object.keys(el).forEach((key) => {
             if (!el[key]) {
-              if (key === 'image') {
-                imageCompleted = false;
-              } else if (key === 'address') {
+              if (key === 'address') {
                 addressCompleted = false;
               } else if (key === 'sizeType' || key === 'bedRooms' || key === 'standardGuests'
               || key === 'units' || key === 'propertyType' || key === 'amenities' || key === 'rooms'
