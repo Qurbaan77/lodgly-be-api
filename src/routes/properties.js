@@ -131,7 +131,9 @@ const propertyRouter = () => {
         const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
         itemsCopy.unitDataV2 = unitDataV2;
         const rate = await DB.select('ratesV2', { unitTypeId: itemsCopy.id });
+        console.log('unit type id in fetch property', items.id);
         const data1 = await DB.selectCol(['url'], 'images', { unitTypeId: items.id });
+        console.log('images in fetch property', data1);
         itemsCopy.image = data1 && data1.length && data1[0].url;
         if (!rate) {
           itemsCopy.isCompleted = false;
