@@ -12,18 +12,14 @@ const bookingRouter = () => {
   router.post('/addBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('addBooking', body);
       let id;
       const startDateTime = new Date(body.groupname[0]);
       const endDateTime = new Date(body.groupname[1]);
 
       if (!body.affiliateId) {
-        console.log('no affiliaate id');
         id = body.tokenData.userid;
       } else {
-        console.log('affiliate id');
         id = body.affiliateId;
-        console.log(id);
       }
       let optionalDate = null;
       if (body.optionalDate) {

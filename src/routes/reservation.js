@@ -401,8 +401,6 @@ const reservationRouter = () => {
             );
             daysBetween.forEach((el) => {
               const dateInmiliseconds = +new Date(el);
-              console.log(dateInmiliseconds);
-              console.log(el);
               const ratesData = {
                 id: ele.id,
                 unitTypeId: ele.unitTypeId,
