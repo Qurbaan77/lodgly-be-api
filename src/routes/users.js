@@ -407,7 +407,7 @@ const usersRouter = () => {
         // finding user with email and company name
         const companyData = await DB.select('organizations', { name: body.company });
         const isUserExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
-
+        console.log('user details', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
           subUser = await DB.select('team', { email: body.email });
@@ -2545,9 +2545,11 @@ const usersRouter = () => {
             });
           } else {
             await DB.insert('team', teamData);
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const hash = crypto.createHmac('sha256', 'verificationHash')
+              .update(`${body.email} ${body.company}`).digest('hex');
             const userData = {
               organizationId: companyData[0].id,
+              companyName: body.company,
               email: body.email,
               verificationhex: hash,
               encrypted_password: hashedPassword,
