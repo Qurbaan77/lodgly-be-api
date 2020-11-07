@@ -153,6 +153,8 @@ const bookingRouter = () => {
       const { ...body } = req.body;
       console.log('changeBooking', body);
       let id;
+      const startDateTime = new Date(body.groupname[0]);
+      const endDateTime = new Date(body.groupname[1]);
       if (body.affiliateId) {
         id = body.affiliateId;
       } else {
@@ -170,8 +172,8 @@ const bookingRouter = () => {
           propertyName: body.property,
           bookedUnit: body.unit,
           unitName: body.unitName,
-          startDate: body.groupname[0].split('T', 1),
-          endDate: body.groupname[1].split('T', 1),
+          startDate: startDateTime,
+          endDate: endDateTime,
           optionalDate,
           acknowledge: body.acknowledge,
           channel: body.channel,
