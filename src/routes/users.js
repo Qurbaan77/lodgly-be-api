@@ -2545,7 +2545,8 @@ const usersRouter = () => {
             });
           } else {
             await DB.insert('team', teamData);
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const hash = crypto.createHmac('sha256', 'verificationHash')
+              .update(`${body.email} ${body.company}`).digest('hex');
             const userData = {
               organizationId: companyData[0].id,
               companyName: body.company,
