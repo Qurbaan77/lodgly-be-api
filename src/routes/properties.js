@@ -1,12 +1,14 @@
 const express = require('express');
 const config = require('config');
-const crypto = require('crypto');
-const fs = require('fs');
-const AWS = require('aws-sdk');
-const fileType = require('file-type');
-const bluebird = require('bluebird');
 const each = require('sync-each');
-const multiparty = require('multiparty');
+// const crypto = require('crypto');
+// const fs = require('fs');
+const AWS = require('aws-sdk');
+// const fileType = require('file-type');
+const bluebird = require('bluebird');
+// const each = require('sync-each');
+// const multiparty = require('multiparty');
+const moment = require('moment');
 const DB = require('../services/database');
 const { userAuthCheck } = require('../middlewares/middlewares');
 const sentryCapture = require('../../config/sentryCapture');
@@ -20,21 +22,36 @@ const propertyRouter = () => {
   const s3 = new AWS.S3({
     accessKeyId: config.get('aws.accessKey'),
     secretAccessKey: config.get('aws.accessSecretKey'),
+    signatureVersion: 'v4',
   });
+  const bucket = config.get('aws.s3.storageBucketName');
+
+  // const getSignedUrl = (name, size, type, organizationid) => new Promise((resolve, reject) => {
+  //   console.log(organizationid);
+  //   if (!name) return resolve(null);
+  //   return s3.getSignedUrl('putObject', {
+  //     Key: name,
+  //     Bucket: `${bucket}/${organizationid}/photos`,
+  //     ContentType: type,
+  //     Expires: 300,
+  //   }, (error, result) => (error ? reject(error) : resolve(result)));
+  // });
 
   // function for upload image on S3bucket
-  const uploadFile = async (buffer, name, type, organizationid) => {
+  const uploadFile = async (name, type, organizationid, expires = 300) => {
     try {
-      const bucket = config.get('aws.s3.storageBucketName');
+      // const bucket = config.get('aws.s3.storageBucketName');
       const params = {
         ACL: 'public-read',
-        Body: buffer,
+        // Body: buffer,
         Bucket: `${bucket}/${organizationid}/photos`,
-        ContentType: type.mime,
-        Key: `${name}.${type.ext}`,
+        ContentType: type,
+        Key: name,
+        Expires: expires,
       };
       const url = await s3.getSignedUrlPromise('putObject', params);
-      return s3.upload(params, url).promise();
+      return url;
+      // return s3.upload(params, url).promise();
     } catch (err) {
       console.log(err);
       return err;
@@ -54,30 +71,39 @@ const propertyRouter = () => {
       userId: id,
       propertyName: body.name,
     };
-    const savedData = await DB.insert('propertyV2', propertyData);
-    const jsonName = JSON.stringify([{ lang: 'en', name: body.name }]);
-    const langJson = JSON.stringify([{ en: 'English' }]);
-    const descriptionJson = JSON.stringify([]);
-    const unitTypeData = {
-      userId: id,
-      propertyId: savedData,
-      unitTypeName: jsonName,
-      languages: langJson,
-      description: descriptionJson,
-    };
-    // creating unit type with same name
-    const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
-    res.send({
-      code: 200,
-      savedData,
-      unitTypeV2Id,
-    });
+    const data = await DB.select('propertyV2', { propertyName: body.name, userId: body.tokenData.userid });
+    if (data && data.length > 0) {
+      res.send({
+        code: 440,
+        msg: 'This property already exist',
+      });
+    } else {
+      const savedData = await DB.insert('propertyV2', propertyData);
+      const jsonName = JSON.stringify([{ lang: 'en', name: body.name }]);
+      const langJson = JSON.stringify([{ en: 'English' }]);
+      const descriptionJson = JSON.stringify([]);
+      const unitTypeData = {
+        userId: id,
+        propertyId: savedData,
+        unitTypeName: jsonName,
+        languages: langJson,
+        description: descriptionJson,
+      };
+      // creating unit type with same name
+      const unitTypeV2Id = await DB.insert('unitTypeV2', unitTypeData);
+      res.send({
+        code: 200,
+        savedData,
+        unitTypeV2Id,
+      });
+    }
   });
 
   // post request to delete property
   router.post('/deleteProperty', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
     await DB.remove('propertyV2', { id: body.id });
+    await DB.remove('unitTypeV2', { id: body.id });
     res.send({
       code: 200,
     });
@@ -104,6 +130,27 @@ const propertyRouter = () => {
         const itemsCopy = items;
         const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
         itemsCopy.unitDataV2 = unitDataV2;
+        const rate = await DB.select('ratesV2', { unitTypeId: itemsCopy.id });
+        const data1 = await DB.selectCol(['url'], 'images', { unitTypeId: items.id });
+        itemsCopy.image = data1 && data1.length && data1[0].url;
+        if (!rate) {
+          itemsCopy.isCompleted = false;
+        }
+        if (!unitDataV2) {
+          itemsCopy.isCompleted = false;
+        }
+        Object.keys(itemsCopy).forEach((key) => {
+          if (!items[key]) {
+            if (key !== 'ownerId' && key !== 'isChannelManagerActivated' && key !== 'airbnb' && key !== 'booking'
+            && key !== 'expedia' && key !== 'unitsData' && key !== 'direction' && key !== 'website'
+            && key !== 'customAddress' && key !== 'country' && key !== 'state' && key !== 'city' && key !== 'zip') {
+              itemsCopy.isCompleted = false;
+            }
+          }
+        });
+        if (itemsCopy.isCompleted === undefined) {
+          itemsCopy.isCompleted = true;
+        }
         next();
         return itemsCopy;
       },
@@ -116,9 +163,66 @@ const propertyRouter = () => {
     );
   });
 
+  // Get info for completeness of property
+  router.post('/getPropertyCompleteness', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const data = await DB.select('unitTypeV2', { id: body.unitTypeV2Id });
+      let addressCompleted = true;
+      let imageCompleted = true;
+      let ratesCompleted = true;
+      let OverviewCompleted = true;
+      if (data && data.length > 0) {
+        const ratesData = await DB.select('ratesV2', { unitTypeId: body.unitTypeV2Id });
+        if (ratesData && ratesData.length > 0) {
+          ratesCompleted = true;
+        } else {
+          ratesCompleted = false;
+        }
+        const imageData = await DB.selectCol(['url'], 'images', { unitTypeId: body.unitTypeV2Id });
+        if (imageData && imageData.length > 0) {
+          imageCompleted = true;
+        } else {
+          imageCompleted = false;
+        }
+        data.forEach(async (el) => {
+          // const copyel = el;
+          Object.keys(el).forEach((key) => {
+            if (!el[key]) {
+              if (key === 'address') {
+                addressCompleted = false;
+              } else if (key === 'sizeType' || key === 'bedRooms' || key === 'standardGuests'
+              || key === 'units' || key === 'propertyType' || key === 'amenities' || key === 'rooms'
+              || key === 'sleepingArrangement') {
+                OverviewCompleted = false;
+              }
+            }
+          });
+        });
+        res.send({
+          code: 200,
+          addressCompleted,
+          imageCompleted,
+          ratesCompleted,
+          OverviewCompleted,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no data found',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
+      });
+    }
+  });
+
   router.get('/getPropertyName', userAuthCheck, async (req, res) => {
     try {
-      console.log('get property', req.body);
       const propertyData = await DB.select('propertyV2', { userId: req.body.tokenData.userid });
       if (propertyData && propertyData.length > 0) {
         res.send({
@@ -141,9 +245,51 @@ const propertyRouter = () => {
     }
   });
 
+  // Get unit type name and id only
+  router.get('/getPropDetail', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      const payload = await DB.selectCol(['id', 'unitTypeName', 'ownerId'],
+        'unitTypeV2', { userId: body.tokenData.userid });
+      const data = [];
+      each(
+        payload,
+        (item, next) => {
+          const obj = {};
+          obj.id = item.id;
+          obj.ownerId = item.ownerId;
+          const [label] = item.unitTypeName
+            .filter((e) => e.lang === 'en')
+            .map((name) => name.name);
+          obj.name = label;
+          data.push(obj);
+          next();
+        },
+        () => {
+          res.send({
+            code: 200,
+            data,
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
   // API for update unittype location
   router.post('/updateLocation', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    console.log(body);
+    const directionToSave = { lang: body.direction.lang, direction: body.direction.directionText };
+    let newDirection = [];
+    const responseData = await DB.selectCol(['direction'], 'unitTypeV2', {
+      id: body.unitTypeV2Id,
+    });
+    if (responseData && responseData[0].direction !== null) {
+      newDirection = responseData[0].direction.filter((el) => el.lang !== body.direction.lang);
+    }
+    newDirection.push(directionToSave);
     const data = {
       address: JSON.stringify(body.location),
       country: JSON.stringify(body.country),
@@ -152,10 +298,12 @@ const propertyRouter = () => {
       zip: body.zip,
       lattitude: body.latLng.lat,
       longitude: body.latLng.lng,
-      direction: body.direction,
+      direction: JSON.stringify(newDirection),
       distance: body.distance,
       distanceIn: body.distanceIn,
+      customAddress: body.customAddress,
     };
+
     await DB.update('unitTypeV2', data, { id: body.unitTypeV2Id });
     res.send({
       code: 200,
@@ -231,6 +379,7 @@ const propertyRouter = () => {
   // API for upate Property Information
   router.post('/updatePropertyInfo', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
+    console.log('body', body);
     if (body.deletedUnitArray && body.deletedUnitArray.length) {
       body.deletedUnitArray.forEach(async (el) => {
         await DB.remove('unitV2', { id: el });
@@ -305,25 +454,113 @@ const propertyRouter = () => {
     });
   });
 
-  // API for update property image
-  router.post('/propertyPicture', async (req, res) => {
-    const form = new multiparty.Form();
-    form.parse(req, async (error, fields, files) => {
-      if (error) {
-        console.log(error);
-      }
-      const { path } = files.file[0];
-      const buffer = fs.readFileSync(path);
-      const type = await fileType.fromBuffer(buffer);
-      const timestamp = Date.now().toString();
-      const fileName = `bucketFolder/${timestamp}-lg`;
-      const hash = crypto.createHash('md5').update(fileName).digest('hex');
-      const data = await uploadFile(buffer, hash, type, req.query.organizationid);
-      await DB.update('unitTypeV2', { image: data.Location }, { id: req.query.unitTypeV2Id });
-      return res.json({
-        image: data.Location,
+  // API to get presigned url for photo upload
+  router.post('/getPreSignedUrl', userAuthCheck, async (req, res) => {
+    console.log(req.query.organizationid);
+    try {
+      const { body } = req;
+      const { name, type } = body;
+      console.log('request coming');
+      // const timestamp = Date.now().toString();
+      // const fileName = `bucketFolder/${timestamp}-lg`;
+      // const hash = crypto.createHash('md5').update(fileName).digest('hex');
+      const presignedUrl = await uploadFile(name, type, req.query.organizationid);
+      // const presignedUrl = await getSignedUrl(hash, type, req.query.organizationid);
+      // console.log('presigned url', presignedUrl);
+      res.send({
+        code: 200,
+        presignedUrl,
       });
-    });
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
+  // get property images
+  router.post('/propertyImages', userAuthCheck, async ({ body }, res) => {
+    try {
+      const images = await DB.selectCol(['url', 'id'], 'images', { unitTypeId: body.unitTypeV2Id });
+      if (images && images.length > 0) {
+        res.send({
+          code: 200,
+          images,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no images for this property',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'some error occurred!',
+      });
+    }
+  });
+
+  // API for update property image
+  router.post('/insertPropertyImage', userAuthCheck, async (req, res) => {
+    console.log('api hitting', req.body);
+    try {
+      const { propertyurl, unitTypeV2Id } = req.body;
+      await DB.insert('images', { url: propertyurl, unitTypeId: unitTypeV2Id });
+      res.send({
+        code: 200,
+        msg: 'photo saved successfully',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error ocured',
+      });
+    }
+  });
+
+  // API for update property image
+  router.post('/updatePropertyImage', userAuthCheck, async (req, res) => {
+    try {
+      const { urls, unitTypeV2Id } = req.body;
+      each(
+        urls,
+        async (url, next) => {
+          await DB.insert('images', { url, unitTypeId: unitTypeV2Id });
+          next();
+        },
+        () => {
+          res.send({
+            code: 200,
+            msg: 'updated property image',
+          });
+        },
+      );
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error ocured',
+      });
+    }
+  });
+
+  router.post('/updateUserPic', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      await DB.update('users', { image: body.url }, { id: body.tokenData.userid });
+      res.send({
+        code: 200,
+        msg: 'successfully updated image',
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
   });
 
   // API fo add rates on UnitType
@@ -331,11 +568,19 @@ const propertyRouter = () => {
     try {
       const { ...body } = req.body;
       console.log(body);
+      const notesToSave = { lang: body.notes.lang, note: body.notes.note };
+      let newNotes = [];
+      const responseData = await DB.selectCol(['notes'], 'ratesV2', { unitTypeId: body.unitTypeId });
+      if (responseData && responseData.length > 0) {
+        newNotes = responseData[0].notes.filter((el) => el.lang !== body.notes.lang);
+      }
+      newNotes.push(notesToSave);
       const data = await DB.select('ratesV2', { unitTypeId: body.unitTypeId });
       const rateData = {
         unitTypeId: body.unitTypeId,
         rateName: body.rateName,
         currency: body.currency,
+        currencyCode: body.currencyCode,
         price_per_night: body.pricePerNight,
         minimum_stay: body.minStay,
         discount_price_per_week: body.weeklyPrice,
@@ -375,7 +620,7 @@ const propertyRouter = () => {
         checkOut_on_sunday: body.checkOut_on_sunday,
         tax_status: body.tax,
         tax: body.taxPer,
-        notes: body.notes,
+        notes: JSON.stringify(newNotes),
       };
       if (data.length > 0) {
         console.log(data[0].id);
@@ -590,14 +835,16 @@ const propertyRouter = () => {
 
   // API for getting individual property details
   router.post('/getProperty', userAuthCheck, async (req, res) => {
-    const propertyData = await DB.selectCol(['unitTypeName', 'image'], 'unitTypeV2', {
+    const propertyData = await DB.selectCol(['unitTypeName'], 'unitTypeV2', {
       propertyId: req.body.propertyId,
     });
     const name = propertyData[0].unitTypeName.filter((el) => el.lang === 'en');
+    const imageData = await DB.selectCol(['url'], 'images', { unitTypeId: req.body.propertyId });
+    const image = imageData && imageData.length && imageData[0].url;
     if (propertyData) {
       res.send({
         code: 200,
-        image: propertyData[0].image,
+        image,
         name,
       });
     } else {
@@ -611,7 +858,7 @@ const propertyRouter = () => {
   // API for removing property photo
   router.post('/removePropertyPhoto', userAuthCheck, async (req, res) => {
     try {
-      await DB.update('unitTypeV2', { image: null }, { id: req.body.unitTypeV2Id });
+      await DB.remove('images', { id: req.body.id });
       res.send({
         code: 200,
         msg: 'successfully removed property photo',
@@ -701,6 +948,141 @@ const propertyRouter = () => {
     }
   });
 
+  // save rate's notes translation
+  router.post('/saveNotesTranslation', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      let newNotes = [];
+      const responseData = await DB.selectCol(['notes'], 'ratesV2', {
+        unitTypeId: body.propertyId,
+      });
+      console.log(responseData);
+      if (responseData && responseData.length && responseData[0].notes !== null) {
+        newNotes = responseData[0].notes.filter((el) => el.lang !== body.notesObject.lang);
+      }
+      newNotes.push(body.directionObject);
+      const savePayload = {
+        notes: JSON.stringify(newNotes),
+      };
+      console.log(savePayload);
+      const saveResponse = await DB.update('ratesV2', savePayload, { unitTypeId: body.propertyId });
+      console.log(saveResponse);
+      if (saveResponse) {
+        res.send({
+          code: 200,
+          directionText: body.notesObject,
+        });
+      } else {
+        res.send({
+          code: 402,
+          msg: 'Error Saving Translation',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // save direction translation
+  router.post('/saveDirectionTranslation', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      let directionText = [];
+      const responseData = await DB.selectCol(['direction'], 'unitTypeV2', {
+        propertyId: body.propertyId,
+      });
+      console.log(responseData);
+      if (responseData && responseData[0].direction !== null) {
+        directionText = responseData[0].direction.filter((el) => el.lang !== body.directionObject.lang);
+      }
+      directionText.push(body.directionObject);
+      const savePayload = {
+        direction: JSON.stringify(directionText),
+      };
+      const saveResponse = await DB.update('unitTypeV2', savePayload, { propertyId: body.propertyId });
+      if (saveResponse) {
+        res.send({
+          code: 200,
+          directionText: body.directionObject,
+        });
+      } else {
+        res.send({
+          code: 402,
+          msg: 'Error Saving Translation',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // fetch translated rate's note text
+  router.get('/fetchTranslatedNotes/:lang/:propertyId', async (req, res) => {
+    try {
+      const { lang, propertyId } = req.params;
+      console.log(req.params);
+      let filteredNotes = [];
+      const responseData = await DB.selectCol(['notes'], 'ratesV2', {
+        unitTypeId: propertyId,
+      });
+      if (responseData.length > 0) {
+        if (responseData[0].notes !== null) {
+          filteredNotes = responseData[0].notes.filter((el) => el.lang === lang);
+        }
+      }
+      if (filteredNotes && filteredNotes.length > 0) {
+        res.send({
+          code: 200,
+          filteredNotes,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no notes for the chosen language',
+        });
+      }
+    } catch (error) {
+      console.log('Error', error);
+    }
+  });
+
+  // fetch translated direction text
+  router.get('/fetchTranslatedDirection/:lang/:propertyId', async (req, res) => {
+    try {
+      const { lang, propertyId } = req.params;
+      let filteredDirection = [];
+      const responseData = await DB.selectCol(['direction'], 'unitTypeV2', {
+        propertyId,
+      });
+      if (responseData && responseData[0].direction !== null) {
+        filteredDirection = responseData[0].direction.filter((el) => el.lang === lang);
+      }
+      if (filteredDirection && filteredDirection.length > 0) {
+        res.send({
+          code: 200,
+          filteredDirection,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'no direction for the chosen language',
+        });
+      }
+    } catch (error) {
+      console.log('Error', error);
+    }
+  });
+
   router.post('/saveTranslation', async (req, res) => {
     try {
       const { ...body } = req.body;
@@ -761,24 +1143,116 @@ const propertyRouter = () => {
     try {
       const { ...body } = req.body;
       const unittypeData = await DB.select('unitTypeV2', { propertyId: body.propertyId });
-      const unitData = await DB.select('unitV2', { unittypeId: body.propertyId });
-      if (unittypeData) {
-        res.send({
-          code: 200,
-          unittypeData,
-          unitData,
-        });
-      } else {
-        res.send({
-          code: 401,
-          msg: 'No Unittype Saved',
-        });
-      }
+      each(
+        unittypeData,
+        async (items, next) => {
+          const itemsCopy = items;
+          const unitDataV2 = await DB.select('unitV2', { unittypeId: items.id });
+          itemsCopy.unitDataV2 = unitDataV2;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            unittypeData,
+          });
+        },
+      );
     } catch (e) {
       sentryCapture(e);
       res.send({
         code: 444,
         msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for add CustomRates of Property
+  router.post('/addCustomRate', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      let startDateTime;
+      let endDateTime;
+      if (body.groupname) {
+        startDateTime = new Date(body.groupname[0]);
+        endDateTime = moment(new Date(body.groupname[0])).add(1, 'd').format('YYYY-MM-DD');
+      }
+      const customRateData = {
+        unitTypeId: body.unitTypeId,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        rateType: body.rateType,
+        price_per_night: body.rate,
+        minimum_stay: body.stay,
+      };
+      console.log('customRateDate', customRateData);
+      await DB.insert('customRate', customRateData);
+      res.send({
+        code: 200,
+      });
+    } catch (e) {
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+  // API for getting minimum stay from rates table
+  router.post('/getMinStay', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      console.log(body);
+      const data = await DB.selectCol(['minimum_stay'], 'ratesV2', { unitTypeId: body.unitTypeV2Id });
+      if (data && data.length > 0) {
+        const [{ minimum_stay: minimumStay }] = data;
+        res.send({
+          code: 200,
+          minimumStay,
+        });
+      } else {
+        res.send({
+          code: 404,
+          msg: 'rates not set yet',
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
+      });
+    }
+  });
+
+  // API for getting units left of the user
+  router.get('/getUnitsLeft', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      const totalUnitsData = await DB.select('unitV2', { userId: body.tokenData.userid });
+      const subscribedUnitData = await DB.selectCol(['units'], 'subscription', { userId: body.tokenData.userid });
+      if (subscribedUnitData && subscribedUnitData.length > 0) {
+        const [{ units }] = subscribedUnitData;
+        const createdUnits = totalUnitsData.length;
+        const leftUnits = units - createdUnits;
+        res.send({
+          code: 200,
+          leftUnits,
+        });
+      } else {
+        // user is on trial
+        res.send({
+          code: 205,
+        });
+      }
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured!',
       });
     }
   });

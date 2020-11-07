@@ -19,298 +19,310 @@ module.exports = ({
   impression,
   logo,
   currency,
-}) => (
-  `
+}) => `
 <!doctype html>
 <html>
-<head style="margin: 0;padding: 0;">
 
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" style="margin: 0;padding: 0;">
-    <link href="https://fonts.googleapis.com/css?family=Muli" rel="stylesheet">
+<head>
+
+
 </head>
 
-<body bgcolor="#eaeaea" style="margin: 0;padding: 0;-webkit-font-smoothing: antialiased;
--webkit-text-size-adjust: none;height: 100%;width: 100%!important; 
-background-color: #eaeaea;font-family: 'Muli', sans-serif;">
-    <table class="head-wrap" style="margin: 0;padding: 0;width: 100%;    border-collapse: collapse;">
-        <tr style="margin: 0;padding: 0;">
-            <td style="margin: 0;padding: 0;"></td>
-            <td class="header container" bgcolor="#ffffff" style="margin: 0 auto!important;padding: 0;
-            display: block!important;max-width: 700px!important;clear: both!important;margin-top: 50px;">
+<body bgcolor="white" style="margin: 0;padding: 0;height: 100%;width: 100%!important;
+background-color: white;font-family: 'Muli', sans-serif;">
+<table class="head-wrap" style="margin: 0;padding: 0;width: 100%; border-collapse: collapse;">
+<tr style="margin: 0;padding: 0;">
+<td style="margin: 0;padding: 0;"></td>
+<td class="header container" bgcolor="#ffffff" style="margin: 0 auto!important;padding: 0;
+display: block!important;max-width: 700px!important;clear: both!important;margin-top: 50px;">
 
-                <div class="content" style="margin: 0 auto;padding: 0;max-width: 700px;display: block;">
-                    <table style="margin: 0;padding: 0;width: 100%;">
-                        <tr style="margin: 0;padding: 0;">
-                            <td align="center" style="margin: 0;padding: 0;"><a href="#">
-                            <img src=${`${logo}`}
-                            style="margin: 10px 10px; width: 50px;"></a></td>
-                        </tr>
-                    </table>
-                </div>
-            </td>
-            <td style="margin: 0;padding: 0;"></td>
-        </tr>
-    </table>
-   
-    <table class="body-wrap" style="margin: 0;padding: 0;width: 100%;    border-collapse: collapse;">
-        <tr style="margin: 0;padding: 0;">
-            <td style="margin: 0;padding: 0;"></td>
-            <td class="container" bgcolor="#ffffff" style="margin: 0 auto!important;
-            padding: 0;display: block!important;max-width: 700px!important;clear: both!important;">
+<div class="content" style="margin: 0 auto;padding: 0;max-width: 100%;display: block;">
+<table style="margin: 0;padding: 0;width: 100%;">
+<tr style="margin: 0;padding: 0;">
+<td align="center" style="margin: 0;padding: 0;"><a href="#">
+<img src=${`${logo}`} style="margin: 10px 10px; width: 50px;"></a></td>
+</tr>
+</table>
+</div>
+</td>
+<td style="margin: 0;padding: 0;"></td>
+</tr>
+</table>
+
+<table class="body-wrap" style="margin: 0;padding: 0;width: 100%; border-collapse: collapse;">
+<tr style="margin: 0;padding: 0;">
+<td style="margin: 0;padding: 0;"></td>
+<td class="container" bgcolor="#ffffff" style="margin: 0 auto!important;
+padding: 0;display: block!important;max-width: 700px!important;clear: both!important;">
 
 
 
-                <div class="content" style="margin: 0 auto;padding: 0px 40px; padding-top: 30px; 
-                max-width: 700px;display: block;">
-                    <table style="width: 100%;color: #666">
-                        <tr>
-                            <td>
-                                <span style="color: #f9b32b; font-size: 20px;">${`${propertyName}`}</span>
-                            </td> 
-                            <td align="right">
-                            ${`${phone || 'N/A'}`}
-                            </td>                     
-                        </tr> 
+<div class="content" style="margin: 0 auto;padding: 0px 40px; padding-top: 30px;
+max-width: 700px;display: block;">
+<table style="width: 100%;color: #666">
+<tr>
+<td>
+<span style="color: #FAB52C; font-size: 12px;">
+${`${propertyName}`}</span>
+</td>
+<td align="right" style="font-size: 9px;color: rgba(62, 63, 66, 0.5);">
+${`${phone || 'N/A'}`}
+</td>
+</tr>
 
-                        <tr>
-                            <td></td>  
-                            <td align="right">
-                            ${`${userEmail || 'N/A'}`}
-                            </td>                       
-                        </tr>  
-                        
-                        <tr>
-                            <td>
-                            ${`${propertyAddress}`}
-                            </td> 
-                            <td align="right">
-                            ${`${website || 'N/A'}`}
-                            </td>                     
-                        </tr> 
+<tr>
+<td style="font-size: 9px;color: rgba(62, 63, 66, 0.5);"></td>
+<td align="right" style="font-size:9px;color: rgba(62, 63, 66, 0.5);">
+${`${userEmail || 'N/A'}`}
+</td>
+</tr>
 
-                    </table>
-                </div>
+<tr>
+<td style="font-size: 9px;color: rgba(62, 63, 66, 0.5);">
+${`${propertyAddress || 'N/A'}`}
+</td>
+<td align="right" style="font-size: 9px;color: rgba(62, 63, 66, 0.5);">
+${`${website || 'N/A'}`}
+</td>
+</tr>
 
+</table>
+</div>
 
 
 
 
-                <div class="content" style="margin: 0 auto;padding: 0px 40px; 
-                padding-top: 40px; max-width: 700px;display: block; ">
-                    <table style="width: 100%;color: #666; border-bottom: 1px solid #333;">
-                        <tr>
-                            <td>
-                                <span style="color: #333; font-size: 20px; font-weight: 600">${`${label}`}</span>
-                            </td> 
-                            <td align="right">
-                               <span style="color: #333; font-size: 20px; font-weight: 600">CLIENT</span>
-                            </td>                     
-                        </tr> 
 
-                    </table>
-                </div>
+<div style="margin: 0 auto;padding: 0px 40px; padding-top: 20px;
+max-width: 700px;display: block;">
+<table style="width: 100%;color: #666; border-bottom: 1px solid #333;">
+<tr>
+<td>
+<span style="color: #3E3F42; font-size: 10px;font-weight: 600">
+${`${label}`}</span>
+</td>
+<td align="right">
+<span style="color: #3E3F42; font-size: 10px;font-weight: 600">
+CLIENT</span>
+</td>
+</tr>
 
-
-                <div class="content" style="margin: 0 auto;padding: 0px 20px; padding-top: 15px; 
-                max-width: 700px;display: block;">
-                    <table style="width: 100%;color: #666">
-                        <tr>
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">DATE/TIME</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; font-weight: 600">
-                               ${`${date}`} /${`${time}`}
-                               </span>
-                            </td>
-
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">FULL NAME</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; font-weight: 600">${`${clientName}`}</span>
-                            </td>                        
-                        </tr> 
+</table>
+</div>
 
 
-                         <tr>
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">DELIVERY DATE</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; font-weight: 600">${`${deliveryDate}`}</span>
-                            </td>
+<div class=" content" style="margin: 0 auto;padding: 0px 40px; padding-top: 10px;
+max-width: 700px;display: block;">
+<table style="width: 100%;color: #666">
+<tr>
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">
+DATE/TIME</span>
+</td>
+<td align="right" style="padding-right: 100px;">
+<span style="color: #3E3F42;font-size: 9px;">
+${`${date || 'N/A'}`} /${`${time || 'N/A'}`}
+</span>
+</td>
 
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">EMAIL</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; font-weight: 600">${`${email}`}</span>
-                            </td>                        
-                        </tr> 
-
-
-                        <tr>
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">DUE DATE</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; font-weight: 600">${`${dueDate}`}</span>
-                            </td>
-
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">ADDRESS</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; 
-                               font-weight: 600">${`${address}`}</span>
-                            </td>                        
-                        </tr> 
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;">FULL
+NAME</span>
+</td>
+<td align="right">
+<span style="color: #3E3F42;font-size: 9px;">${`${clientName}`}</span>
+</td>
+</tr>
 
 
-                        <tr>
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">PAYMENT TYPE</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; font-weight: 600">${`${paymentType}`}</span>
-                            </td>
+<tr>
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;">DELIVERY
+DATE</span>
+</td>
+<td align="right" style="padding-right: 100px;">
+<span style="color: #3E3F42;font-size: 9px;">${`${deliveryDate}`}</span>
+</td>
 
-                            <td style="padding: 5px 20px;">
-                                <span style="color: #999; font-size: 12px; font-weight: 600">VAT ID</span>
-                            </td> 
-                            <td align="right" style="padding: 5px 20px;">
-                               <span style="color: #333; font-size: 12px; font-weight: 600">${`${vat}`}</span>
-                            </td>                        
-                        </tr> 
-
-                    </table>
-                </div>
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;">EMAIL</span>
+</td>
+<td align="right">
+<span style="color: #3E3F42;font-size: 10px;">${`${email}`}</span>
+</td>
+</tr>
 
 
+<tr>
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;">
+DATE
+</span>
+</td>
+<td align="right" style="padding-right: 100px;">
+<span style="color: #3E3F42;font-size: 9px;">${`${dueDate}`}</span>
+</td>
 
-                 <div class="content" style="margin: 0 auto;padding: 0px 40px; 
-                 padding-top: 60px; max-width: 700px;display: block; ">
-                    <table style="width: 100%;color: #666;border-collapse: collapse;">
-                        <thead>
-                            <tr>
-                                <th style="padding:5px; color: #999; font-size: 13px; text-align: left;
-                                border-bottom: 1px solid #999;">ITEM DESCRIPTION</th>
-                                <th style="padding:5px;color: #999; font-size: 13px; text-align: left;
-                                border-bottom: 1px solid #999;">QTY</th>
-                                <th style="padding:5px;color: #999; font-size: 13px; text-align: left;
-                                border-bottom: 1px solid #999;">PRICE</th>
-                                <th style="padding:5px;color: #999; font-size: 13px; text-align: left;
-                                border-bottom: 1px solid #999;">AMOUNT</th>
-                                <th style="padding:5px;color: #999; font-size: 13px; text-align: left;
-                                border-bottom: 1px solid #999;"></th>
-                                <th style="padding:5px;color: #999; font-size: 13px; text-align: left;
-                                border-bottom: 1px solid #999;">DISCOUNT</th>
-                                <th style="padding:5px;color: #999; font-size: 13px; text-align: left;
-                                border-bottom: 1px solid #999;">TOTAL</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            
-                        ${`${itemData.map((el) => {
-    console.log('hi');
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">
+ADDRESS</span>
+</td>
+<td align="right" >
+<span style="color: #3E3F42;font-size: 9px;">${`${address || 'N/A'}`}</span>
+</td>
+</tr>
+
+
+<tr>
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">PAYMENT
+TYPE</span>
+</td>
+<td align="right" style="padding-right: 100px;">
+<span style="color: #3E3F42;font-size: 10px;">${`${paymentType || 'N/A'}`}</span>
+</td>
+
+<td>
+<span style="color: rgba(62, 63, 66, 0.5);font-size: 9px;">VAT
+ID</span>
+</td>
+<td align="right">
+<span style="color: #3E3F42;font-size: 9px;">
+${`${vat || 'N/A'}`}</span>
+</td>
+</tr>
+
+</table>
+</div>
+
+
+
+<div class="content" style="margin: 0 auto;padding: 0px 40px; padding-top: 60px;
+max-width: 700px;display: block;">
+<table style="width: 100%;color: #666;border-collapse: collapse;">
+<thead>
+<tr>
+<th style=" color: rgba(62, 63, 66, 0.5);
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">ITEM DESCRIPTION</th>
+<th style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">QTY</th>
+<th style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">PRICE</th>
+<th style=" color: rgba(62, 63, 66, 0.5);
+font-size:9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">AMOUNT</th>
+
+<th style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">DISCOUNT</th>
+<th style="color: rgba(62, 63, 66, 0.5);
+font-size: 9px;text-align: left;
+border-bottom: 1px solid rgba(62, 63, 66, 0.5);font-weight: 100;">TOTAL</th>
+</tr>
+</thead>
+<tbody>
+
+${itemData.map((el) => {
+    console.log('i');
     return `
-                            <tr>
-                            <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemDescription}`}</span>
-                            </td>                     
-                            <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemQuantity}`}</span>
-                            </td>     
-                            <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemPrice}`} ${`${currency}`}</span>
-                            </td>     
-                            <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemAmount}`} ${`${currency}`}</span>
-                            </td>     
-                            <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscountPer}`}
-                                ${`${el.itemDiscountType}`}</span>
-                            </td>  
-                             
-                            <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemDiscount}`} ${`${currency}`}</span>
-                            </td>     
-                            <td style="padding:5px;">
-                               <span style="color: #333; font-size: 13px;">${`${el.itemTotal}`} ${`${currency}`}</span>
-                            </td>     
-                        </tr> 
-                        `;
-  })}`}
-                        
-                        </tbody>
-                    </table>
-                </div>
+<tr>
+<td>
+<span style="color: #3E3F42; font-size: 9px;">
+${`${el.itemDescription}`}</span>
+</td>
+<td>
+<span style="color: #3E3F42; font-size: 9px;">
+${`${el.itemQuantity}`}</span>
+</td>
+<td>
+<span style="color: #3E3F42; font-size: 9px;">
+${`${el.itemPrice}`} ${`${currency}`}</span>
+</td>
+<td>
+<span style="color: #3E3F42; font-size: 9px;">
+${`${el.itemAmount}`} ${`${currency}`}</span>
+</td>
 
 
-                <div class="content" style="margin: 0 auto;padding: 0px 40px; 
-                padding-top: 30px; max-width: 700px;display: block; ">
-                    <table style="width: 100%;color: #666;">
-                        <tr>
-                            <td align="right">
-                         <span style="color: #333; font-size: 24px; font-weight: 600">Total: ${`${total}`} 
-                         ${`${currency}`}</span>
-                            </td>                     
-                        </tr> 
+<td>
+<span style="color: #3E3F42; font-size: 9px;">
+${`${el.itemDiscount}`} ${`${currency}`}</span>
+</td>
+<td>
+<span style="color: #3E3F42; font-size: 9px;">
+${`${el.itemTotal}`} ${`${currency}`}</span>
+</td>
+</tr>
+`;
+  })}
 
-                    </table>
-                </div>
+</tbody>
+</table>
+</div>
+<div style="margin: 0 auto;padding: 0px 40px; padding-top: 30px;
+max-width: 700px;display: block;">
+<table style="width: 100%;color: #666;">
+<tr>
+<td align="right">
+<span style="color: #3E3F42; font-size: 14px; font-weight: 600">
+Total: ${`${total}`}
+${`${currency}`}</span>
+</td>
+</tr>
 
-
-
-
-
-
-
-            </td>
-            <td style="margin: 0;padding: 0;"></td>
-        </tr>
-    </table>
-    <!-- /BODY -->
+</table>
+</div>
+</td>
+<td style="margin: 0;padding: 0;"></td>
+</tr>
+</table>
+<!-- /BODY -->
 
 
 
 
 
-    <table class="head-wrap" style="margin: 0;padding: 0;width: 100%;    border-collapse: collapse;">
-        <tr style="margin: 0;padding: 0;">
-            <td style="margin: 0;padding: 0;"></td>
-            <td class="header container" bgcolor="#ffffff" style="margin: 0 auto!important;
-            padding: 0;display: block!important;max-width: 700px!important;clear: both!important;margin-top: 50px;">
+<table class="head-wrap" style="margin: 0;padding: 0;width: 100%; border-collapse: collapse;">
+<tr style="margin: 0;padding: 0;">
+<td style="margin: 0;padding: 0;"></td>
+<td class="header container" bgcolor="#ffffff" style="margin: 0 auto!important;
+padding: 0;display: block!important;max-width: 700px!important;clear: both!important;margin-top: 50px;">
 
-                <div class="content" style="margin: 0 auto;padding: 40px 40px;max-width: 700px;display: block;">
-                    <table style="margin: 0;padding: 0;width: 100%;">
-                        <tr style="margin: 0;padding: 0;">
-                            <td align="left" style="margin: 0;padding: 0;">
+<div class="content" style="margin: 0 auto;padding: 100px 40px;max-width: 700px;display: block;" >
+<table style="margin: 0;padding: 0;width: 100%;">
+<tr style="margin: 0;padding: 0;">
+<td align="left" style="margin: 0;padding: 0;">
 
-                                <p style="margin-bottom: 10px; margin-top: 0px; font-size: 14px; 
-                                line-height: 1.5; color:#999;">IMPRESSION</p> 
-                                
-                                <p style="margin-bottom: 30px; margin-top: 0px; 
-                                font-size: 14px; line-height: 1.5; color:#666;">
-                               ${`${impression}`}</p> 
+<p style="margin-bottom: 5px; margin-top: 0px; font-size: 10px;color: rgba(62, 63, 66, 0.5);">IMPRESSION</p>
 
 
-                            <p style="color: #999; font-size:12px;max-width: 335px;
-                             margin: 0px auto;text-align: center;">
-                             ${`${propertyAddress || 'N/A'}`} | ${`${phone || 'N/A'}`}
-                                | ${`${email || 'N/A'}`} | ${`${website || 'N/A'}`}  </p>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </td>
-            <td style="margin: 0;padding: 0;"></td>
-        </tr>
-    </table>
+<p style="margin-bottom: 10px; margin-top: 0px;
+font-size: 10px;color: #3E3F42;">
+${`${impression}`}</p>
+
+
+<p style="color: rgba(62, 63, 66, 0.5);
+font-size:8px;max-width: 335px;
+margin: 0px auto;text-align: center;">
+${`${propertyAddress || 'N/A'}`} | ${`${phone || 'N/A'}`}
+| ${`${email || 'N/A'}`} | ${`${website || 'N/A'}`} </p>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td style="margin: 0;padding: 0;"></td>
+</tr>
+</table>
 
 </body>
+
 </html>
-`
-);
+    `;

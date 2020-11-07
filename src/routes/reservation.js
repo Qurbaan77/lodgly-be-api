@@ -277,27 +277,62 @@ const reservationRouter = () => {
   router.post('/getReservationCalendarData', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       let id;
       if (!body.affiliateId) {
         id = body.tokenData.userid;
       } else {
         id = body.affiliateId;
       }
-      const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'], 'unitTypeV2', { userId: id });
+      // const unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+      //   'unitTypeV2', { userId: id });
+      let unitType;
+      if (body.unitTypeId > 0) {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id, id: body.unitTypeId });
+      } else {
+        unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+          'unitTypeV2', { userId: id });
+      }
+      // if (!body.unitTypeId) {
+      //   unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+      //     'unitTypeV2', { userId: id });
+      // } else {
+      //   unitType = await DB.selectCol(['id', 'unitTypeName as name', 'unitsData'],
+      //     'unitTypeV2', { userId: id, id: body.unitTypeId });
+      // }
       each(
         unitType,
         async (items, next) => {
           const randomColor = ['#D5F8BA', '#B4FDC2', '#D2F2F3', '#BBF2E5', '#94EDD3'];
-          const random = Math.floor(Math.random() * randomColor.length);
-          console.log('Random', random);
-          console.log('Random Color', randomColor[random]);
+          // const random = Math.floor(Math.random() * randomColor.length);
           const units = [];
           const rates = [];
           const normalRates = [];
+          const customRate = [];
           const itemsCopy = items;
 
           const normalRatesData = await DB.selectCol(
-            ['id', 'unitTypeId', 'price_per_night', 'minimum_stay'],
+            [
+              'id',
+              'unitTypeId',
+              'price_per_night',
+              'minimum_stay',
+              'price_on_monday',
+              'price_on_tuesday',
+              'price_on_wednesday',
+              'price_on_thursday',
+              'price_on_friday',
+              'price_on_saturday',
+              'price_on_sunday',
+              'minimum_stay_on_monday',
+              'minimum_stay_on_tuesday',
+              'minimum_stay_on_wednesday',
+              'minimum_stay_on_thursday',
+              'minimum_stay_on_friday',
+              'minimum_stay_on_saturday',
+              'minimum_stay_on_sunday',
+            ],
             'ratesV2',
             {
               unitTypeId: items.id,
@@ -310,6 +345,20 @@ const reservationRouter = () => {
               unitTypeId: ele.unitTypeId,
               pricePerNight: ele.price_per_night,
               minStay: ele.minimum_stay,
+              monPrice: ele.price_on_monday,
+              tuePrice: ele.price_on_tuesday,
+              wedPrice: ele.price_on_wednesday,
+              thuPrice: ele.price_on_thursday,
+              friPrice: ele.price_on_friday,
+              satPrice: ele.price_on_saturday,
+              sunPrice: ele.price_on_sunday,
+              monStay: ele.minimum_stay_on_monday,
+              tueStay: ele.minimum_stay_on_tuesday,
+              wedStay: ele.minimum_stay_on_wednesday,
+              thuStay: ele.minimum_stay_on_thursday,
+              friStay: ele.minimum_stay_on_friday,
+              satStay: ele.minimum_stay_on_saturday,
+              sunStay: ele.minimum_stay_on_sunday,
             };
             normalRates.push(ratesData);
           });
@@ -318,7 +367,28 @@ const reservationRouter = () => {
           };
 
           const seasonRates = await DB.selectCol(
-            ['id', 'unitTypeId', 'startDate', 'endDate', 'price_per_night', 'minimum_stay'],
+            [
+              'id',
+              'unitTypeId',
+              'startDate',
+              'endDate',
+              'price_per_night',
+              'minimum_stay',
+              'price_on_monday',
+              'price_on_tuesday',
+              'price_on_wednesday',
+              'price_on_thursday',
+              'price_on_friday',
+              'price_on_saturday',
+              'price_on_sunday',
+              'minimum_stay_on_monday',
+              'minimum_stay_on_tuesday',
+              'minimum_stay_on_wednesday',
+              'minimum_stay_on_thursday',
+              'minimum_stay_on_friday',
+              'minimum_stay_on_saturday',
+              'minimum_stay_on_sunday',
+            ],
             'seasonRatesV2',
             {
               unitTypeId: items.id,
@@ -326,6 +396,47 @@ const reservationRouter = () => {
           );
 
           seasonRates.forEach((ele) => {
+            const daysBetween = enumerateDaysBetweenDates(
+              moment(new Date(ele.startDate)), moment(new Date(ele.endDate)).add(1, 'day'),
+            );
+            daysBetween.forEach((el) => {
+              const dateInmiliseconds = +new Date(el);
+              const ratesData = {
+                id: ele.id,
+                unitTypeId: ele.unitTypeId,
+                date: dateInmiliseconds,
+                pricePerNight: ele.price_per_night,
+                minStay: ele.minimum_stay,
+                monPrice: ele.price_on_monday,
+                tuePrice: ele.price_on_tuesday,
+                wedPrice: ele.price_on_wednesday,
+                thuPrice: ele.price_on_thursday,
+                friPrice: ele.price_on_friday,
+                satPrice: ele.price_on_saturday,
+                sunPrice: ele.price_on_sunday,
+                monStay: ele.minimum_stay_on_monday,
+                tueStay: ele.minimum_stay_on_tuesday,
+                wedStay: ele.minimum_stay_on_wednesday,
+                thuStay: ele.minimum_stay_on_thursday,
+                friStay: ele.minimum_stay_on_friday,
+                satStay: ele.minimum_stay_on_saturday,
+                sunStay: ele.minimum_stay_on_sunday,
+              };
+              rates.push(ratesData);
+            });
+          });
+          const customizeRates = {
+            data: rates,
+          };
+
+          const customNormalRate = await DB.selectCol(
+            ['id', 'unitTypeId', 'startDate', 'endDate', 'price_per_night', 'minimum_stay'],
+            'customRate',
+            {
+              unitTypeId: items.id,
+            },
+          );
+          customNormalRate.forEach((ele) => {
             const daysBetween = enumerateDaysBetweenDates(moment(new Date(ele.startDate)), moment(new Date(ele.endDate)));
             daysBetween.forEach((el) => {
               const dateInmiliseconds = +new Date(el);
@@ -336,14 +447,15 @@ const reservationRouter = () => {
                 pricePerNight: ele.price_per_night,
                 minStay: ele.minimum_stay,
               };
-              rates.push(ratesData);
+              customRate.push(ratesData);
             });
           });
-          const customizeRates = {
-            data: rates,
+          const customRates = {
+            data: customRate,
           };
           itemsCopy.rates = customizeRates;
           itemsCopy.normalRates = customizeNormalRates;
+          itemsCopy.customRates = customRates;
           const reservation = await DB.selectCol(
             ['id', 'startDate', 'endDate', 'totalAmount', 'bookedUnit', 'guest'],
             'bookingV2',
@@ -354,10 +466,12 @@ const reservationRouter = () => {
           const unit = await DB.select('unitV2', { unitTypeId: items.id });
           if (unit.length > 0) {
             unit.forEach((ele) => {
+              // color={colors[Math.floor(Math.random() * colors.length)]}
+              // const random = Math.floor(Math.random() * randomColor.length);
               const unitsData = {
                 id: ele.id,
                 name: ele.unitName,
-                color: randomColor[random],
+                color: randomColor[Math.floor(Math.random() * randomColor.length)],
               };
               const bookingData = [];
               reservation
@@ -365,8 +479,8 @@ const reservationRouter = () => {
                 .map((data) => {
                   const cutomizeData = {
                     id: data.id,
-                    from: +new Date(data.startDate),
-                    to: +new Date(data.endDate),
+                    from: +new Date(data.startDate) + 43000000,
+                    to: +new Date(data.endDate) + 43000000,
                     guestName: data.guest,
                     price: data.totalAmount,
                   };
@@ -446,7 +560,44 @@ const reservationRouter = () => {
   router.post('/deleteReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      await DB.remove('reservationV2', { id: body.id });
+      await DB.remove('bookingV2', { id: body.id });
+      res.send({
+        code: 200,
+      });
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
+  // API for update reservation paid status
+  router.post('/updatePaid', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      await DB.update('bookingV2', { paid: body.paid }, { id: body.id });
+      res.send({
+        code: 200,
+      });
+    } catch (e) {
+      console.log(e);
+      sentryCapture(e);
+      res.send({
+        code: 444,
+        msg: 'Some Error has occured!',
+      });
+    }
+  });
+
+  // API for update reservation checkIn status
+  router.post('/updateCheckIn', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      await DB.update('bookingV2', { checkIn: body.checkIn }, { id: body.id });
       res.send({
         code: 200,
       });

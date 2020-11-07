@@ -42,6 +42,8 @@ module.exports = {
   },
   payments: {
     stripeApiKey: process.env.STRIPE_API_KEY,
+    monthlyPlan: process.env.STRIPE_MONTHLY_PLAN || 'price_1HJvhnC8qNJRcuf67GKu3n1B',
+    yearlyPlan: process.env.STRIPE_YEARLY_PLAN || 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
   },
   mailing: {
     from: {

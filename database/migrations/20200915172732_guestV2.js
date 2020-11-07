@@ -5,6 +5,7 @@ exports.up = (knex) => knex.schema.createTable(TABLE_NAME, (table) => {
   table.integer('userId').notNull().unsigned();
   table.integer('bookingId').unsigned();
   table.integer('reservationId').unsigned();
+  table.integer('unitTypeId');
   table.string('fullname');
   table.string('country');
   table.string('email');

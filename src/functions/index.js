@@ -63,8 +63,10 @@ const verifyJwt = async (token) => {
   try {
     isTokenValid = await jwt.verify(token, config.get('guards.user.secret'));
   } catch (e) {
-    console.log('error', e);
-    isTokenValid = null;
+    if (e.expiredAt) {
+      isTokenValid = 'expired';
+      return isTokenValid;
+    }
   }
   return isTokenValid;
 };
@@ -75,7 +77,7 @@ const verifyOwnerJwt = async (token) => {
   try {
     isTokenValid = await jwt.verify(token, config.get('guards.user.secret'));
   } catch (e) {
-    console.log('error', e);
+    console.log('error in verify', e.expiredAt);
     isTokenValid = null;
   }
   return isTokenValid;
