@@ -295,7 +295,10 @@ const ownerRouter = () => {
           const bookingData = await DB.select('bookingV2', { unitTypeId: items.id });
           // const unitTypeData = await DB.selectCol('perNight', 'unitType', { unitTypeId: items.id });
           unitData.push(await DB.select('unitV2', { unitTypeId: items.id }));
-
+          const imageData = await DB.selectCol(['url'], 'images', { unitTypeId: items.id });
+          if (imageData && imageData.length > 0) {
+            itemsCopy.image = imageData[0].url;
+          }
           const count = [];
           bookingData.forEach((el) => {
             count.push((el.endDate - el.startDate) / (1000 * 3600 * 24));
