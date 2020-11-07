@@ -19,7 +19,7 @@ const {
   hashPassword, verifyHash, checkIfEmpty, signJwt,
 } = require('../functions');
 const { frontendUrl, ownerPanelUrl } = require('../functions/frontend');
-const { userAuthCheck, getAuthCheck } = require('../middlewares/middlewares');
+const { userAuthCheck } = require('../middlewares/middlewares');
 const invoiceTemplate = require('../invoiceTemplate/invoiceTemplate');
 const sentryCapture = require('../../config/sentryCapture');
 
@@ -196,6 +196,7 @@ const usersRouter = () => {
                         receipt: true,
                         confirmation_url: confirmationUrl,
                         email: userData.email,
+                        username: userData.fullname,
                       },
                     },
                   ],
@@ -283,6 +284,7 @@ const usersRouter = () => {
                       receipt: true,
                       confirmation_url: confirmationUrl,
                       email: userData.email,
+                      username: userData.fullname,
                     },
                   },
                 ],
@@ -405,8 +407,7 @@ const usersRouter = () => {
         // finding user with email and company name
         const companyData = await DB.select('organizations', { name: body.company });
         const isUserExists = await DB.select('users', { email: body.email, organizationId: companyData[0].id });
-
-        console.log('isUserExists', isUserExists);
+        console.log('user details', isUserExists);
         let subUser;
         if (!isUserExists.phone) {
           subUser = await DB.select('team', { email: body.email });
@@ -732,7 +733,7 @@ const usersRouter = () => {
     }
   });
 
-  // API for check trial days
+  // API for checking trial days
   router.post('/trialDays', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
@@ -743,26 +744,43 @@ const usersRouter = () => {
         id = body.tokenData.userid;
       }
       const user = await DB.select('users', { id });
-      const diff = Math.abs(new Date() - user[0].created_at);
-      let s = Math.floor(diff / 1000);
-      let m = Math.floor(s / 60);
-      s %= 60;
-      let h = Math.floor(m / 60);
-      m %= 60;
-      const totalDays = Math.floor(h / 24);
-      h %= 24;
-      const remainingDays = config.get('TRIAL_DAYS') - totalDays;
-      console.log(remainingDays);
-      const [{ isOnTrial }] = user;
-      if (remainingDays <= 0) {
-        await DB.update('users', { isOnTrial: false }, { id: body.tokenData.userid });
+      if (user && user.length > 0) {
+        const [{ trialEnded, created_at: createdAt }] = user;
+        let diff;
+        if (trialEnded) {
+          diff = Math.abs(new Date() - trialEnded);
+        } else {
+          diff = Math.abs(new Date() - createdAt);
+        }
+        let s = Math.floor(diff / 1000);
+        let m = Math.floor(s / 60);
+        s %= 60;
+        let h = Math.floor(m / 60);
+        m %= 60;
+        const totalDays = Math.floor(h / 24);
+        h %= 24;
+        const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
+        const [{ isOnTrial }] = user;
+        if (remainingDays <= 0) {
+          if (user && user[0].trialEnded) {
+            await DB.update('users',
+              { isOnTrial: true }, { id: body.tokenData.userid });
+          } else {
+            await DB.update('users',
+              {
+                isOnTrial: true,
+                trialEnded: moment().utc().format('YYYY-MM-DD hh:mm:ss'),
+              }, { id: body.tokenData.userid });
+          }
+        }
+        res.send({
+          code: 200,
+          remainingDays,
+          isOnTrial,
+        });
       }
-      res.send({
-        code: 200,
-        remainingDays,
-        isOnTrial,
-      });
     } catch (e) {
+      console.log(e);
       sentryCapture(e);
       res.send({
         code: 444,
@@ -1839,6 +1857,7 @@ const usersRouter = () => {
         userId: id,
         bookingId: body.bookingId,
         reservationId: body.reservationId,
+        unitTypeId: body.unitTypeId,
         fullName: body.fullName,
         country: body.country,
         email: body.email,
@@ -1946,16 +1965,28 @@ const usersRouter = () => {
 
   // API to get amenities
   router.post('/getAmenities', userAuthCheck, async (req, res) => {
-    const amenities = await DB.select('amenities', {});
-    if (amenities && amenities.length > 0) {
+    try {
+      const amenities = await DB.select('amenities', {});
+      const data = await DB.selectCol(['amenities'], 'unitTypeV2', { id: req.body.unitTypeV2Id });
+      console.log('data from get amenities', data);
+      const selectedAmenities = [];
+      if (data && data[0].amenities) {
+        const [{ amenities: selectedAmenity }] = data;
+        selectedAmenity.forEach((id) => {
+          const [data0] = amenities.filter((el) => el.id === id);
+          selectedAmenities.push(data0);
+        });
+      }
       res.send({
         code: 200,
         amenities,
+        selectedAmenities,
       });
-    } else {
+    } catch (e) {
+      console.log(e);
       res.send({
-        code: 500,
-        msg: 'server error',
+        code: 444,
+        msg: 'some error occured',
       });
     }
   });
@@ -2170,14 +2201,39 @@ const usersRouter = () => {
     }
   });
 
+  router.post('/getPropDetails', userAuthCheck, async (req, res) => {
+    try {
+      const { body } = req;
+      const propertyData = await DB.selectCol(['address'], 'unitTypeV2', { id: body.unitTypeId });
+      const [{ address }] = propertyData;
+      const userData = await DB.selectCol(['fullname', 'email', 'phone'], 'users', { id: body.tokenData.userid });
+      const [{ fullname, email, phone }] = userData;
+      const payloadData = {
+        address,
+        fullname,
+        email,
+        phone,
+      };
+      res.send({
+        code: 200,
+        payloadData,
+      });
+    } catch (e) {
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
   // API for downloding invoice
 
   router.post('/downloadinvoice', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
       pdf.create(invoiceTemplate(body), { timeout: '100000' }).toFile(
-        `
-        ${__dirname}../../../../invoicepdf/${body.clientName}.pdf`,
+        `${__dirname}/${body.clientName}.pdf`,
         async (err, success) => {
           if (err) {
             console.log(err);
@@ -2489,9 +2545,11 @@ const usersRouter = () => {
             });
           } else {
             await DB.insert('team', teamData);
-            const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
+            const hash = crypto.createHmac('sha256', 'verificationHash')
+              .update(`${body.email} ${body.company}`).digest('hex');
             const userData = {
               organizationId: companyData[0].id,
+              companyName: body.company,
               email: body.email,
               verificationhex: hash,
               encrypted_password: hashedPassword,
@@ -2845,17 +2903,19 @@ const usersRouter = () => {
   // API for adding sub owner
   router.post('/addOwner', userAuthCheck, async (req, res) => {
     const { ...body } = req.body;
-    console.log(body);
+    console.log('addOwner', body);
     try {
       let id;
       let verificationhex;
       let encryptedPassword;
       if (body.access) {
         const password = randomstring.generate(7);
+        console.log(password);
         const hashedPassword = await hashPassword(password);
         const hash = crypto.createHmac('sha256', 'verificationHash').update(body.email).digest('hex');
         verificationhex = hash;
         encryptedPassword = hashedPassword;
+        // const confirmationUrl = `http://${body.company}.localhost:3001/?token=${hash}`;
         const confirmationUrl = ownerPanelUrl(body.company, '/', {
           token: hash,
         });
@@ -2903,6 +2963,7 @@ const usersRouter = () => {
         address: body.address,
         typeOfDoc: body.document,
         docNo: body.documentnumber,
+        // properties: JSON.stringify(body.properties),
         notes: body.notes,
         isaccess: body.access,
         verificationhex,
@@ -2913,7 +2974,8 @@ const usersRouter = () => {
         await DB.update('owner', ownerData, { id: body.id });
         await DB.update('unitTypeV2', { ownerId: 0 }, { ownerId: body.id });
         each(body.properties, async (items, next) => {
-          await DB.update('unitTypeV2', { ownerId: body.id }, { id: items });
+          console.log(items);
+          await DB.update('unitTypeV2', { ownerId: body.id }, { id: items.id });
           next();
         });
         res.send({
@@ -2923,7 +2985,7 @@ const usersRouter = () => {
       } else {
         const saveData = await DB.insert('owner', ownerData);
         each(body.properties, async (items, next) => {
-          await DB.update('unitTypeV2', { ownerId: saveData }, { id: items });
+          await DB.update('unitTypeV2', { ownerId: saveData }, { id: items.id });
           next();
         });
         res.send({
@@ -3307,7 +3369,7 @@ const usersRouter = () => {
     }
   });
   // API to get user info
-  router.post('/getuserDetails', getAuthCheck, async (req, res) => {
+  router.post('/getuserDetails', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
       const userData = await DB.selectCol(['fullname', 'email'], 'users', {
@@ -3358,9 +3420,9 @@ const usersRouter = () => {
       const prevYearArr = [];
       let revenueData;
       if (body.propertyId !== null) {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid, unitTypeId: body.propertyId });
       } else {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid });
       }
 
       revenueData
@@ -3421,9 +3483,9 @@ const usersRouter = () => {
       const prevYearArr = [];
       let revenueData;
       if (body.propertyId !== null) {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid, unitTypeId: body.propertyId });
       } else {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid });
       }
 
       revenueData
@@ -3509,9 +3571,9 @@ const usersRouter = () => {
       const prevYearArr = [];
       let revenueData;
       if (body.propertyId !== null) {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid, propertyId: body.propertyId });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid, unitTypeId: body.propertyId });
       } else {
-        revenueData = await DB.select('booking', { userId: body.tokenData.userid });
+        revenueData = await DB.select('bookingV2', { userId: body.tokenData.userid });
       }
 
       revenueData
@@ -3589,7 +3651,7 @@ const usersRouter = () => {
   router.post('/getCountryReport', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const guestData = await DB.select('guest', { userId: body.tokenData.userid });
+      const guestData = await DB.select('guestV2', { userId: body.tokenData.userid });
       const country = [];
       const average = [];
       guestData.forEach((el, i, array) => {
@@ -3617,9 +3679,11 @@ const usersRouter = () => {
     }
   });
 
-  // Billing related apis
+  /**
+   * *  Billing related apis
+   */
 
-  // API for creating produc and charging customer and activating subscription
+  // API for charging customer and activating subscription
   router.post('/charge', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
@@ -3651,13 +3715,13 @@ const usersRouter = () => {
           customer: customer.id,
           items: [
             {
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
           expand: ['latest_invoice.payment_intent', 'plan.product'],
         });
-      } else {
+      } else if (coupon) {
         // retrieving the coupon id from coupon code
         const couponCode = await stripe.coupons.retrieve(coupon);
         // creating the yearly subscription
@@ -3665,11 +3729,22 @@ const usersRouter = () => {
           customer: customer.id,
           items: [
             {
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
           coupon: couponCode.id,
+          expand: ['latest_invoice.payment_intent', 'plan.product'],
+        });
+      } else {
+        subscription = await stripe.subscriptions.create({
+          customer: customer.id,
+          items: [
+            {
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
+              quantity: noOfUnits,
+            },
+          ],
           expand: ['latest_invoice.payment_intent', 'plan.product'],
         });
       }
@@ -3731,6 +3806,7 @@ const usersRouter = () => {
       const transactions = await DB.select('subscription', { userId: body.tokenData.userid });
       if (transactions && transactions.length) {
         const subscription = await stripe.subscriptions.retrieve(transactions[0].subscriptionId);
+        console.log('subscription', subscription);
         const endDate = subscription.current_period_end * 1000;
         const { status } = subscription;
         res.send({
@@ -3771,30 +3847,21 @@ const usersRouter = () => {
       const Data = await DB.select('subscription', { userId: req.body.tokenData.userid });
       if (Data && Data.length > 0) {
         const [{ customerId }] = Data;
-        const invoicesList = [];
-        await stripe.invoices.list({ customer: customerId }, (err, invoices) => {
-          invoices.data.forEach((el) => {
-            if (el.customer === customerId) {
-              const { currency } = el;
-              const amount = el.amount_paid / 100;
-              // let amount = Math.floor(parseFloat(initial))
-              // const { units } = Data[0];
-              const start = new Date(el.lines.data[0].period.start * 1000).toDateString();
-              const end = new Date(el.lines.data[0].period.end * 1001).toDateString();
-              const dt = {
-                invoiceId: el.id,
-                start,
-                end,
-                amount,
-                // units,
-                currency,
-                pdf: el.invoice_pdf,
-              };
-              invoicesList.push(dt);
-            }
+        const invoices = await stripe.invoices.list({ customer: customerId });
+        console.log('customer invoices', invoices);
+        console.log(Object.keys(invoices).length === 0 && invoices.constructor === Object);
+        if (Object.keys(invoices).length === 0 && invoices.constructor === Object) {
+          res.send({
+            code: 404,
+            msg: 'No invoices for this customer',
           });
-          res.send({ code: 200, invoicesList });
-        });
+        } else {
+          const { data } = invoices;
+          res.send({
+            code: 200,
+            data,
+          });
+        }
       } else {
         res.send({
           code: 200,
@@ -3839,7 +3906,7 @@ const usersRouter = () => {
       const { ...body } = req.body;
       const {
         subscriptionId,
-        amount,
+        // amount,
         interval,
         noOfUnits,
         // currency,
@@ -3855,29 +3922,46 @@ const usersRouter = () => {
           items: [
             {
               id: subscription.items.data[0].id,
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
         });
-      } else {
+      } else if (coupon) {
         // retrieving the coupon id from coupon code
         const couponCode = await stripe.coupons.retrieve(coupon);
-        // updating the subvscription
+        // updating the subscription
+        updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
+          cancel_at_period_end: false,
+          // pass always_invoice if oyu want to charge always
+          proration_behavior: 'always_invoice',
+          items: [
+            {
+              id: subscription.items.data[0].id,
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
+              quantity: noOfUnits,
+            },
+          ],
+          coupon: couponCode.id,
+        });
+      } else {
         updatedSubscription = await stripe.subscriptions.update(subscriptionId, {
           cancel_at_period_end: false,
           proration_behavior: 'create_prorations',
           items: [
             {
               id: subscription.items.data[0].id,
-              price: interval === 'month' ? 'price_1HJvhnC8qNJRcuf67GKu3n1B' : 'price_1HJvhnC8qNJRcuf6EDNQV7yN',
+              price: interval === 'month' ? config.get('payments.monthlyPlan') : config.get('payments.yearlyPlan'),
               quantity: noOfUnits,
             },
           ],
-          coupon: couponCode.id,
         });
       }
+
+      console.log(updatedSubscription);
       if (updatedSubscription.status === 'active') {
+        const invoice = await stripe.invoices.retrieve(updatedSubscription.latest_invoice);
+        console.log('latest invoice', invoice);
         const payload = {
           subscriptionId: updatedSubscription.id,
           planId: updatedSubscription.plan.id,
@@ -3885,7 +3969,7 @@ const usersRouter = () => {
           units: noOfUnits,
           interval,
           planType,
-          amount,
+          amount: invoice.amount_paid / 100,
         };
         await DB.update('subscription', payload, { userId: body.tokenData.userid });
         if (planType === 'basic') {
@@ -3965,27 +4049,35 @@ const usersRouter = () => {
       } else {
         id = req.body.tokenData.userid;
       }
-      console.log('user subscription', id);
       const userSubsDetails = await DB.selectCol(
-        ['isSubscribed', 'isOnTrial', 'issubscriptionEnded', 'created_at'],
+        ['isSubscribed', 'isOnTrial', 'trialEnded', 'issubscriptionEnded', 'created_at'],
         'users',
         { id },
       );
-      console.log('user subs details ====>>>>>>>', userSubsDetails);
-      const diff = Math.abs(new Date() - userSubsDetails[0].created_at);
-      let s = Math.floor(diff / 1000);
-      let m = Math.floor(s / 60);
-      s %= 60;
-      let h = Math.floor(m / 60);
-      m %= 60;
-      const totalDays = Math.floor(h / 24);
-      h %= 24;
-      const remainingDays = 7 - totalDays;
-      userSubsDetails[0].days = remainingDays;
-      res.send({
-        code: 200,
-        userSubsDetails,
-      });
+      // console.log('user subs details ====>>>>>>>', userSubsDetails);
+      if (userSubsDetails && userSubsDetails.length > 0) {
+        const [{ trialEnded, created_at: createdAt }] = userSubsDetails;
+        let diff;
+        if (trialEnded) {
+          diff = Math.abs(trialEnded - new Date());
+        } else {
+          diff = Math.abs(new Date() - createdAt);
+        }
+        // const diff = Math.abs(new Date() - createdAt);
+        let s = Math.floor(diff / 1000);
+        let m = Math.floor(s / 60);
+        s %= 60;
+        let h = Math.floor(m / 60);
+        m %= 60;
+        const totalDays = Math.floor(h / 24);
+        h %= 24;
+        const remainingDays = trialEnded ? totalDays : config.get('TRIAL_DAYS') - totalDays;
+        userSubsDetails[0].days = remainingDays;
+        res.send({
+          code: 200,
+          userSubsDetails,
+        });
+      }
     } catch (e) {
       sentryCapture(e);
       console.log(e);
@@ -4035,7 +4127,10 @@ const usersRouter = () => {
   router.post('/groupReservation', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
+      console.log(body);
       let id;
+      let guest;
+      let adult;
       const startDateTime = new Date(body.groupname[0]);
       const endDateTime = new Date(body.groupname[1]);
 
@@ -4045,47 +4140,58 @@ const usersRouter = () => {
         id = body.affiliateId;
       }
 
-      body.unitType.forEach((ele) => {
-        each(
-          ele.bookedUnits,
-          async (items, next) => {
-            const itemsCopy = items;
-            const reservationData = {
-              userId: id,
-              propertyId: body.propertyId,
-              unitId: items,
-              startDate: startDateTime,
-              endDate: endDateTime,
-              acknowledge: body.acknowledge,
-              channel: body.channel,
-              commission: body.commissionPercentage,
-              notes1: body.notes1,
-              perNight: ele.perNight,
-              night: body.night,
-              amt: ele.amt,
-              discount: body.discount,
-              totalAmount: body.totalAmount,
-            };
-            const saveData = await DB.insert('reservation', reservationData);
-            const Data = {
-              userId: id,
-              reservationId: saveData,
-              fullname: body.fullName,
-              country: body.country,
-              email: body.email,
-              phone: body.phone,
-            };
-            await DB.insert('guest', Data);
-            next();
-            return itemsCopy;
-          },
-          () => {},
-        );
-      });
-      res.send({
-        code: 200,
-        msg: 'Group Reservation save successfully!',
-      });
+      each(
+        body.unitType,
+        async (items, next) => {
+          const itemsCopy = items;
+          const unitData = await DB.selectCol(['unitName'], 'unitV2', { id: items });
+          if (body.fullName) {
+            guest = body.fullName;
+            adult = 1;
+          } else {
+            guest = 'No Guest';
+            adult = 0;
+          }
+          const reservationData = {
+            userId: id,
+            unitTypeId: body.propertyId,
+            propertyName: body.propertyName,
+            bookedUnit: items,
+            unitName: unitData[0].unitName,
+            startDate: startDateTime,
+            endDate: endDateTime,
+            acknowledge: body.acknowledge,
+            channel: body.channel,
+            commission: body.commissionPercentage,
+            adult,
+            guest,
+            notes1: body.notes1,
+            perNight: body.perNight,
+            night: body.night,
+            discount: body.discount,
+            accomodation: parseFloat(body.totalAmount / body.unitType.length).toFixed(2),
+            totalAmount: parseFloat(body.totalAmount / body.unitType.length).toFixed(2),
+          };
+          const saveData = await DB.insert('bookingV2', reservationData);
+          const Data = {
+            userId: id,
+            bookingId: saveData,
+            fullname: body.fullName,
+            country: body.country,
+            email: body.email,
+            phone: body.phone,
+          };
+          await DB.insert('guestV2', Data);
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            msg: 'Group Reservation save successfully!',
+          });
+        },
+      );
     } catch (e) {
       sentryCapture(e);
       console.log(e);
@@ -4368,10 +4474,33 @@ const usersRouter = () => {
     try {
       const { ...body } = req.body;
       const guestData = await DB.select('guestV2', { userId: body.tokenData.userid });
-      res.send({
-        code: 200,
+      each(
         guestData,
-      });
+        async (item, next) => {
+          const itemsCopy = item;
+          const bookingData = await DB.selectCol(['totalAmount', 'currency', 'night', 'noOfGuest'],
+            'bookingV2', { id: item.bookingId });
+          const [{
+            totalAmount, currency, night, noOfGuest,
+          }] = bookingData;
+          itemsCopy.spent = totalAmount;
+          itemsCopy.currency = currency;
+          itemsCopy.nights = night;
+          itemsCopy.guests = noOfGuest;
+          next();
+          return itemsCopy;
+        },
+        () => {
+          res.send({
+            code: 200,
+            guestData,
+          });
+        },
+      );
+      // res.send({
+      //   code: 200,
+      //   guestData,
+      // });
     } catch (e) {
       sentryCapture(e);
       console.log(e);
@@ -4544,6 +4673,66 @@ const usersRouter = () => {
       await DB.update('users', { image: null }, { id: body.tokenData.userid });
       res.send({
         code: 200,
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log(e);
+      res.send({
+        code: 444,
+        msg: 'some error occured',
+      });
+    }
+  });
+
+  // API for get channelManagement Report
+  router.post('/getChannelsReport', userAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      let unittypeData;
+      let revenueData;
+      if (body.propertyId !== null) {
+        unittypeData = await DB.select('unitTypeV2',
+          {
+            userId: body.tokenData.userid,
+            id: body.propertyId,
+            isChannelManagerActivated: 1,
+          });
+      } else {
+        unittypeData = await DB.select('unitTypeV2',
+          {
+            userId: body.tokenData.userid,
+            isChannelManagerActivated: 1,
+          });
+      }
+      if (body.propertyId !== null) {
+        revenueData = await DB.select('bookingV2',
+          {
+            userId: body.tokenData.userid,
+            unitTypeId: body.propertyId,
+          });
+      } else {
+        revenueData = await DB.select('bookingV2',
+          {
+            userId: body.tokenData.userid,
+          });
+      }
+      const airbnb = revenueData
+        .filter((el) => el.channel === 'airbnb');
+
+      const booking = revenueData
+        .filter((el) => el.channel === 'booking');
+
+      const expedia = revenueData
+        .filter((el) => el.channel === 'expedia');
+      const airbnbPer = (airbnb.length / revenueData.length) * 100;
+      const bookingPer = (booking.length / revenueData.length) * 100;
+      const expediaPer = (expedia.length / revenueData.length) * 100;
+      res.send({
+        code: 200,
+        airbnbPer,
+        bookingPer,
+        expediaPer,
+        unittypeData,
       });
     } catch (e) {
       sentryCapture(e);

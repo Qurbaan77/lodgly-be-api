@@ -12,18 +12,18 @@ const bookingRouter = () => {
   router.post('/addBooking', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('addBooking', body);
       let id;
       const startDateTime = new Date(body.groupname[0]);
       const endDateTime = new Date(body.groupname[1]);
 
       if (!body.affiliateId) {
-        console.log('no affiliaate id');
         id = body.tokenData.userid;
       } else {
-        console.log('affiliate id');
         id = body.affiliateId;
-        console.log(id);
+      }
+      let optionalDate = null;
+      if (body.optionalDate) {
+        optionalDate = body.optionalDate.split('T', 1);
       }
       const bookingData = {
         userId: id,
@@ -33,6 +33,7 @@ const bookingRouter = () => {
         unitName: body.unitName,
         startDate: startDateTime,
         endDate: endDateTime,
+        optionalDate,
         acknowledge: body.acknowledge,
         channel: body.channel,
         commission: body.commission,
@@ -42,7 +43,7 @@ const bookingRouter = () => {
         children2: body.children2,
         notes1: body.notes1,
         notes2: body.notes2,
-
+        noOfGuest: body.noOfGuest,
         perNight: body.perNight,
         night: body.night,
         amt: body.amt,
@@ -53,6 +54,7 @@ const bookingRouter = () => {
         noOfservices: body.noOfservices,
         totalAmount: body.totalAmount,
         deposit: body.deposit,
+        depositType: body.depositType,
         currency: body.currency,
       };
       const Id = await DB.insert('bookingV2', bookingData);
@@ -65,6 +67,7 @@ const bookingRouter = () => {
           const Data = {
             userId: id,
             bookingId: Id,
+            unitTypeId: body.property,
             fullname: el.fullName,
             country: el.country,
             email: el.email,
@@ -146,10 +149,16 @@ const bookingRouter = () => {
       const { ...body } = req.body;
       console.log('changeBooking', body);
       let id;
+      const startDateTime = new Date(body.groupname[0]);
+      const endDateTime = new Date(body.groupname[1]);
       if (body.affiliateId) {
         id = body.affiliateId;
       } else {
         id = body.tokenData.userid;
+      }
+      let optionalDate = null;
+      if (body.optionalDate) {
+        optionalDate = body.optionalDate.split('T', 1);
       }
       const bookingDetail = await DB.select('bookingV2', { id: body.id, userId: id });
       if (bookingDetail) {
@@ -157,10 +166,11 @@ const bookingRouter = () => {
           userId: id,
           propertyId: body.propertyId,
           propertyName: body.property,
-          unitId: body.unit,
+          bookedUnit: body.unit,
           unitName: body.unitName,
-          startDate: body.groupname[0].split('T', 1),
-          endDate: body.groupname[1].split('T', 1),
+          startDate: startDateTime,
+          endDate: endDateTime,
+          optionalDate,
           acknowledge: body.acknowledge,
           channel: body.channel,
           commission: body.commission,
@@ -297,15 +307,18 @@ const bookingRouter = () => {
         bookingData,
         async (items, next) => {
           const data = await DB.select('guestV2', { bookingId: items.id });
+          const itemsCopy = items;
+          itemsCopy.guestData = data;
           if (data.length !== 0) {
             guestData.push(data);
+            itemsCopy.guestData = data;
           }
-          console.log(items.id);
           const data1 = await DB.select('bookingServiceV2', { bookingId: items.id });
           if (data1.length !== 0) {
             serviceData.push(data1);
           }
           next();
+          return itemsCopy;
         },
         () => {
           res.send({
@@ -409,11 +422,43 @@ const bookingRouter = () => {
   router.post('/changeBookingTimeUnit', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log('body', body);
+      const data = await DB.selectCol([
+        'perNight',
+        'discountType',
+        'discount',
+        'deposit',
+        'depositType',
+        'currency',
+      ],
+      'bookingV2', { id: body.id });
+      const bookedServices = await DB.selectCol([
+        'serviceAmount',
+      ], 'bookingServiceV2', { bookingId: body.id });
+      let sum = 0;
+      let accomodation;
+      let totalAmount = 0;
+      const nightsAmount = body.night * data[0].perNight;
+      if (data[0].discountType === data[0].currency) {
+        accomodation = nightsAmount - data[0].discount;
+      } else {
+        accomodation = nightsAmount - ((nightsAmount * data[0].discount) / 100);
+      }
+      bookedServices.forEach((el) => {
+        sum += el.serviceAmount;
+      });
+      totalAmount = accomodation + sum;
+      // if (data[0].depositType === '%') {
+      //   totalAmount -= ((totalAmount * data[0].deposit) / 100);
+      // } else {
+      //   totalAmount -= data[0].deposit;
+      // }
       const bookingData = {
         startDate: new Date(body.time.start),
         endDate: new Date(body.time.end),
         bookedUnit: parseInt(body.bookedUnit, 10),
+        night: body.night,
+        accomodation,
+        totalAmount,
       };
       await DB.update('bookingV2', bookingData, { id: body.id });
       res.send({

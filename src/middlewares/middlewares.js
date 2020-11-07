@@ -7,7 +7,12 @@ const userAuthCheck = async (req, res, next) => {
     // const cookie = req.signedCookies;
     if (token) {
       const isCookieValid = await verifyJwt(token);
-      if (isCookieValid) {
+      if (isCookieValid === 'expired') {
+        res.send({
+          code: 402,
+          msg: 'Token expired',
+        });
+      } else if (isCookieValid) {
         req.body.tokenData = isCookieValid;
         next();
       } else {
@@ -48,9 +53,10 @@ const getAuthCheck = async (req, res, next) => {
 
 const ownerAuthCheck = async (req, res, next) => {
   try {
-    const cookie = req.signedCookies;
-    if (cookie) {
-      const isCookieValid = await verifyOwnerJwt(cookie.token);
+    // const cookie = req.signedCookies;
+    const token = req.headers['x-custom-header'];
+    if (token) {
+      const isCookieValid = await verifyOwnerJwt(token);
       if (isCookieValid) {
         req.body.tokenData = isCookieValid;
         next();
