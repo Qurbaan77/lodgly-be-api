@@ -285,6 +285,8 @@ const ownerRouter = () => {
       const { ...body } = req.body;
       console.log(body);
       const unitData = [];
+      const count = [];
+      const pricePerNights = [];
       const propertyData = await DB.select('unitTypeV2', { ownerId: body.tokenData.userid });
       each(
         propertyData,
@@ -292,6 +294,7 @@ const ownerRouter = () => {
           const itemsCopy = items;
           let avgCount = 0;
           let avgCountPer = 0;
+          let avgNightlyRate = 0;
           const bookingData = await DB.select('bookingV2', { unitTypeId: items.id });
           // const unitTypeData = await DB.selectCol('perNight', 'unitType', { unitTypeId: items.id });
           unitData.push(await DB.select('unitV2', { unitTypeId: items.id }));
@@ -299,15 +302,17 @@ const ownerRouter = () => {
           if (imageData && imageData.length > 0) {
             itemsCopy.image = imageData[0].url;
           }
-          const count = [];
+          // const count = [];
           bookingData.forEach((el) => {
             count.push((el.endDate - el.startDate) / (1000 * 3600 * 24));
+            pricePerNights.push(parseInt(el.perNight, 10));
           });
           avgCount = count.reduce((a, b) => a + (b || 0), 0) / count.length;
           avgCountPer = (count.reduce((a, b) => a + (b || 0), 0) / count.length / 30) * 100;
-
+          avgNightlyRate = pricePerNights.reduce((a, b) => a + (b || 0), 0) / pricePerNights.length;
           itemsCopy.noBookedNights = Math.ceil(avgCount);
           itemsCopy.occupancy = Math.ceil(avgCountPer);
+          itemsCopy.nightlyRate = Math.ceil(avgNightlyRate);
           // itemsCopy.perNight = unitTypeData[0].perNight;
           next();
           return itemsCopy;
@@ -472,7 +477,7 @@ const ownerRouter = () => {
       const arr3 = [];
       const yearArr = [];
       const reportData = [];
-      const unitTypeData = [];
+      // const unitTypeData = [];
       let avgBooked = 0;
       let occupancy = 0;
       let perNight = 0;
@@ -486,7 +491,7 @@ const ownerRouter = () => {
         },
         () => {
           reportData.map((el) => el.map((ele) => arr.push(ele)));
-          unitTypeData.map((el) => el.map((ele) => arr3.push(ele.perNight)));
+          reportData.map((el) => el.map((ele) => arr3.push(parseInt(ele.perNight, 10))));
           arr
             .filter((el) => el.startDate.getFullYear() === body.changeYear)
             .forEach((filter) => {
@@ -516,7 +521,9 @@ const ownerRouter = () => {
             }
           }
           avgBooked = Math.round(yearArr.reduce((a, b) => a + (b || 0), 0) / yearArr.length);
+          console.log(avgBooked);
           occupancy = Math.round(avgBooked / 30) * 100;
+          console.log('occupancy', occupancy);
           perNight = Math.round(arr3.reduce((a, b) => a + (b || 0), 0) / arr3.length);
           res.send({
             code: 200,
