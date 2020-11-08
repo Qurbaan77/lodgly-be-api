@@ -305,7 +305,7 @@ const reservationRouter = () => {
         unitType,
         async (items, next) => {
           const randomColor = ['#D5F8BA', '#B4FDC2', '#D2F2F3', '#BBF2E5', '#94EDD3'];
-          const random = Math.floor(Math.random() * randomColor.length);
+          // const random = Math.floor(Math.random() * randomColor.length);
           const units = [];
           const rates = [];
           const normalRates = [];
@@ -466,10 +466,12 @@ const reservationRouter = () => {
           const unit = await DB.select('unitV2', { unitTypeId: items.id });
           if (unit.length > 0) {
             unit.forEach((ele) => {
+              // color={colors[Math.floor(Math.random() * colors.length)]}
+              // const random = Math.floor(Math.random() * randomColor.length);
               const unitsData = {
                 id: ele.id,
                 name: ele.unitName,
-                color: randomColor[random],
+                color: randomColor[Math.floor(Math.random() * randomColor.length)],
               };
               const bookingData = [];
               reservation
