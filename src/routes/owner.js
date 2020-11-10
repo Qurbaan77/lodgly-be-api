@@ -554,7 +554,7 @@ const ownerRouter = () => {
       bookingData.forEach((el) => {
         arr.push({
           id: el.id,
-          title: `${el.totalAmount} ${el.guest}`,
+          title: `${el.unitName}-${el.guest}-${el.currency}${el.totalAmount}`,
           start: el.startDate,
           end: new Date(el.endDate.setDate(el.endDate.getDate() + 1)),
           // duration: '12:00',
@@ -597,6 +597,7 @@ const ownerRouter = () => {
           totalAmount: body.totalAmount,
           deposit: body.deposit,
           depositType: body.depositType,
+          currency: body.currency,
           startDate: new Date(body.startDate),
           endDate: new Date(body.endDate),
           notes1: body.notes,
