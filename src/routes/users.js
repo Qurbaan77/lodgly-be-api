@@ -95,15 +95,18 @@ const usersRouter = () => {
           }),
         });
 
+        const subject = `(${process.env.NODE_ENV}) New Lodgly Signup Request`;
+
         transporter.sendMail({
           from: 'no-reply@lodgly.com',
           to: 'mits87@gmail.com',
-          subject: `[${process.env.NODE_ENV}] New Lodgly Signup Request`,
+          subject,
           text: message.join('\n'),
           html: message.join('<br/>'),
         }, (err, { envelope, messageId }) => {
           console.log('SES: ', {
             environment: process.env.NODE_ENV,
+            subject,
             envelope,
             messageId,
             err,
