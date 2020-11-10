@@ -283,26 +283,26 @@ const ownerRouter = () => {
   router.post('/getProperty', ownerAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      console.log(body);
+      // console.log(body);
       const unitData = [];
-      const count = [];
-      const pricePerNights = [];
       const propertyData = await DB.select('unitTypeV2', { ownerId: body.tokenData.userid });
       each(
         propertyData,
         async (items, next) => {
+          const count = [];
+          const pricePerNights = [];
           const itemsCopy = items;
           let avgCount = 0;
           let avgCountPer = 0;
           let avgNightlyRate = 0;
           const bookingData = await DB.select('bookingV2', { unitTypeId: items.id });
-          // const unitTypeData = await DB.selectCol('perNight', 'unitType', { unitTypeId: items.id });
+
           unitData.push(await DB.select('unitV2', { unitTypeId: items.id }));
           const imageData = await DB.selectCol(['url'], 'images', { unitTypeId: items.id });
           if (imageData && imageData.length > 0) {
             itemsCopy.image = imageData[0].url;
           }
-          // const count = [];
+
           bookingData.forEach((el) => {
             count.push((el.endDate - el.startDate) / (1000 * 3600 * 24));
             pricePerNights.push(parseInt(el.perNight, 10));
@@ -313,7 +313,7 @@ const ownerRouter = () => {
           itemsCopy.noBookedNights = Math.ceil(avgCount);
           itemsCopy.occupancy = Math.ceil(avgCountPer);
           itemsCopy.nightlyRate = Math.ceil(avgNightlyRate);
-          // itemsCopy.perNight = unitTypeData[0].perNight;
+
           next();
           return itemsCopy;
         },
@@ -549,13 +549,15 @@ const ownerRouter = () => {
     try {
       const { ...body } = req.body;
       const arr = [];
-      const bookingData = await DB.select('bookingV2', { unitTypeId: body.propertyId, status: 'booked' });
+      // const bookingData = await DB.select('bookingV2', { unitTypeId: body.propertyId, status: 'booked' });
+      const bookingData = await DB.select('bookingV2', { unitTypeId: body.propertyId });
       bookingData.forEach((el) => {
         arr.push({
           id: el.id,
-          title: el.totalAmount,
-          start: new Date(el.startDate.setDate(el.startDate.getDate() + 1)),
-          end: el.endDate,
+          title: `${el.unitName}-${el.guest}-${el.currency}${el.totalAmount}`,
+          start: el.startDate,
+          end: new Date(el.endDate.setDate(el.endDate.getDate() + 1)),
+          // duration: '12:00',
           allDay: false,
         });
       });
@@ -582,6 +584,20 @@ const ownerRouter = () => {
       const ownerData = await DB.select('owner', { id: body.tokenData.userid });
       if (ownerData.length > 0) {
         const ownerBookingData = {
+          guest: body.guest,
+          adult: body.adult,
+          children1: body.children1,
+          children2: body.children2,
+          perNight: body.perNight,
+          night: body.night,
+          amt: body.amt,
+          discountType: body.discountType,
+          discount: body.discount,
+          accomodation: body.accomodation,
+          totalAmount: body.totalAmount,
+          deposit: body.deposit,
+          depositType: body.depositType,
+          currency: body.currency,
           startDate: new Date(body.startDate),
           endDate: new Date(body.endDate),
           notes1: body.notes,
@@ -590,9 +606,8 @@ const ownerRouter = () => {
           userId: ownerData[0].userId,
           unitTypeId: body.propertyId,
           propertyName: body.propertyName,
-          totalAmount: body.totalAmount,
         };
-        await DB.update('bookingV2', { status: 'decline', statusColour: 'grey' }, { id: body.bookingId });
+        // await DB.update('bookingV2', { status: 'decline', statusColour: 'grey' }, { id: body.bookingId });
         const Id = await DB.insert('bookingV2', ownerBookingData);
         console.log(Id);
         res.send({
@@ -658,6 +673,44 @@ const ownerRouter = () => {
           msg: 'comapny not found!',
         });
       }
+    } catch (e) {
+      sentryCapture(e);
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for get all bookings
+  router.post('/getAllBooking', ownerAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      const allBookingData = await DB.select('bookingV2', { bookedUnit: body.bookedUnit });
+      res.send({
+        code: 200,
+        allBookingData,
+      });
+    } catch (e) {
+      sentryCapture(e);
+      console.log('error', e);
+      res.send({
+        code: 444,
+        msg: 'Some error has occured!',
+      });
+    }
+  });
+
+  // API for delete booking
+  router.post('/deleteBooking', ownerAuthCheck, async (req, res) => {
+    try {
+      const { ...body } = req.body;
+      console.log(body);
+      await DB.remove('bookingV2', { id: body.id });
+      res.send({
+        code: 200,
+      });
     } catch (e) {
       sentryCapture(e);
       console.log('error', e);

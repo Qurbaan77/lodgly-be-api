@@ -4473,7 +4473,13 @@ const usersRouter = () => {
   router.post('/getGuest', userAuthCheck, async (req, res) => {
     try {
       const { ...body } = req.body;
-      const guestData = await DB.select('guestV2', { userId: body.tokenData.userid });
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const guestData = await DB.select('guestV2', { userId: id });
       each(
         guestData,
         async (item, next) => {
@@ -4597,9 +4603,15 @@ const usersRouter = () => {
   // api for adc companies of users
   router.post('/addCompany', userAuthCheck, async (req, res) => {
     try {
-      const { ...body } = req.body;
+      const { body } = req;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
       const companyData = {
-        userId: body.tokenData.userid,
+        userId: id,
         name: body.name,
         vatId: body.vat,
         email: body.email,
@@ -4631,8 +4643,14 @@ const usersRouter = () => {
   // api for getting company list
   router.post('/getCompanyList', userAuthCheck, async (req, res) => {
     try {
-      const { ...body } = req.body;
-      const companyData = await DB.select('company', { userId: body.tokenData.userid });
+      const { body } = req;
+      let id;
+      if (body.affiliateId) {
+        id = body.affiliateId;
+      } else {
+        id = body.tokenData.userid;
+      }
+      const companyData = await DB.select('company', { userId: id });
       res.send({
         code: 200,
         companyData,

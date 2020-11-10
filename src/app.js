@@ -52,6 +52,12 @@ app.use('/channel', channelRouter);
 
 app.use('/admin', adminRouter);
 
+app.get('/status', async (req, res) => {
+  res.json({
+    env: config.get('environment'),
+  });
+});
+
 app.get('/healthz', async (req, res) => {
   res.sendStatus(200);
 });
