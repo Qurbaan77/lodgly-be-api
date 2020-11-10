@@ -98,11 +98,16 @@ const usersRouter = () => {
         transporter.sendMail({
           from: 'no-reply@lodgly.com',
           to: 'mits87@gmail.com',
-          subject: `[${config.get('environment')}] New Lodgly Signup Request`,
+          subject: `[${process.env.NODE_ENV}] New Lodgly Signup Request`,
           text: message.join('\n'),
           html: message.join('<br/>'),
         }, (err, { envelope, messageId }) => {
-          console.log('SES: ', { envelope, messageId, err });
+          console.log('SES: ', {
+            environment: process.env.NODE_ENV,
+            envelope,
+            messageId,
+            err,
+          });
           res.send({
             code: 200,
             msg: 'Request sent succesfully! We will contant with you soon!',
